@@ -3,5 +3,15 @@
   <channel>
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
+    <item>
+      <title>Version 0.2.0</title>
+      <pubDate>Thu, 22 Oct 2026 22:39:23 +0000</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[First public release of FinanceTracker.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.2.0/FinanceTracker-0.2.0.zip"
+                 sparkle:edSignature="A8T6Bhxc1aFmF6/vmG4ocKEiDyRvxpcg8Luwv7dcgTX0A+d1521A8LP7XHMNYXwvbA+BEGxhUhk/hI2PlEvKBw==" length="14911542" type="application/octet-stream"/>
+    </item>
   </channel>
 </rss>
