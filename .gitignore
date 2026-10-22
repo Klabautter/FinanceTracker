@@ -1,0 +1,22 @@
+
+*.dSYM
+*.dSYM.zip
+*.ipa
+*.xcuserstate
+*.zip
+.DS_Store
+.build/
+Archiv.zip
+DerivedData/
+FinanceTracker.xcodeproj/
+build/
+xcuserdata/
+*.trace
+Config/Signing.local.xcconfig
+.claude/
+
+# Local working material, not part of the public repo
+Docs/
+Design/
+Tools/
+AGENTS.md

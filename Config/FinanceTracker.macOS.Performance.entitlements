@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- WP19 (§130-131): Performance-Config: Sandbox wie Release. Die
+	     Library-Validation ist bewusst deaktiviert: Der Performance-Scheme
+	     lädt das XCTest-Bundle in den App-Prozess (TEST_HOST); mit
+	     Hardened-Runtime-Library-Validation schlägt das Laden fehl
+	     ("different Team IDs"). Release bleibt über
+	     FinanceTracker.macOS.entitlements unverändert. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

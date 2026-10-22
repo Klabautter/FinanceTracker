@@ -1,0 +1,218 @@
+name: FinanceTracker
+options:
+  bundleIdPrefix: de.klabautter
+  # Quelltexte sind Deutsch (Localizable.xcstrings, sourceLanguage de), die
+  # Entwicklungsregion ist Englisch: Deutsch auf deutschen Macs, sonst Englisch.
+  developmentLanguage: en
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "18.0"
+    macOS: "15.0"
+
+# WP19 (§133-134): Vier getrennte Modi. Debug bleibt der Entwicklungs-Modus
+# (und trägt bewusst den UITesting-Workaround: unsandboxed, siehe
+# Config/FinanceTracker.macOS.Debug.entitlements); Performance ist
+# Release-like (-O, sandboxed, ohne SQLDebug) mit Testability für XCTest.
+configs:
+  Debug: debug
+  Performance: release
+  Release: release
+
+# Einzige Paket-Abhängigkeit: Sparkle (Updates der macOS-App über GitHub
+# Releases). Version fest, wie in PDFdownsize.
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.1"
+    CURRENT_PROJECT_VERSION: "2"
+    CODE_SIGN_STYLE: Automatic
+    # Der Compiler sammelt alle übersetzbaren Texte für Localizable.xcstrings.
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+
+_targets_common: &target_common
+  GENERATE_INFOPLIST_FILE: YES
+  INFOPLIST_FILE: Config/FinanceTracker.Info.plist
+  INFOPLIST_KEY_CFBundleDisplayName: FinanceTracker
+  ENABLE_PREVIEWS: YES
+
+_app_sources: &app_sources
+  - FinanceTracker
+
+_test_sources: &test_sources
+  - Tests
+
+targets:
+  FinanceTracker_macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: FinanceTracker
+        excludes:
+          - "App/iOS"
+    dependencies:
+      - package: Sparkle
+    # Debug: optionale lokale Signatur (Config/Signing.local.xcconfig).
+    configFiles:
+      Debug: Config/Debug.xcconfig
+    settings:
+      base:
+        <<: *target_common
+        # Eigene Info.plist: enthält zusätzlich die Sparkle-Schlüssel
+        # (Update-Feed, öffentlicher Signaturschlüssel).
+        INFOPLIST_FILE: Config/FinanceTracker.macOS.Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: de.klabautter.FinanceTracker
+        PRODUCT_NAME: FinanceTracker
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+        # Flache Debug-Binary: Mit debug.dylib erhält der Prozess bei direktem
+        # Binary-Launch (XCUITest) keine SwiftUI-Fenster-Präsentation.
+        ENABLE_DEBUG_DYLIB: NO
+        ENABLE_PREVIEWS: NO
+      configs:
+        # Debug läuft ohne App Sandbox: macOS 26 öffnet bei sandboxed Apps
+        # kein Fenster, wenn das Binary direkt gestartet wird (XCUITest).
+        # Release bleibt sandboxed (Config/FinanceTracker.macOS.entitlements).
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Config/FinanceTracker.macOS.Debug.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Config/FinanceTracker.macOS.entitlements
+        # WP19 (§130-131): Performance ist release-like: Sandbox wie
+        # Release, -O, SQLDebug/MigrationDebug aus, aber Testability für
+        # XCTest-Metriken. Eigene Entitlements: Sandbox wie Release plus
+        # deaktivierter Library-Validation (TEST_HOST lädt das XCTest-
+        # Bundle; Release selbst bleibt unverändert).
+        Performance:
+          CODE_SIGN_ENTITLEMENTS: Config/FinanceTracker.macOS.Performance.entitlements
+          SWIFT_OPTIMIZATION_LEVEL: -O
+          ENABLE_TESTABILITY: YES
+
+  FinanceTracker_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: FinanceTracker
+        excludes:
+          - "App/macOS"
+    settings:
+      base:
+        <<: *target_common
+        PRODUCT_BUNDLE_IDENTIFIER: de.klabautter.FinanceTracker
+        PRODUCT_NAME: FinanceTracker
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+
+  FinanceTrackerTests_macOS:
+    type: bundle.unit-test
+    platform: macOS
+    sources: *test_sources
+    dependencies:
+      - target: FinanceTracker_macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.klabautter.FinanceTrackerTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/FinanceTracker.app/Contents/MacOS/FinanceTracker"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+  FinanceTrackerTests_iOS:
+    type: bundle.unit-test
+    platform: iOS
+    sources: *test_sources
+    dependencies:
+      - target: FinanceTracker_iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.klabautter.FinanceTrackerTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/FinanceTracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)FinanceTracker"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+  FinanceTrackerUITests_macOS:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: TestsUITests
+    dependencies:
+      - target: FinanceTracker_macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.klabautter.FinanceTrackerUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: FinanceTracker_macOS
+
+schemes:
+  FinanceTracker:
+    build:
+      targets:
+        FinanceTracker_macOS: all
+        FinanceTrackerTests_macOS: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      # Tests prüfen deutsche Texte, unabhängig von der Systemsprache.
+      language: de
+      region: DE
+      targets:
+        - FinanceTrackerTests_macOS
+      arguments:
+        args:
+          - "-com.apple.CoreData.MigrationDebug"
+          - "1"
+          - "-com.apple.CoreData.SQLDebug"
+          - "3" 
+
+  # WP32 (§224–229): Performance-Scheme, release-like Performance-Config
+  # (WP19, §130-131), OHNE CoreData-SQLDebug-Argumente (Messungen dürfen
+  # nicht durch Logging-Overhead verfälscht werden).
+  FinanceTracker-Performance:
+    build:
+      targets:
+        FinanceTracker_macOS: all
+        FinanceTrackerTests_macOS: [test]
+    run:
+      config: Performance
+    test:
+      config: Performance
+      targets:
+        - FinanceTrackerTests_macOS
+      environmentVariables:
+        - variable: PERF_50K
+          value: "1"
+          isEnabled: true
+
+  # WP19 (§187): UI-Test-Scheme getrennt, der unsandboxed XCUITest-
+  # Workaround bleibt isoliert auf Debug und vermischt sich nicht mit
+  # Development/Performance/Release.
+  FinanceTracker-UITests:
+    build:
+      targets:
+        FinanceTracker_macOS: all
+        FinanceTrackerUITests_macOS: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - FinanceTrackerUITests_macOS
+
+  FinanceTracker-iOS:
+    build:
+      targets:
+        FinanceTracker_iOS: all
+        FinanceTrackerTests_iOS: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - FinanceTrackerTests_iOS

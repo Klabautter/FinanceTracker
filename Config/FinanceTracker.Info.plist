@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- App-Sprachen: Deutsch und Englisch (Rückfall Englisch, siehe
+         developmentLanguage in project.yml). -->
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>de</string>
+        <string>en</string>
+    </array>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>de.klabautter.ftbackup</string>
+            <key>UTTypeDescription</key>
+            <string>FinanceTracker-Backup</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.zip-archive</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>ftbackup</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>

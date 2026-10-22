@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  XCODEGEN_VERSION: 2.46.0
+  PROJECT: FinanceTracker.xcodeproj
+
+jobs:
+  macos:
+    name: macOS build
+    # The app uses macOS 26 APIs (Liquid Glass, .icon) and needs a current Xcode.
+    # Unit tests run locally with Xcode 27; the hosted runners' Xcode 26 cannot
+    # build the test bundle yet, so CI only builds the app for now.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen (pinned)
+        run: |
+          curl -sL "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip" -o xcodegen.zip
+          unzip -q xcodegen.zip
+          sudo mv xcodegen/bin/xcodegen /usr/local/bin/xcodegen
+          xcodegen version
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build (macOS)
+        run: |
+          set -o pipefail
+          xcodebuild -project "$PROJECT" -scheme FinanceTracker -destination 'platform=macOS,arch=arm64' build | xcbeautify || exit 1

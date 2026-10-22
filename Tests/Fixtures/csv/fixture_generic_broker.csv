@@ -1,0 +1,7 @@
+date,time,status,reference,description,type,amount,currency
+2026-09-01,09:15:00,Executed,REF-1001,Core World ETF,Savings plan,-100.00,EUR
+2026-09-05,14:02:11,Executed,REF-1002,Example Corp,Buy,-250.50,EUR
+2026-09-12,10:00:00,Executed,REF-1003,Interest September,Interest,3.21,EUR
+2026-09-15,11:30:00,Cancelled,REF-1004,Example Corp,Sell,300.00,EUR
+2026-09-20,08:45:00,Executed,REF-1005,Card payment Supermarket,Card transaction,-23.90,EUR
+2026-09-21,08:45:00,Mystery,REF-1006,Unknown state,Card transaction,-1.00,EUR

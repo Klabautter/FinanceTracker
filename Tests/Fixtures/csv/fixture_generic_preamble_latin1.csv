@@ -1,0 +1,9 @@
+Umsatzanzeige;Girokonto
+Kontoinhaber;Erika Musterfrau
+Zeitraum;01.09.2026 - 30.09.2026
+
+Buchungstag;Wertstellung;Empfänger;Verwendungszweck;Soll;Haben;Währung
+01.09.2026;01.09.2026;Vermieter Müller;Miete September;985,00;;EUR
+03.09.2026;03.09.2026;Bäckerei Schön;Frühstück;4,80;;EUR
+28.09.2026;28.09.2026;Arbeitgeber GmbH;Gehalt;;2.850,00;EUR
+29.09.2026;29.09.2026;Unklar;Beides gefüllt;5,00;5,00;EUR

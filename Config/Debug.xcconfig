@@ -1,0 +1,8 @@
+// Lokale Debug-Signatur (optional, nicht im Repo): Config/Signing.local.xcconfig
+// Beispiel:
+//   CODE_SIGN_STYLE = Manual
+//   CODE_SIGN_IDENTITY = FinanceTracker Release
+//   DEVELOPMENT_TEAM =
+// Mit einer festen Signatur bleibt „Immer erlauben“ für den Schlüsselbund
+// über Rebuilds hinweg gültig. Ohne die Datei signiert Xcode ad hoc.
+#include? "Signing.local.xcconfig"

@@ -1,0 +1,5 @@
+Date,Memo,Amount,Currency
+2026-08-05,"Line one
+Line two ""quoted""; still same field",-12.00,EUR
+2026-08-06,SIMPLE ROW,-1.50,EUR
+

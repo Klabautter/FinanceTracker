@@ -1,0 +1,7 @@
+timestamp,type,description,status,amount,currency,card,card holder name,original amount,original currency,cashback earned,cashback currency,category,spending mode
+2026-08-23 09:10:38 UTC,card_spend,MCDONALDS 155            ,PENDING,18.3,EUR,0000,TEST USER,18.3,EUR,0.55,EUR,5814 - Quick Payment Service-Fast Food Restaurants,Direct Pay
+2026-07-31 06:46:57 UTC,card_spend,SP OPTIMIZE.BIKE         ,CLEARED,16.49,EUR,0000,TEST USER,16.49,EUR,0.49,EUR,Bicycle Shop-Sales and Services,Direct Pay
+2026-05-25 22:04:17 UTC,card_spend,HP*INSTANT GAMING        ,CANCELLED,13.19,EUR,0000,TEST USER,13.19,EUR,0.4,EUR,Digital Goods: Games,Direct Pay
+2026-05-18 14:45:10 UTC,card_spend,SPAR DANKT 4161          ,CLEARED,7.44,USD,0000,TEST USER,7.44,USD,0.22,USD,Grocery Stores and Supermarkets,Direct Pay
+2026-06-20 19:47:32 UTC,card_spend,Shop Apotheke            ,CLEARED,65.64,EUR,0000,TEST USER,65.64,EUR,1.97,EUR,Drug Stores and Pharmacies,Direct Pay
+2026-06-28 11:02:11 UTC,refund,REFUND BIKE SHOP         ,CLEARED,16.49,EUR,0000,TEST USER,16.49,EUR,0,EUR,Bicycle Shop-Sales and Services,Direct Pay

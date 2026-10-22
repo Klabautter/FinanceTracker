@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Debug ohne App Sandbox: Auf macOS 26 öffnet eine sandboxed App bei
+	     direktem Binary-Launch (XCUITest) kein Fenster, was alle UI-Tests
+	     lahmlegt. Release bleibt über FinanceTracker.macOS.entitlements
+	     voll sandboxed. -->
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+	<!-- Lokale Builds mit dem selbst signierten Zertifikat (siehe
+	     Config/Debug.xcconfig) haben keine Team-ID: ohne diese Ausnahme
+	     lädt der Hardened Runtime weder Sparkle noch das Test-Bundle. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

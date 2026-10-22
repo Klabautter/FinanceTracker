@@ -1,0 +1,7 @@
+Umsatzanzeige;Datei erstellt am: 20.10.2026 12:00
+IBAN;DE00 0000 0000 0000 0000 00
+Kontoname;Girokonto
+
+Buchung;Valuta;Auftraggeber/Empfänger;Buchungstext;Verwendungszweck;Saldo;Währung;Betrag;Währung
+15.10.2026;15.10.2026;REWE;Lastschrift;Einkauf;1.234,56;EUR;-23,45;EUR
+14.10.2026;14.10.2026;Arbeitgeber;Gutschrift;Lohn;1.258,01;EUR;2.000,00;EUR
