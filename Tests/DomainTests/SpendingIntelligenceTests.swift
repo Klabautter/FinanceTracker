@@ -82,6 +82,42 @@ struct SpendingIntelligenceTests {
         #expect(series.first?.cadence == .quarterly)
     }
 
+    @Test("Sparplan wird erkannt, auch wenn unter demselben Namen kleine Zusatzausführungen laufen")
+    func detectsSavingsPlanInMixedGroup() {
+        let name = "Savings plan execution Amundi"
+        let plan = (5...10).map { month in
+            expense(merchant: name, displayName: name, amount: 50, date: date(2026, month, 16))
+        }
+        let saveback: [Decimal] = [6.88, 0.89, 2.98, 4.10, 2.64, 8.71]
+        let extras = saveback.enumerated().map { index, amount in
+            expense(merchant: name, displayName: name, amount: amount, date: date(2026, index + 5, 2))
+        }
+
+        let series = RecurringPaymentsDetector().detect(
+            transactions: plan + extras, calendar: calendar, now: date(2026, 10, 20)
+        )
+
+        #expect(series.count == 1)
+        #expect(series.first?.cadence == .monthly)
+        #expect(series.first?.medianAmount == 50)
+        #expect(series.first?.occurrences.count == 6)
+    }
+
+    @Test("Gleiche Einkaufsbeträge ohne Rhythmus ergeben keine Serie")
+    func ignoresRepeatedAmountsWithoutRhythm() {
+        let days = [(5, 3), (5, 9), (6, 21), (6, 24), (8, 2), (9, 28), (10, 1)]
+        let purchases = days.map { month, day in
+            expense(merchant: "BAECKEREI", displayName: "Bäckerei", amount: 3.20, date: date(2026, month, day))
+        }
+        let other = [12.80, 7.45, 19.90].enumerated().map { index, amount in
+            expense(merchant: "BAECKEREI", displayName: "Bäckerei", amount: Decimal(amount), date: date(2026, 7, index + 10))
+        }
+
+        #expect(RecurringPaymentsDetector().detect(
+            transactions: purchases + other, calendar: calendar, now: date(2026, 10, 5)
+        ).isEmpty)
+    }
+
     @Test("Serien trennen Konten und Währungen und bewahren die Händleridentität")
     func recurringSeriesIdentity() {
         let otherAccount = UUID()

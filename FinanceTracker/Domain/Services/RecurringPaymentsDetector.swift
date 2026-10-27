@@ -79,63 +79,26 @@ struct RecurringPaymentsDetector: Sendable {
         var series: [RecurringSeries] = []
 
         for (key, txns) in groups where txns.count >= tolerance.minimumOccurrences {
-            let sorted = txns.sorted {
-                ($0.bookedAt ?? $0.authorizedAt ?? $0.createdAt) < ($1.bookedAt ?? $1.authorizedAt ?? $1.createdAt)
+            if let whole = makeSeries(id: key, transactions: txns, calendar: calendar, now: now) {
+                series.append(whole)
+                continue
             }
-
-            let dates = sorted.map { $0.bookedAt ?? $0.authorizedAt ?? $0.createdAt }
-            let amounts = sorted.map { abs($0.amount.amount) }
-            let currency = sorted[0].amount.currency
-
-            guard dates.count >= 2 else { continue }
-
-            var gaps: [Int] = []
-            for index in 1..<dates.count {
-                gaps.append(calendar.dateComponents([.day], from: dates[index - 1], to: dates[index]).day ?? 0)
+            // Gemischte Gruppen: Unter einem Namen laufen oft mehrere Serien,
+            // z. B. ein Sparplan über 50 € am 16. und kleine Saveback-
+            // Ausführungen am 2. Zusammen ergeben sie weder einen Rhythmus
+            // noch einen festen Betrag; je Betragsstufe geprüft wird der
+            // Sparplan sichtbar. Strengere Schwelle, damit zufällig gleiche
+            // Einkaufsbeträge keine Serie ergeben.
+            for cluster in amountClusters(txns) where cluster.count >= tolerance.minimumOccurrences + 1 {
+                let clusterAmount = medianDecimal(cluster.map { abs($0.amount.amount) }) ?? 0
+                guard let part = makeSeries(
+                    id: key + "|" + NSDecimalNumber(decimal: clusterAmount).stringValue,
+                    transactions: cluster,
+                    calendar: calendar,
+                    now: now
+                ), part.confidence >= 0.75 else { continue }
+                series.append(part)
             }
-
-            guard let interval = median(gaps), interval > 0,
-                  let cadence = Self.cadence(forDays: interval) else { continue }
-
-            let allowedDeviation = max(tolerance.intervalDays, Int((Double(interval) * 0.25).rounded()))
-            let matchingGaps = gaps.filter { abs($0 - interval) <= allowedDeviation }.count
-            let confidence = Double(matchingGaps) / Double(max(1, gaps.count))
-
-            guard confidence >= 0.6 else { continue }
-
-            let medianAmountValue = medianDecimal(amounts) ?? 0
-
-            let amountTolerance = max(Decimal(string: "0.50")!, medianAmountValue * tolerance.amountFraction)
-            let consistentAmounts = amounts.filter { abs($0 - medianAmountValue) <= amountTolerance }.count
-            let amountConfidence = Double(consistentAmounts) / Double(amounts.count)
-
-            let combinedConfidence = (confidence + amountConfidence) / 2
-            guard combinedConfidence >= 0.6 else { continue }
-
-            guard let lastDate = dates.last,
-                  let nextExpected = calendar.date(byAdding: .day, value: interval, to: lastDate) else { continue }
-            guard nextExpected > now.addingTimeInterval(-90 * 24 * 3600) else { continue }
-
-            let displayName = sorted.compactMap(\.merchantDisplayName).first
-                ?? sorted.compactMap(\.rawMerchantName).first
-                ?? key
-
-            series.append(
-                RecurringSeries(
-                    id: key,
-                    merchantKey: sorted[0].merchantID?.uuidString
-                        ?? CategoryRuleEngine.normalizedKey(normalizer.canonicalDisplayName(from: sorted[0].effectiveMerchantName) ?? sorted[0].effectiveMerchantName),
-                    accountID: sorted[0].accountID,
-                    displayName: displayName,
-                    cadence: cadence,
-                    medianIntervalDays: interval,
-                    medianAmount: medianAmountValue,
-                    currency: currency,
-                    occurrences: dates,
-                    confidence: combinedConfidence,
-                    nextExpectedDate: nextExpected
-                )
-            )
         }
 
         return series.sorted {
@@ -145,6 +108,89 @@ struct RecurringPaymentsDetector: Sendable {
             if $0.medianAmount != $1.medianAmount { return $0.medianAmount > $1.medianAmount }
             return $0.displayName < $1.displayName
         }
+    }
+
+    private func makeSeries(
+        id: String,
+        transactions txns: [Transaction],
+        calendar: Calendar,
+        now: Date
+    ) -> RecurringSeries? {
+        let sorted = txns.sorted {
+            ($0.bookedAt ?? $0.authorizedAt ?? $0.createdAt) < ($1.bookedAt ?? $1.authorizedAt ?? $1.createdAt)
+        }
+
+        let dates = sorted.map { $0.bookedAt ?? $0.authorizedAt ?? $0.createdAt }
+        let amounts = sorted.map { abs($0.amount.amount) }
+        let currency = sorted[0].amount.currency
+
+        guard dates.count >= 2 else { return nil }
+
+        var gaps: [Int] = []
+        for index in 1..<dates.count {
+            gaps.append(calendar.dateComponents([.day], from: dates[index - 1], to: dates[index]).day ?? 0)
+        }
+
+        guard let interval = median(gaps), interval > 0,
+              let cadence = Self.cadence(forDays: interval) else { return nil }
+
+        let allowedDeviation = max(tolerance.intervalDays, Int((Double(interval) * 0.25).rounded()))
+        let matchingGaps = gaps.filter { abs($0 - interval) <= allowedDeviation }.count
+        let confidence = Double(matchingGaps) / Double(max(1, gaps.count))
+
+        guard confidence >= 0.6 else { return nil }
+
+        let medianAmountValue = medianDecimal(amounts) ?? 0
+
+        let amountTolerance = max(Decimal(string: "0.50")!, medianAmountValue * tolerance.amountFraction)
+        let consistentAmounts = amounts.filter { abs($0 - medianAmountValue) <= amountTolerance }.count
+        let amountConfidence = Double(consistentAmounts) / Double(amounts.count)
+
+        let combinedConfidence = (confidence + amountConfidence) / 2
+        guard combinedConfidence >= 0.6 else { return nil }
+
+        guard let lastDate = dates.last,
+              let nextExpected = calendar.date(byAdding: .day, value: interval, to: lastDate) else { return nil }
+        guard nextExpected > now.addingTimeInterval(-90 * 24 * 3600) else { return nil }
+
+        let displayName = sorted.compactMap(\.merchantDisplayName).first
+            ?? sorted.compactMap(\.rawMerchantName).first
+            ?? id
+
+        return RecurringSeries(
+            id: id,
+            merchantKey: sorted[0].merchantID?.uuidString
+                ?? CategoryRuleEngine.normalizedKey(normalizer.canonicalDisplayName(from: sorted[0].effectiveMerchantName) ?? sorted[0].effectiveMerchantName),
+            accountID: sorted[0].accountID,
+            displayName: displayName,
+            cadence: cadence,
+            medianIntervalDays: interval,
+            medianAmount: medianAmountValue,
+            currency: currency,
+            occurrences: dates,
+            confidence: combinedConfidence,
+            nextExpectedDate: nextExpected
+        )
+    }
+
+    /// Teilt Buchungen in Betragsstufen: Eine Stufe nimmt Beträge auf,
+    /// solange sie innerhalb der Betragstoleranz ihres kleinsten Betrags
+    /// liegen.
+    private func amountClusters(_ txns: [Transaction]) -> [[Transaction]] {
+        let sorted = txns.sorted { abs($0.amount.amount) < abs($1.amount.amount) }
+        var clusters: [[Transaction]] = []
+        var anchor: Decimal?
+        for txn in sorted {
+            let amount = abs(txn.amount.amount)
+            if let base = anchor,
+               amount - base <= max(Decimal(string: "0.50")!, base * tolerance.amountFraction) {
+                clusters[clusters.count - 1].append(txn)
+            } else {
+                clusters.append([txn])
+                anchor = amount
+            }
+        }
+        return clusters
     }
 
     static func cadence(forDays days: Int) -> RecurringSeries.Cadence? {
