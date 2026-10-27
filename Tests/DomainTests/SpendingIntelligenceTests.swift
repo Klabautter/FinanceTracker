@@ -103,6 +103,20 @@ struct SpendingIntelligenceTests {
         #expect(series.first?.occurrences.count == 6)
     }
 
+    @Test("Erkannte Serie übernimmt die Kategorie ihrer Buchungen")
+    func seriesCarriesCategory() {
+        let transactions = (5...8).map { month in
+            var transaction = expense(merchant: "Savings plan execution Amundi", displayName: "Savings plan execution Amundi",
+                                      amount: 50, date: date(2026, month, 16))
+            transaction.categoryID = Category.investments.id
+            return transaction
+        }
+
+        let series = RecurringPaymentsDetector().detect(transactions: transactions, calendar: calendar, now: date(2026, 8, 20))
+
+        #expect(series.first?.categoryID == Category.investments.id)
+    }
+
     @Test("Gleiche Einkaufsbeträge ohne Rhythmus ergeben keine Serie")
     func ignoresRepeatedAmountsWithoutRhythm() {
         let days = [(5, 3), (5, 9), (6, 21), (6, 24), (8, 2), (9, 28), (10, 1)]

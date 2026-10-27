@@ -28,6 +28,9 @@ struct RecurringSeries: Identifiable, Hashable, Sendable {
     let occurrences: [Date]
     let confidence: Double
     let nextExpectedDate: Date
+    /// Häufigste Kategorie der erkannten Buchungen; Vorbelegung beim
+    /// Bestätigen (ein Sparplan übernimmt so „Geldanlage“).
+    var categoryID: UUID? = nil
 
     var isFixedCost: Bool { true }
 }
@@ -169,8 +172,23 @@ struct RecurringPaymentsDetector: Sendable {
             currency: currency,
             occurrences: dates,
             confidence: combinedConfidence,
-            nextExpectedDate: nextExpected
+            nextExpectedDate: nextExpected,
+            categoryID: Self.mostCommonCategory(in: sorted)
         )
+    }
+
+    /// Bei Gleichstand gewinnt die zuletzt verwendete Kategorie.
+    private static func mostCommonCategory(in sorted: [Transaction]) -> UUID? {
+        var counts: [UUID: Int] = [:]
+        var lastIndex: [UUID: Int] = [:]
+        for (index, txn) in sorted.enumerated() {
+            guard let id = txn.categoryID else { continue }
+            counts[id, default: 0] += 1
+            lastIndex[id] = index
+        }
+        return counts.max {
+            ($0.value, lastIndex[$0.key] ?? 0) < ($1.value, lastIndex[$1.key] ?? 0)
+        }?.key
     }
 
     /// Teilt Buchungen in Betragsstufen: Eine Stufe nimmt Beträge auf,

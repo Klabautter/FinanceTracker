@@ -644,7 +644,7 @@ struct FixkostenView: View {
                 Spacer()
                 MoneyText(money: Money(amount: series.medianAmount, currency: series.currency))
                 Button("Bestätigen") {
-                    Task { await model.confirmSuggestion(series, categoryID: nil) }
+                    Task { await model.confirmSuggestion(series, categoryID: series.categoryID) }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
