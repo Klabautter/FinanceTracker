@@ -1,7 +1,4 @@
-First public release of FinanceTracker.
+Better detection of recurring payments such as savings plans.
 
-- Read-only bank sync via Enable Banking (PSD2) and CSV/Excel import.
-- Automatic categories, budgets, recurring payments and collections.
-- Monthly overview, cashflow and spending analysis.
-- Backups and CSV export.
-- Automatic updates via Sparkle.
+- Savings plans are now detected as recurring even when smaller extra executions run under the same name, for example saveback or round-ups.
+- Confirming a suggested recurring payment keeps the category of its transactions, so a savings plan stays under Investments.
