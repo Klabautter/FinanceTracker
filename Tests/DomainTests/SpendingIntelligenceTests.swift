@@ -44,7 +44,7 @@ struct SpendingIntelligenceTests {
             expense(merchant: "SPOTIFY AB", displayName: "Spotify", amount: 10.99, date: date(2026, 8, 3))
         ]
 
-        let series = detector.detect(transactions: transactions)
+        let series = detector.detect(transactions: transactions, calendar: calendar, now: date(2026, 8, 4))
 
         #expect(series.count == 1)
         #expect(series.first?.cadence == .monthly)
@@ -76,7 +76,7 @@ struct SpendingIntelligenceTests {
             expense(merchant: "Versicherung AG", displayName: "Versicherung AG", amount: 240, date: date(2026, 6, 1))
         ]
 
-        let series = detector.detect(transactions: transactions)
+        let series = detector.detect(transactions: transactions, calendar: calendar, now: date(2026, 6, 2))
 
         #expect(series.count == 1)
         #expect(series.first?.cadence == .quarterly)
@@ -497,7 +497,7 @@ struct RecurringMultiCurrencyTests {
             expense(merchant: "FIXKOSTEN X", displayName: "Fixkosten X", amount: Decimal(string: "19.990")!, date: date(2026, 7, 1))
         ]
 
-        let series = detector.detect(transactions: transactions)
+        let series = detector.detect(transactions: transactions, calendar: calendar, now: date(2026, 7, 2))
         #expect(series.count == 1)
         #expect(series[0].medianAmount == Decimal(string: "19.990")!)
     }

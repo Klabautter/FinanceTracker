@@ -4317,6 +4317,22 @@
         }
       }
     },
+    "Ausgeblendete Vorschläge (%lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausgeblendete Vorschläge (%lld)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden Suggestions (%lld)"
+          }
+        }
+      }
+    },
     "Ausgeklappt" : {
       "localizations" : {
         "de" : {
@@ -22826,6 +22842,22 @@
         }
       }
     },
+    "Vorschlag ausblenden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschlag ausblenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Suggestion"
+          }
+        }
+      }
+    },
     "Vorschlag für %@" : {
       "localizations" : {
         "de" : {
@@ -22838,6 +22870,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Suggestion for %@"
+          }
+        }
+      }
+    },
+    "Vorschlag für %@ wieder anzeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschlag für %@ wieder anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show suggestion for %@ again"
           }
         }
       }
@@ -23319,6 +23367,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter a value to see matches."
+          }
+        }
+      }
+    },
+    "Wieder anzeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wieder anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Again"
           }
         }
       }

@@ -9,6 +9,11 @@ final class FixkostenModel {
 
     private(set) var commitments: [RecurringCommitment] = []
     private(set) var suggestions: [RecurringSeries] = []
+    /// Mit „Nicht anzeigen“ ausgeblendete Vorschläge, die weiterhin erkannt
+    /// werden: Ein Verklicken lässt sich so jederzeit zurücknehmen.
+    private(set) var hiddenSuggestions: [RecurringSeries] = []
+    /// Zuletzt ausgeblendeter Vorschlag, für Bearbeiten → Widerrufen.
+    private(set) var lastDismissedSuggestion: RecurringSeries?
     private var accountsByID: [UUID: Account] = [:]
     private var categoriesByID: [UUID: Category] = [:]
     /// WP7: Anzahl bezahlter Occurrences im aktuellen Zeitraum.
@@ -141,10 +146,11 @@ final class FixkostenModel {
             let confirmedKeys = Set(commitments.compactMap { commitment in
                 commitment.merchantKey.map { $0 + "|" + commitment.currency.rawValue }
             })
-            suggestions = detected.filter { series in
-                !dismissedKeys.contains(dismissKey(for: series))
-                    && !confirmedKeys.contains(RecurringMerchantIdentity(accountID: series.accountID, merchantKey: series.merchantKey).persistedKey + "|" + series.currency.rawValue)
+            let open = detected.filter { series in
+                !confirmedKeys.contains(RecurringMerchantIdentity(accountID: series.accountID, merchantKey: series.merchantKey).persistedKey + "|" + series.currency.rawValue)
             }
+            suggestions = open.filter { !dismissedKeys.contains(dismissKey(for: $0)) }
+            hiddenSuggestions = open.filter { dismissedKeys.contains(dismissKey(for: $0)) }
         } catch {
             errorMessage = String(localized: "Fixkosten konnten nicht geladen werden.")
         }
@@ -188,7 +194,23 @@ final class FixkostenModel {
 
     func dismissSuggestion(_ series: RecurringSeries) async {
         markDismissed(dismissKey(for: series))
+        lastDismissedSuggestion = series
         await load()
+    }
+
+    /// Holt einen ausgeblendeten Vorschlag zurück in die Vorschläge.
+    func restoreSuggestion(_ series: RecurringSeries) async {
+        dismissedKeys.remove(dismissKey(for: series))
+        UserDefaults.standard.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
+        if lastDismissedSuggestion?.id == series.id {
+            lastDismissedSuggestion = nil
+        }
+        await load()
+    }
+
+    func undoLastDismiss() async {
+        guard let series = lastDismissedSuggestion else { return }
+        await restoreSuggestion(series)
     }
 
     func createManualCommitment(

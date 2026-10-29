@@ -44,7 +44,7 @@ struct FixkostenView: View {
         Group {
             if model.isLoading, model.commitments.isEmpty, model.suggestions.isEmpty {
                 LoadingStateView()
-            } else if model.commitments.isEmpty, model.suggestions.isEmpty {
+            } else if model.commitments.isEmpty, model.suggestions.isEmpty, model.hiddenSuggestions.isEmpty {
                 emptyList
             } else {
                 #if os(macOS)
@@ -76,6 +76,9 @@ struct FixkostenView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task(id: model.dataRevision) { await model.load() }
+        #if os(macOS)
+        .modifier(SuggestionUndoFocusedAction(model: model))
+        #endif
         .workspaceToolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -241,8 +244,9 @@ struct FixkostenView: View {
                         }
                         .financeCard(padding: AppSpacing.s)
                         .padding(.horizontal, AppLayout.pageHorizontalPadding)
-                        .padding(.bottom, AppSpacing.xl)
+                        .padding(.bottom, AppSpacing.l)
                     }
+                    hiddenSuggestionsSection
                 }
             }
 
@@ -627,6 +631,46 @@ struct FixkostenView: View {
     @ViewBuilder
     private var suggestionBanner: some View {
         if let series = model.suggestions.first { suggestionRow(series) }
+    }
+
+    /// Ausgeblendete Vorschläge bleiben erreichbar: Wer „Nicht anzeigen“
+    /// versehentlich geklickt hat, holt sie hier zurück.
+    @ViewBuilder
+    private var hiddenSuggestionsSection: some View {
+        if !model.hiddenSuggestions.isEmpty {
+            DisclosureGroup("Ausgeblendete Vorschläge (\(model.hiddenSuggestions.count))") {
+                VStack(spacing: 0) {
+                    ForEach(Array(model.hiddenSuggestions.enumerated()), id: \.element.id) { index, series in
+                        if index > 0 { Divider() }
+                        HStack(spacing: AppSpacing.s) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(series.displayName)
+                                    .lineLimit(1)
+                                Text("\(FixkostenPresentation.suggestionSubtitle(cadence: series.cadence.displayName, occurrenceCount: series.occurrences.count)) · \(model.accountLabel(for: series))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer()
+                            MoneyText(money: Money(amount: series.medianAmount, currency: series.currency))
+                                .foregroundStyle(.secondary)
+                            Button("Wieder anzeigen") {
+                                Task { await model.restoreSuggestion(series) }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .accessibilityLabel("Vorschlag für \(series.displayName) wieder anzeigen")
+                        }
+                        .padding(.horizontal, AppSpacing.m)
+                        .padding(.vertical, AppSpacing.s)
+                    }
+                }
+                .financeCard(padding: AppSpacing.s)
+                .padding(.top, AppSpacing.s)
+            }
+            .padding(.horizontal, AppLayout.pageHorizontalPadding)
+            .padding(.bottom, AppSpacing.xl)
+        }
     }
 
     private func suggestionRow(_ series: RecurringSeries) -> some View {
