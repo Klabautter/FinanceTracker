@@ -1,4 +1,4 @@
-Better detection of recurring payments such as savings plans.
+Hidden recurring suggestions can now be restored.
 
-- Savings plans are now detected as recurring even when smaller extra executions run under the same name, for example saveback or round-ups.
-- Confirming a suggested recurring payment keeps the category of its transactions, so a savings plan stays under Investments.
+- Suggestions dismissed with "Don't Show" are listed under Hidden Suggestions in the Recurring tab and can be shown again at any time.
+- Edit > Undo brings back a suggestion you just dismissed.
