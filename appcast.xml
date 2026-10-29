@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.2.1</title>
-      <pubDate>Wed, 28 Oct 2026 23:54:17 +0000</pubDate>
-      <sparkle:version>4</sparkle:version>
-      <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+      <title>Version 0.2.2</title>
+      <pubDate>Thu, 29 Oct 2026 00:10:09 +0000</pubDate>
+      <sparkle:version>5</sparkle:version>
+      <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[Better detection of recurring payments such as savings plans.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.2.1/FinanceTracker-0.2.1.zip"
-                 sparkle:edSignature="QSTLGekuukLvccfas9O7HMQdDt4snCAn+pyz/DPYAEDw+KZ+8mbQwjvER1T5FoY4QMDYH4dimlJQy2atEsDDCg==" length="14920657" type="application/octet-stream"/>
+      <description><![CDATA[Hidden recurring suggestions can now be restored.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.2.2/FinanceTracker-0.2.2.zip"
+                 sparkle:edSignature="afZA4OeAxrRIQRfEQMxjCmwI6ZLb7n5rbfq0RWZ8Ua/d3VU0LYiAFLyfioFlXxx0aeTq1P6dxWFFN33l0dBCDw==" length="14974885" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
