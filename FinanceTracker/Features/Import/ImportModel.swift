@@ -233,6 +233,36 @@ final class ImportModel {
         }
     }
 
+    /// Bedeutung unbekannter Buchungsarten, die der Nutzer pro Konto
+    /// festgelegt hat (Schlüssel: Konto-ID, darin normalisierte Art).
+    private static let typeMeaningsDefaultsKey = "importTypeMeaningsByAccount"
+
+    func savedTypeMeanings(for accountID: UUID) -> [String: TransactionTypeMeaning] {
+        let stored = UserDefaults.standard.dictionary(forKey: Self.typeMeaningsDefaultsKey) as? [String: [String: String]]
+        return (stored?[accountID.uuidString] ?? [:]).compactMapValues(TransactionTypeMeaning.init(rawValue:))
+    }
+
+    /// Speichert die Zuordnung für das Zielkonto und bereitet die Datei neu
+    /// vor; beim nächsten Import desselben Kontos fragt die Vorschau nicht
+    /// mehr.
+    func applyTypeMeanings(_ choices: [String: TransactionTypeMeaning]) async {
+        guard let accountID = preparedImport?.targetAccountID ?? selectedAccountID, !choices.isEmpty else { return }
+        var stored = UserDefaults.standard.dictionary(forKey: Self.typeMeaningsDefaultsKey) as? [String: [String: String]] ?? [:]
+        var forAccount = stored[accountID.uuidString] ?? [:]
+        for (key, meaning) in choices { forAccount[key] = meaning.rawValue }
+        stored[accountID.uuidString] = forAccount
+        UserDefaults.standard.set(stored, forKey: Self.typeMeaningsDefaultsKey)
+
+        guard let last = lastPreparation else { return }
+        do {
+            try await runPreparation(last.file, providerDisplayName: last.providerDisplayName, provider: last.provider)
+        } catch let error as ImportError {
+            phase = .failed(error.userFacingMessage)
+        } catch {
+            phase = .failed(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
+        }
+    }
+
     /// Übernimmt auch die Zeilen, die schon aus einer anderen Quelle auf dem
     /// Konto liegen (die Vorschau hatte sie übersprungen).
     func includeCrossSourceDuplicates() async {
@@ -263,8 +293,16 @@ final class ImportModel {
             return
         }
 
+        // Gespeicherte Zuordnungen unbekannter Buchungsarten für dieses Konto.
+        let effectiveProvider: any ImportProvider
+        if let generic = provider as? GenericCSVProvider {
+            effectiveProvider = generic.with(typeMeanings: savedTypeMeanings(for: accountID))
+        } else {
+            effectiveProvider = provider
+        }
+
         let singleProviderPipeline = ImportPipeline(
-            providers: [provider],
+            providers: [effectiveProvider],
             transactionRepository: dependencies.transactionRepository,
             ruleRepository: dependencies.ruleRepository,
             importBatchRepository: dependencies.importBatchRepository,
@@ -387,6 +425,7 @@ final class ImportModel {
 enum ImportBatchDisplayNames {
     static func fallback(for identifier: String) -> String {
         switch identifier {
+        // Die ersten beiden sind frühere Kartenimporte (ältere Import-Historie).
         case "etherfi_cash_csv", "metamask_card_csv", "generic_csv": String(localized: "Datei-Import")
         case "enablebanking": String(localized: "Bankabruf (Enable Banking)")
         case "gocardless": String(localized: "Bankabruf (GoCardless)")

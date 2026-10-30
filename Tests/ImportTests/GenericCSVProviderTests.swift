@@ -91,11 +91,14 @@ struct GenericCSVProviderTests {
         #expect(result.transactions.count == 5)
 
         let byReference = Dictionary(uniqueKeysWithValues: result.transactions.map { ($0.externalID ?? "", $0) })
-        // Käufe, Verkäufe und Sparpläne zählen als Ausgabe/Einnahme in „Geldanlage".
+        // Käufe und Sparpläne zählen als Ausgabe, Verkäufe als Einnahme, alle
+        // in „Geldanlage".
         for reference in ["REF-1001", "REF-1002", "REF-1004"] {
-            #expect(byReference[reference]?.kind == .unknown)
             #expect(byReference[reference]?.suggestedCategoryID == Category.investments.id)
         }
+        #expect(byReference["REF-1001"]?.kind == .purchase)
+        #expect(byReference["REF-1002"]?.kind == .purchase)
+        #expect(byReference["REF-1004"]?.kind == .income)
         #expect(byReference["REF-1004"]?.status == .cancelled)
         // Zinsen und Kartenzahlungen bekommen keinen Kategorievorschlag.
         #expect(byReference["REF-1003"]?.suggestedCategoryID == nil)

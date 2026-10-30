@@ -111,7 +111,7 @@ struct DisconnectedAccountDeletionTests {
         let store = try SwiftDataStore(inMemory: true)
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
         let connectionID = UUID()
-        let manual = Account(name: "ether.fi Karte", type: .cash, currency: .eur, source: .manual)
+        let manual = Account(name: "Kartenkonto", type: .cash, currency: .eur, source: .manual)
         let bank = Account(connectionID: connectionID, name: "Giro", type: .checking, currency: .eur, source: .openBanking)
         try await dependencies.accountRepository.upsert([manual, bank])
         try await dependencies.transactionRepository.upsert([
@@ -139,14 +139,14 @@ struct DisconnectedAccountDeletionTests {
     @Test("Mit dem Konto verschwindet auch sein Import aus der Import-Liste, fremde Importe bleiben")
     func deletingAccountRemovesItsEmptiedImportBatch() async throws {
         let store = try SwiftDataStore(inMemory: true)
-        let provider = EtherFiCSVProvider(fallbackCurrency: .eur)
+        let provider = GenericCSVProvider(fallbackCurrency: .eur)
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur, importProviders: [provider])
         let wrong = Account(name: "Falsches Konto", type: .cash, currency: .eur, source: .manual)
         let other = Account(name: "Anderes Konto", type: .cash, currency: .eur, source: .manual)
         try await dependencies.accountRepository.upsert([wrong, other])
 
-        let url = try #require(Bundle(for: BundleMarker.self).url(forResource: "fixture_etherfi_cash", withExtension: "csv"))
-        let file = ImportFile(fileName: "fixture_etherfi_cash.csv", data: try Data(contentsOf: url))
+        let url = try #require(Bundle(for: BundleMarker.self).url(forResource: "fixture_card_cashback", withExtension: "csv"))
+        let file = ImportFile(fileName: "fixture_card_cashback.csv", data: try Data(contentsOf: url))
         let pipeline = ImportPipeline(
             providers: [provider],
             transactionRepository: dependencies.transactionRepository,

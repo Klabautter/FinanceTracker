@@ -17,9 +17,12 @@ Screenshots show made-up demo data.
   banks, using your own free Enable Banking application. The app cannot make
   payments.
 - **File import** for banks and cards that aren't available via bank sync:
-  load their CSV or Excel export (common formats, debit/credit columns and US
-  dates are recognised). Every unreadable row is reported instead of silently
-  dropped.
+  load their CSV, Excel or PDF export. Columns and transaction types (card
+  purchases, top-ups, refunds, cashback, fees, interest) are recognised in
+  English and German without bank-specific setup; unknown types are asked
+  once and remembered. Transactions already in the account from another
+  file or from bank sync are not imported twice, and every unreadable row is
+  reported instead of silently dropped.
 - **Automatic categories** from merchant rules, a built-in merchant list and,
   if available on your Mac, Apple's on-device model. Your own rules always win.
 - **Overview and analysis**: monthly spending, cashflow, categories and top

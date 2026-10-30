@@ -23,6 +23,20 @@ struct GenericCSVMapping: Sendable, Equatable {
     /// Zweites Datum, falls das erste leer ist (z. B. „Completed Date" fehlt
     /// bei ausstehenden Revolut-Zahlungen, „Started Date" ist da).
     var fallbackDateColumn: String?
+    /// Uhrzeit in eigener Spalte neben dem Datum.
+    var timeColumn: String?
+    /// Gebühr zur Buchung (wird eine eigene Gebührenbuchung).
+    var feeColumn: String?
+    var feeCurrencyColumn: String?
+    /// Betrag in der Währung des Händlers, z. B. Euro neben einem USD-Konto.
+    var originalAmountColumn: String?
+    var originalCurrencyColumn: String?
+    var cashbackColumn: String?
+    var cashbackCurrencyColumn: String?
+    /// Branchenangabe des Händlers (Kartenexporte, teils mit MCC).
+    var merchantCategoryColumn: String?
+    var cryptoAssetColumn: String?
+    var cryptoAmountColumn: String?
 
     private enum Match {
         /// Nur die exakte Überschrift.
@@ -60,8 +74,11 @@ struct GenericCSVMapping: Sendable, Equatable {
         // Nebenbeträge dürfen nicht als Buchungsbetrag durchgehen.
         let notTheAmount = [
             "original", "fremd", "saldo", "balance", "fee", "gebuhr", "tax", "steuer",
-            "price", "preis", "kurs", "shares", "stuck", "rate", "datum", "date"
+            "price", "preis", "kurs", "shares", "stuck", "rate", "datum", "date",
+            "local", "lokal", "cashback", "crypto", "currency", "wahrung"
         ]
+        // Währungsspalten von Nebenbeträgen sind nicht die Kontowährung.
+        let notTheCurrency = ["original", "fremd", "local", "lokal", "fee", "gebuhr", "cashback", "crypto"]
 
         guard let date = find([
             "buchungstag", "buchungsdatum", "datum", "date", "booking date", "transaction date",
@@ -101,7 +118,7 @@ struct GenericCSVMapping: Sendable, Equatable {
                 ],
                 excluding: ["account", "konto", "bank", "user", "holder", "inhaber", "iban", "bic"]
             ),
-            currencyColumn: find(["wahrung", "waehrung", "currency", "ccy", "cur"], excluding: ["original", "fremd"]),
+            currencyColumn: find(["wahrung", "waehrung", "currency", "ccy", "cur"], excluding: notTheCurrency),
             // Nur eindeutige Überschriften: Eine falsch erkannte ID-Spalte
             // (z. B. Gläubiger-ID) ließe verschiedene Buchungen als Duplikate
             // zusammenfallen.
@@ -127,7 +144,23 @@ struct GenericCSVMapping: Sendable, Equatable {
                  "valuta", "valutadatum", "wertstellung", "value date", "post date", "posting date"],
                 .exact,
                 excluding: []
-            ).flatMap { $0 == date ? nil : $0 }
+            ).flatMap { $0 == date ? nil : $0 },
+            timeColumn: find(["time", "uhrzeit", "zeit", "buchungszeit", "transaction time"], .exact),
+            feeColumn: find(["fee", "fees", "gebuhr", "gebuhren", "entgelt", "fee amount", "gebuhrenbetrag"], .exact),
+            feeCurrencyColumn: find(["fee currency", "gebuhr wahrung", "gebuhrenwahrung"], .exact),
+            originalAmountColumn: find([
+                "original amount", "originalbetrag", "betrag original", "amount local", "local amount",
+                "foreign amount", "fremdwahrungsbetrag", "betrag in fremdwahrung", "fiat amount local"
+            ], .exact),
+            originalCurrencyColumn: find([
+                "original currency", "originalwahrung", "amount local currency", "local currency",
+                "foreign currency", "fremdwahrung"
+            ], .exact),
+            cashbackColumn: find(["cashback earned", "cashback", "cashback amount", "cashback betrag"], .exact),
+            cashbackCurrencyColumn: find(["cashback currency", "cashback wahrung"], .exact),
+            merchantCategoryColumn: find(["category", "merchant category", "mcc", "branche", "kategorie"], .exact),
+            cryptoAssetColumn: find(["crypto asset"], .exact),
+            cryptoAmountColumn: find(["crypto amount"], .exact)
         )
     }
 
@@ -171,15 +204,28 @@ struct GenericCSVProvider: ImportProvider {
     static let providerIdentifier = "generic_csv"
 
     private let forcedMapping: GenericCSVMapping?
+    /// Vom Nutzer festgelegte Bedeutung unbekannter Buchungsarten
+    /// (Schlüssel: `TransactionTypeVocabulary.normalizedKey`). Hat Vorrang
+    /// vor dem Wörterbuch (#22).
+    private let typeMeanings: [String: TransactionTypeMeaning]
 
     let identifier: String = GenericCSVProvider.providerIdentifier
     var displayName: String { String(localized: "Tabelle mit Buchungen") }
     let transactionSource: TransactionSource = .genericCSV
     let fallbackCurrency: CurrencyCode
 
-    init(fallbackCurrency: CurrencyCode = .eur, forcedMapping: GenericCSVMapping? = nil) {
+    init(
+        fallbackCurrency: CurrencyCode = .eur,
+        forcedMapping: GenericCSVMapping? = nil,
+        typeMeanings: [String: TransactionTypeMeaning] = [:]
+    ) {
         self.fallbackCurrency = fallbackCurrency
         self.forcedMapping = forcedMapping
+        self.typeMeanings = typeMeanings
+    }
+
+    func with(typeMeanings: [String: TransactionTypeMeaning]) -> GenericCSVProvider {
+        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings)
     }
 
     func canHandle(_ file: ImportFile) async throws -> Bool {
@@ -219,6 +265,19 @@ struct GenericCSVProvider: ImportProvider {
         let monthFirst = CSVDateParser.prefersMonthFirst(
             in: document.records.compactMap { document.value(mapping.dateColumn, in: $0) }
         )
+        // Führt die Datei Vorzeichen (mindestens ein negativer Betrag oder
+        // Soll/Haben getrennt), bestimmt das Vorzeichen die Richtung. Sonst
+        // sind alle Beträge positiv und die Art sagt, wohin das Geld geht.
+        let amountsAreSigned = mapping.debitColumn != nil || mapping.signColumn != nil
+            || document.records.contains { record in
+                guard !mapping.amountColumn.isEmpty,
+                      let parsed = CSVMoneyParser.parse(
+                          document.value(mapping.amountColumn, in: record),
+                          decimalSeparator: decimalSeparator
+                      ) else { return false }
+                return parsed < 0
+            }
+        var unknownTypes: [String: (label: String, count: Int)] = [:]
 
         for (index, record) in document.records.enumerated() {
             let rowIndex = index + 1
@@ -234,7 +293,11 @@ struct GenericCSVProvider: ImportProvider {
                 continue
             }
 
-            guard let bookedDate = CSVDateParser.parse(value(mapping.dateColumn), monthFirst: monthFirst)
+            let dateText = [clean(value(mapping.dateColumn)), clean(value(mapping.timeColumn))]
+                .compactMap { $0 }
+                .joined(separator: " ")
+            guard let bookedDate = CSVDateParser.parse(dateText.isEmpty ? nil : dateText, monthFirst: monthFirst)
+                    ?? CSVDateParser.parse(value(mapping.dateColumn), monthFirst: monthFirst)
                     ?? CSVDateParser.parse(value(mapping.fallbackDateColumn), monthFirst: monthFirst) else {
                 issues.append(ImportRowIssue(rowIndex: rowIndex, reason: String(localized: "Datum konnte nicht erkannt werden")))
                 continue
@@ -248,30 +311,94 @@ struct GenericCSVProvider: ImportProvider {
 
             let rawMerchant = clean(value(mapping.merchantColumn))
             let rawDescription = clean(value(mapping.descriptionColumn))
+            let rawType = clean(value(mapping.typeColumn))
+
+            // Art der Buchung: Nutzerentscheidung vor Wörterbuch; Unbekanntes
+            // bleibt beim Vorzeichen und wird der Vorschau gemeldet.
+            var kind = TransactionKind.unknown
+            var signedMoney = money
+            if let typeKey = TransactionTypeVocabulary.normalizedKey(rawType) {
+                if let meaning = typeMeanings[typeKey] ?? TransactionTypeVocabulary.meaning(of: rawType) {
+                    if !amountsAreSigned {
+                        signedMoney = meaning.signed(money)
+                        kind = meaning.kind
+                    } else if meaning.agrees(withSignOf: money) {
+                        kind = meaning.kind
+                    }
+                } else if !Self.isSecuritiesTrade(rawType) {
+                    // Wertpapierhandel ist erkannt (Kategorie Geldanlage),
+                    // die Richtung gibt das Vorzeichen: keine Rückfrage.
+                    let known = unknownTypes[typeKey]
+                    unknownTypes[typeKey] = (known?.label ?? rawType ?? typeKey, (known?.count ?? 0) + 1)
+                }
+            }
+
+            let originalCurrency = clean(value(mapping.originalCurrencyColumn)).map(CurrencyCode.init)
+            let cashbackCurrency = clean(value(mapping.cashbackCurrencyColumn)).map(CurrencyCode.init)
+            let merchantCategoryID = MerchantCategoryMapper.categoryID(for: clean(value(mapping.merchantCategoryColumn)))
+            let externalID = clean(value(mapping.externalIDColumn))
 
             transactions.append(
                 ImportedTransaction(
-                    externalID: clean(value(mapping.externalIDColumn)),
+                    externalID: externalID,
                     status: status,
-                    amount: money,
-                    bookedAt: bookedDate,
-                    authorizedAt: nil,
+                    kind: kind,
+                    amount: signedMoney,
+                    bookedAt: status == .pending ? nil : bookedDate,
+                    authorizedAt: status == .pending ? bookedDate : nil,
                     rawDescription: rawDescription,
                     rawMerchantName: rawMerchant,
                     merchantDisplayName: rawMerchant ?? rawDescription,
-                    suggestedCategoryID: Self.isSecuritiesTrade(clean(value(mapping.typeColumn)))
-                        ? Category.investments.id
-                        : nil,
+                    cryptoAsset: clean(value(mapping.cryptoAssetColumn)),
+                    cryptoAmount: clean(value(mapping.cryptoAmountColumn)).flatMap { CSVMoneyParser.parse($0) },
+                    cashbackAmount: clean(value(mapping.cashbackColumn))
+                        .flatMap { CSVMoneyParser.parse($0, decimalSeparator: decimalSeparator) }
+                        .flatMap { $0 == 0 ? nil : abs($0) },
+                    cashbackCurrency: cashbackCurrency,
+                    originalAmount: clean(value(mapping.originalAmountColumn))
+                        .flatMap { CSVMoneyParser.parse($0, decimalSeparator: decimalSeparator) }
+                        .map { abs($0) },
+                    originalCurrency: originalCurrency,
+                    suggestedCategoryID: Self.isSecuritiesTrade(rawType) ? Category.investments.id : merchantCategoryID,
                     balanceAfter: clean(value(mapping.balanceColumn)).flatMap {
                         CSVMoneyParser.parse($0, decimalSeparator: decimalSeparator)
                     }
                 )
             )
+
+            // Gebühr in eigener Spalte: eigene Gebührenbuchung, damit sie in
+            // Ausgaben und Saldo auftaucht. Unlesbar heißt Zeilenhinweis (#17).
+            if let feeRaw = clean(value(mapping.feeColumn)) {
+                guard let fee = CSVMoneyParser.parse(feeRaw, decimalSeparator: decimalSeparator) else {
+                    issues.append(ImportRowIssue(rowIndex: rowIndex, reason: String(localized: "Gebühr konnte nicht erkannt werden")))
+                    continue
+                }
+                if fee != 0 {
+                    let feeCurrency = clean(value(mapping.feeCurrencyColumn)).map(CurrencyCode.init) ?? money.currency
+                    let label = [String(localized: "Gebühr"), rawMerchant ?? rawDescription].compactMap { $0 }.joined(separator: ": ")
+                    transactions.append(
+                        ImportedTransaction(
+                            externalID: externalID.map { $0 + "-fee" },
+                            status: status,
+                            kind: .fee,
+                            amount: Money(amount: -abs(fee), currency: feeCurrency),
+                            bookedAt: status == .pending ? nil : bookedDate,
+                            authorizedAt: status == .pending ? bookedDate : nil,
+                            rawDescription: label,
+                            rawMerchantName: label,
+                            merchantDisplayName: label
+                        )
+                    )
+                }
+            }
         }
         return ProviderParseResult(
             totalRows: document.recordCount,
             transactions: transactions,
-            issues: issues
+            issues: issues,
+            unknownTypes: unknownTypes
+                .map { UnknownTransactionType(key: $0.key, label: $0.value.label, count: $0.value.count) }
+                .sorted { $0.count > $1.count }
         )
     }
 

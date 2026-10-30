@@ -13,7 +13,7 @@ struct CashflowPolicyTests {
     private func txn(kind: TransactionKind, amount: Decimal, day: Int = 5) -> Transaction {
         Transaction(
             accountID: accountID,
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             status: .booked,
             kind: kind,
             amount: Money(amount: amount, currency: .eur),

@@ -68,14 +68,14 @@ struct TransactionFingerprinterTests {
     @Test("Unterschiedliche Quelle erzeugt anderen Fingerprint")
     func differentSource() {
         let a = TransactionFingerprinter.fingerprint(
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             accountID: accountID,
             bookingDate: bookingDate,
             amount: Money(amount: -10, currency: .eur),
             merchantOrDescription: "X"
         )
         let b = TransactionFingerprinter.fingerprint(
-            source: .metamaskCardCSV,
+            source: .legacyCardStatementCSV,
             accountID: accountID,
             bookingDate: bookingDate,
             amount: Money(amount: -10, currency: .eur),

@@ -14,7 +14,7 @@ struct ImportModelTests {
     private func makeModelWithAccount() async throws -> (AppDependencies, ImportModel) {
         let dependencies = try makeDependencies()
         try await dependencies.accountRepository.upsert([
-            Account(name: "ether.fi Cash", type: .cryptoCard, currency: .eur, source: .csvImport)
+            Account(name: "Kartenkonto", type: .creditCard, currency: .eur, source: .csvImport)
         ])
         let model = ImportModel(dependencies: dependencies)
         await model.loadAccounts()
@@ -43,6 +43,35 @@ struct ImportModelTests {
         2026-08-24 18:00:00 UTC,card_spend,MCDONALDS 155,CLEARED,18.3,EUR,0000,TEST USER,18.3,EUR,0.55,EUR,Food,Direct Pay
         2026-07-31 06:46:57 UTC,card_spend,SP OPTIMIZE.BIKE,CLEARED,16.49,EUR,0000,TEST USER,16.49,EUR,0.49,EUR,Transport,Direct Pay
         """
+    }
+
+    @Test("Unbekannte Buchungsart: Zuordnung wird pro Konto gespeichert und beim nächsten Import angewendet")
+    func unknownTypeMeaningIsRemembered() async throws {
+        let defaultsKey = "importTypeMeaningsByAccount"
+        let previous = UserDefaults.standard.object(forKey: defaultsKey)
+        UserDefaults.standard.removeObject(forKey: defaultsKey)
+        defer { UserDefaults.standard.set(previous, forKey: defaultsKey) }
+
+        let (_, model) = try await makeModelWithAccount()
+        let csv = """
+        date,type,description,amount,currency
+        2026-10-01,Vault move,Aufladung vom Girokonto,200.00,EUR
+        2026-10-02,Card purchase,Bäcker,-3.20,EUR
+        """
+        await model.prepareFile(at: try writeTempCSV("load", csv))
+        let first = try #require(model.preparedImport)
+        #expect(first.unknownTypes.map(\.key) == ["VAULT MOVE"])
+        #expect(first.transactions.first { $0.rawDescription == "Aufladung vom Girokonto" }?.kind != .transfer)
+
+        await model.applyTypeMeanings(["VAULT MOVE": .transfer])
+        let second = try #require(model.preparedImport)
+        #expect(second.unknownTypes.isEmpty)
+        #expect(second.transactions.first { $0.rawDescription == "Aufladung vom Girokonto" }?.kind == .transfer)
+
+        // Neue Datei, gleiches Konto: keine Rückfrage mehr.
+        model.reset()
+        await model.prepareFile(at: try writeTempCSV("load2", csv.replacingOccurrences(of: "2026-10-01", with: "2026-10-05")))
+        #expect(model.preparedImport?.unknownTypes.isEmpty == true)
     }
 
     @Test("Ohne Konto wird Konto-Erstellung angeboten und fortgesetzt")
@@ -172,12 +201,12 @@ struct ImportModelTests {
             return
         }
         #expect(model.preparedImport?.targetAccountID == preparedAccountID)
-        #expect(model.preparedTargetAccountName == "ether.fi Cash")
+        #expect(model.preparedTargetAccountName == "Kartenkonto")
         #expect(!model.canChangeTargetAccount)
 
         model.selectedAccountID = otherAccount.id
         #expect(model.preparedImport?.targetAccountID == preparedAccountID)
-        #expect(model.preparedTargetAccountName == "ether.fi Cash")
+        #expect(model.preparedTargetAccountName == "Kartenkonto")
 
         await model.confirmImport()
 

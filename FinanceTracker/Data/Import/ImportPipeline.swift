@@ -62,6 +62,34 @@ enum ImportDedupNotices: Sendable {
     }
 }
 
+/// Dateiformat eines Imports. PDF-Auszug und CSV-Export derselben Karte
+/// beschreiben dieselben Buchungen unterschiedlich und werden deshalb
+/// unscharf abgeglichen.
+enum ImportFileFormat: Sendable, Hashable {
+    case pdf
+    case spreadsheet
+    case table
+
+    init(_ file: ImportFile) {
+        if PDFStatementConverter.isPDF(file.data) {
+            self = .pdf
+        } else if file.data.starts(with: [0x50, 0x4B]) {
+            self = .spreadsheet
+        } else {
+            self = .table
+        }
+    }
+
+    init?(fileName: String) {
+        switch (fileName as NSString).pathExtension.lowercased() {
+        case "pdf": self = .pdf
+        case "xlsx", "xls", "numbers": self = .spreadsheet
+        case "csv", "tsv", "txt": self = .table
+        default: return nil
+        }
+    }
+}
+
 private struct ExternalTransactionKey: Hashable, Sendable {
     let accountID: UUID
     let source: TransactionSource
@@ -90,6 +118,9 @@ struct PreparedImport: Sendable, Equatable {
     /// Zeilen, die schon aus einer anderen Quelle auf dem Konto liegen und
     /// übersprungen werden (je Zeile ein Hinweis mit der vorhandenen Quelle).
     var crossSourceDuplicates: [ImportRowIssue] = []
+    /// Buchungsarten, deren Bedeutung die App nicht kennt (nach Vorzeichen
+    /// importiert); die Vorschau lässt sie zuordnen.
+    var unknownTypes: [UnknownTransactionType] = []
 
     var fileReplayNotice: String? {
         isExactFileReplay ? ImportDedupNotices.fileReplayDetail : nil
@@ -467,15 +498,30 @@ struct ImportPipeline: Sendable {
         let reconciler = PendingBookedReconciler()
         var availablePendingCandidates = pendingCandidates
 
-        // Dieselbe Buchung aus einer anderen Quelle (PDF vs. CSV, Datei vs.
-        // Bankabruf) auf demselben Konto: wird übersprungen und gezählt. Auf
-        // Wunsch importiert die Vorschau sie trotzdem, dann als Prüfhinweis.
-        // Jede vorhandene Buchung deckt höchstens eine neue Zeile ab.
+        // Dieselbe Buchung aus einer anderen Quelle oder einem anderen
+        // Dateiformat (Bankabruf, PDF-Auszug vs. CSV-Export) auf demselben
+        // Konto: wird übersprungen und gezählt. Auf Wunsch importiert die
+        // Vorschau sie trotzdem, dann als Prüfhinweis. Jede vorhandene
+        // Buchung deckt höchstens eine neue Zeile ab. Gleiches Format aus
+        // gleicher Quelle (zwei CSV-Exporte) gleicht nur der exakte
+        // Fingerprint ab: Zwei gleiche Einkäufe an Nachbartagen sind dort
+        // zwei Buchungen.
         var accountQuery = TransactionQuery()
         accountQuery.accountIDs = [accountID]
         let accountWideExisting = try await transactionRepository.transactions(matching: accountQuery)
         let crossSourceMatcher = CrossSourceDuplicateMatcher()
-        var crossSourceCandidates = accountWideExisting.filter { $0.source != source }
+        let currentFormat = ImportFileFormat(file)
+        var formatByBatch: [UUID: ImportFileFormat] = [:]
+        for batch in try await importBatchRepository?.batches() ?? [] {
+            if let format = batch.fileName.flatMap(ImportFileFormat.init(fileName:)) {
+                formatByBatch[batch.id] = format
+            }
+        }
+        var crossSourceCandidates = accountWideExisting.filter { candidate in
+            if candidate.source != source { return true }
+            guard let batchID = candidate.importBatchID, let format = formatByBatch[batchID] else { return false }
+            return format != currentFormat
+        }
 
         var occurrencesByBaseFingerprint: [String: Int] = [:]
         for (rowOffset, imported) in importedTransactions.enumerated() {
@@ -581,6 +627,17 @@ struct ImportPipeline: Sendable {
 
             if let existing = crossSourceMatcher.match(draft, among: crossSourceCandidates) {
                 crossSourceCandidates.removeAll { $0.id == existing.id }
+                // Vorgemerkt vorhanden, jetzt gebucht: Reconciliation statt
+                // Überspringen, sonst bliebe die Buchung ausstehend (#21).
+                if existing.status == .pending && draft.status != .pending {
+                    mutations.append(ImportMutation(
+                        transactionID: existing.id,
+                        kind: .updated,
+                        previousSnapshot: TransactionSnapshot(transaction: existing)
+                    ))
+                    updates.append(Self.merged(target: existing, with: draft))
+                    continue
+                }
                 let issue = Self.crossSourceIssue(rowIndex: rowOffset + 1, existing: existing)
                 if importCrossSourceDuplicates {
                     crossSourceHints.append(issue)
@@ -623,7 +680,8 @@ struct ImportPipeline: Sendable {
             ),
             isExactFileReplay: isExactFileReplay,
             crossSourceHints: crossSourceHints,
-            crossSourceDuplicates: crossSourceDuplicates
+            crossSourceDuplicates: crossSourceDuplicates,
+            unknownTypes: parseResult.unknownTypes
         )
     }
 

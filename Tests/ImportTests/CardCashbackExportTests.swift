@@ -3,8 +3,10 @@ import Testing
 
 @testable import FinanceTracker
 
-@Suite("EtherFiCSVProvider")
-struct EtherFiCSVProviderTests {
+/// Kartenexport mit vorzeichenlosen Beträgen, Cashback, Originalbetrag und
+/// Händlerbranche.
+@Suite("CardCashbackExport")
+struct CardCashbackExportTests {
     private final class BundleMarker {}
 
     private func fixtureData(_ name: String, ext: String = "csv") throws -> Data {
@@ -15,7 +17,7 @@ struct EtherFiCSVProviderTests {
         return try Data(contentsOf: url)
     }
 
-    private var provider: EtherFiCSVProvider { EtherFiCSVProvider(fallbackCurrency: .eur) }
+    private var provider: GenericCSVProvider { GenericCSVProvider(fallbackCurrency: .eur) }
 
 
     private func makeDependenciesForE2E() throws -> AppDependencies {
@@ -35,21 +37,22 @@ struct EtherFiCSVProviderTests {
         )
     }
 
-    @Test("Erkennt ether.fi-Export, fremde CSVs nicht")
-    func canHandleDetection() async throws {
-        let file = try ImportFile(fileName: nil, data: fixtureData("fixture_etherfi_cash"))
-        #expect(try await provider.canHandle(file) == true)
-
-        let generic = try ImportFile(fileName: nil, data: fixtureData("fixture_generic_bank_en"))
-        #expect(try await provider.canHandle(generic) == false)
-
-        let nonsense = ImportFile(fileName: nil, data: Data("a,b\n1,2\n".utf8))
-        #expect(try await provider.canHandle(nonsense) == false)
+    @Test("Spalten des Kartenexports werden erkannt, inklusive Cashback und Branche")
+    func detectsColumns() throws {
+        let document = try CSVReader.parse(fixtureData("fixture_card_cashback"))
+        let mapping = try #require(GenericCSVMapping.detect(in: document))
+        #expect(mapping.dateColumn == "timestamp")
+        #expect(mapping.amountColumn == "amount")
+        #expect(mapping.currencyColumn == "currency")
+        #expect(mapping.originalAmountColumn == "original amount")
+        #expect(mapping.cashbackColumn == "cashback earned")
+        #expect(mapping.merchantCategoryColumn == "category")
+        #expect(mapping.merchantColumn == nil)
     }
 
     @Test("card_spend wird negativ normalisiert (Ausgabe), refund positiv")
     func signSemantics() async throws {
-        let parseResult = try await provider.parse(try ImportFile(fileName: nil, data: fixtureData("fixture_etherfi_cash")))
+        let parseResult = try await provider.parse(try ImportFile(fileName: nil, data: fixtureData("fixture_card_cashback")))
         let transactions = parseResult.transactions
 
         let pendingSpend = transactions[0]
@@ -77,7 +80,7 @@ struct EtherFiCSVProviderTests {
 
     @Test("USD-Zeile bleibt in USD, Merchant getrimmt")
     func currencyAndTrimming() async throws {
-        let parseResult = try await provider.parse(try ImportFile(fileName: nil, data: fixtureData("fixture_etherfi_cash")))
+        let parseResult = try await provider.parse(try ImportFile(fileName: nil, data: fixtureData("fixture_card_cashback")))
         let transactions = parseResult.transactions
 
         let usdRow = transactions[3]
@@ -91,7 +94,7 @@ struct EtherFiCSVProviderTests {
     func timestampParsing() async throws {
         var utcCalendar = Calendar(identifier: .gregorian)
         utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-        let parseResult = try await provider.parse(try ImportFile(fileName: nil, data: fixtureData("fixture_etherfi_cash")))
+        let parseResult = try await provider.parse(try ImportFile(fileName: nil, data: fixtureData("fixture_card_cashback")))
         let transactions = parseResult.transactions
 
         let components = utcCalendar.dateComponents([.year, .month, .day, .hour, .minute], from: transactions[1].bookedAt!)
@@ -113,7 +116,7 @@ struct EtherFiCSVProviderTests {
         )
 
         _ = try await pipeline.run(
-            try ImportFile(fileName: nil, data: fixtureData("fixture_etherfi_cash")),
+            try ImportFile(fileName: nil, data: fixtureData("fixture_card_cashback")),
             into: UUID()
         )
 
@@ -135,7 +138,7 @@ struct EtherFiCSVProviderTests {
         let dependencies = try await MainActor.run { try makeDependenciesForE2E() }
         let pipeline = makePipeline(dependencies)
 
-        let file = try ImportFile(fileName: nil, data: fixtureData("fixture_etherfi_cash"))
+        let file = try ImportFile(fileName: nil, data: fixtureData("fixture_card_cashback"))
         _ = try await pipeline.run(file, into: UUID())
 
         let stored = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
@@ -163,7 +166,7 @@ struct EtherFiCSVProviderTests {
         )
 
         let accountID = UUID()
-        let xlsxFile = try ImportFile(fileName: "transaction-history.xlsx", data: fixtureData("fixture_etherfi_cash", ext: "xlsx"))
+        let xlsxFile = try ImportFile(fileName: "transaction-history.xlsx", data: fixtureData("fixture_card_cashback", ext: "xlsx"))
 
         let firstRun = try await pipeline.run(xlsxFile, into: accountID)
         #expect(firstRun.totalRows == 6)

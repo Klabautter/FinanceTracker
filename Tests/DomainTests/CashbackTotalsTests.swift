@@ -8,7 +8,7 @@ struct CashbackTotalsTests {
     private func purchase(_ amount: Decimal, currency: CurrencyCode = .eur, cashback: Decimal?, status: TransactionStatus = .booked) -> Transaction {
         Transaction(
             accountID: UUID(),
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             status: status,
             kind: .purchase,
             amount: Money(amount: -amount, currency: currency),

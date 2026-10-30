@@ -156,11 +156,7 @@ struct AppDependencies: @unchecked Sendable {
                 )
             ),
             importProviders: importProviders.isEmpty
-                ? [
-                    EtherFiCSVProvider(fallbackCurrency: baseCurrency),
-                    MetaMaskCardCSVProvider(fallbackCurrency: baseCurrency),
-                    GenericCSVProvider(fallbackCurrency: baseCurrency)
-                ]
+                ? [GenericCSVProvider(fallbackCurrency: baseCurrency)]
                 : importProviders,
             changeTracker: DataChangeTracker(),
             baseCurrency: baseCurrency,

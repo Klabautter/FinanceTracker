@@ -16,7 +16,7 @@ struct CategoryRuleEngineTests {
     ) -> Transaction {
         Transaction(
             accountID: UUID(),
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             amount: Money(amount: amount, currency: .eur),
             bookedAt: Date(),
             rawDescription: description ?? merchant,

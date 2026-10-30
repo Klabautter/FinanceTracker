@@ -11,12 +11,13 @@ import Foundation
 struct CrossSourceDuplicateMatcher: Sendable {
     static let dateTolerance: TimeInterval = 3 * 24 * 3600
 
-    /// Die zeitlich nächste passende Buchung; `nil`, wenn keine passt.
+    /// Die zeitlich nächste passende Buchung; `nil`, wenn keine passt. Welche
+    /// Buchungen überhaupt in Frage kommen (andere Quelle oder anderes
+    /// Dateiformat), entscheidet der Aufrufer.
     func match(_ incoming: Transaction, among candidates: [Transaction]) -> Transaction? {
         candidates
             .filter { candidate in
                 candidate.accountID == incoming.accountID
-                    && candidate.source != incoming.source
                     && candidate.status != .cancelled
                     && candidate.status != .reversed
                     && candidate.amount.currency == incoming.amount.currency

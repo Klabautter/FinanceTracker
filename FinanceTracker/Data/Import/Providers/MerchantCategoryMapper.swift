@@ -1,13 +1,13 @@
 import Foundation
 
-/// Übersetzt die Branchenangabe aus dem ether.fi-Export (Händlerkategorie,
-/// teils mit vorangestelltem MCC wie „5814 - …") in eine System-Kategorie.
+/// Übersetzt die Branchenangabe eines Kartenexports (Händlerkategorie, teils
+/// mit vorangestelltem MCC wie „5814 - …") in eine System-Kategorie.
 ///
 /// Provider-Semantik bleibt hier in der Data-Schicht: Die
 /// Pipeline bekommt nur eine neutrale Kategorie-ID als Vorschlag. Unbekannte
 /// Branchen ergeben `nil`: Es gibt bewusst keinen „Sonstiges"-Fallback,
 /// die Buchung landet dann in der Prüfliste.
-enum EtherFiCategoryMapper {
+enum MerchantCategoryMapper {
     /// Reihenfolge = Priorität: spezifische Begriffe vor allgemeinen.
     private static let keywordMap: [(keywords: [String], category: Category)] = [
         (["grocery", "supermarket", "food stores", "convenience", "bakeries", "dairy", "candy"], .groceries),

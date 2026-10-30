@@ -79,9 +79,9 @@ struct MerchantPipelineIntegrationTests {
         return AppDependencies.make(container: store.container, baseCurrency: .eur)
     }
 
-    private func etherFiFixture() throws -> Data {
+    private func cardExportFixture() throws -> Data {
         let bundle = Bundle(for: BundleMarker.self)
-        guard let url = bundle.url(forResource: "fixture_etherfi_cash", withExtension: "csv") else {
+        guard let url = bundle.url(forResource: "fixture_card_cashback", withExtension: "csv") else {
             throw ImportError.parsingFailed(stage: "testSetup", reason: "Fixture fehlt.")
         }
         return try Data(contentsOf: url)
@@ -99,7 +99,7 @@ struct MerchantPipelineIntegrationTests {
             fallbackCurrency: .eur
         )
         let accountID = UUID()
-        let fileData = try etherFiFixture()
+        let fileData = try cardExportFixture()
 
         _ = try await pipeline.run(ImportFile(fileName: nil, data: fileData), into: accountID)
         _ = try await pipeline.run(ImportFile(fileName: nil, data: fileData), into: accountID)
@@ -121,7 +121,7 @@ struct MerchantPipelineIntegrationTests {
 
         var firstPurchase = Transaction(
             accountID: UUID(),
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             status: .booked,
             amount: Money(amount: -18.3, currency: .eur),
             rawMerchantName: "MCDONALDS 155",
@@ -144,7 +144,7 @@ struct MerchantPipelineIntegrationTests {
 
         var secondPurchase = Transaction(
             accountID: UUID(),
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             amount: Money(amount: -6.9, currency: .eur),
             rawMerchantName: "MCDONALDS 999",
             merchantID: merchantID,

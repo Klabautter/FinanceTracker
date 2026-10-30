@@ -297,6 +297,13 @@ struct ImportView: View {
 
             previewTable(prepared)
 
+            if !prepared.unknownTypes.isEmpty {
+                UnknownTypesSection(unknownTypes: prepared.unknownTypes) { choices in
+                    Task { await model.applyTypeMeanings(choices) }
+                }
+                .id(prepared.unknownTypes)
+            }
+
             if !prepared.crossSourceDuplicates.isEmpty {
                 VStack(alignment: .leading, spacing: AppSpacing.s) {
                     Label(
@@ -566,3 +573,56 @@ struct ImportView: View {
         }
     }
 }
+
+/// Buchungsarten, die die App nicht kennt: einmal zuordnen, die App merkt
+/// sich das für das Konto.
+private struct UnknownTypesSection: View {
+    let unknownTypes: [UnknownTransactionType]
+    let apply: ([String: TransactionTypeMeaning]) -> Void
+
+    @State private var choices: [String: TransactionTypeMeaning] = [:]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            Label(
+                unknownTypes.count == 1
+                    ? String(localized: "1 Buchungsart ist unbekannt")
+                    : String(localized: "\(unknownTypes.count) Buchungsarten sind unbekannt"),
+                systemImage: "questionmark.circle"
+            )
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(AppPalette.warning)
+
+            Text("Bis du sie zuordnest, zählen Abgänge als Ausgabe und Zugänge als Einnahme. Die Zuordnung gilt für künftige Importe in dieses Konto.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(unknownTypes) { type in
+                Picker(selection: binding(for: type.key)) {
+                    Text("Nach Vorzeichen").tag(TransactionTypeMeaning?.none)
+                    ForEach(TransactionTypeMeaning.allCases) { meaning in
+                        Text(meaning.displayName).tag(TransactionTypeMeaning?.some(meaning))
+                    }
+                } label: {
+                    Text("„\(type.label)“ (\(type.count)×)")
+                }
+                .accessibilityLabel("Buchungsart \(type.label) zuordnen")
+            }
+
+            Button("Zuordnung übernehmen") {
+                apply(choices)
+            }
+            .disabled(choices.isEmpty)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func binding(for key: String) -> Binding<TransactionTypeMeaning?> {
+        Binding(
+            get: { choices[key] },
+            set: { choices[key] = $0 }
+        )
+    }
+}
+

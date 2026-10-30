@@ -508,7 +508,7 @@ struct LocalTransactionRepositoryTests {
         let categoryID = UUID()
         let txn = Transaction(
             accountID: UUID(),
-            source: .metamaskCardCSV,
+            source: .legacyCardStatementCSV,
             externalID: "mm-42",
             sourceFingerprint: "abc123",
             status: .pending,

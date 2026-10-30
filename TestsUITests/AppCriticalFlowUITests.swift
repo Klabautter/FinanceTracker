@@ -183,9 +183,9 @@ final class AppCriticalFlowUITests: XCTestCase {
 
         openAddDataSourceSheet(app)
 
-        // Konsolidierter Picker (MacUX-Audit „Import"): ether.fi/MetaMask
-        // laufen über die Auto-Erkennung von „CSV / Excel importieren"
-        // es gibt keine eigenen Provider-Einträge mehr.
+        // Konsolidierter Picker: Kartenexporte laufen über die
+        // Auto-Erkennung von „CSV / Excel importieren", es gibt keine eigenen
+        // Provider-Einträge.
         assertExists(app.buttons["Bankkonto verbinden"], "Eintrag Bankkonto")
         assertExists(app.buttons["CSV / Excel importieren"], "Eintrag CSV/Excel")
 

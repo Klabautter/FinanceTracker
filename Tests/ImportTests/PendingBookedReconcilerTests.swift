@@ -11,7 +11,7 @@ struct PendingBookedReconcilerTests {
     private func pending(date: Date, amount: Decimal = -18.3) -> Transaction {
         Transaction(
             accountID: accountID,
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             status: .pending,
             kind: .purchase,
             amount: Money(amount: amount, currency: .eur),
@@ -24,7 +24,7 @@ struct PendingBookedReconcilerTests {
     private func booked(date: Date, amount: Decimal = -18.3, merchant: String = "MCDONALDS 155", externalID: String? = nil) -> Transaction {
         Transaction(
             accountID: accountID,
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             externalID: externalID,
             status: .booked,
             kind: .purchase,
@@ -61,7 +61,7 @@ struct PendingBookedReconcilerTests {
         let store = try SwiftDataStore(inMemory: true)
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
         let pipeline = ImportPipeline(
-            providers: [EtherFiCSVProvider(fallbackCurrency: .eur)],
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
             transactionRepository: dependencies.transactionRepository,
             fallbackCurrency: .eur
         )
@@ -87,7 +87,7 @@ struct PendingBookedReconcilerTests {
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
         try await dependencies.categoryRepository.upsert(Category.defaultCatalog())
         let pipeline = ImportPipeline(
-            providers: [EtherFiCSVProvider(fallbackCurrency: .eur)],
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
             transactionRepository: dependencies.transactionRepository,
             ruleRepository: dependencies.ruleRepository,
             merchantRepository: dependencies.merchantRepository,
@@ -114,7 +114,7 @@ struct PendingBookedReconcilerTests {
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
         try await dependencies.categoryRepository.upsert(Category.defaultCatalog())
         let pipeline = ImportPipeline(
-            providers: [EtherFiCSVProvider(fallbackCurrency: .eur)],
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
             transactionRepository: dependencies.transactionRepository,
             ruleRepository: dependencies.ruleRepository,
             merchantRepository: dependencies.merchantRepository,
@@ -142,7 +142,7 @@ struct PendingBookedReconcilerTests {
         let store = try SwiftDataStore(inMemory: true)
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
         let pipeline = ImportPipeline(
-            providers: [EtherFiCSVProvider(fallbackCurrency: .eur)],
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
             transactionRepository: dependencies.transactionRepository,
             fallbackCurrency: .eur
         )

@@ -4,8 +4,11 @@ enum TransactionSource: String, Codable, Sendable, CaseIterable {
     case demo
     case manual
     case genericCSV
-    case etherFiCashCSV
-    case metamaskCardCSV
+    /// Frühere eigene Importe für zwei Kartenexporte; heute liest der
+    /// allgemeine Datei-Import diese Formate. Der gespeicherte Wert bleibt,
+    /// damit vorhandene Buchungen lesbar bleiben.
+    case legacyCardExportCSV = "etherFiCashCSV"
+    case legacyCardStatementCSV = "metamaskCardCSV"
     case openBanking
     case blockchain
 
@@ -13,7 +16,7 @@ enum TransactionSource: String, Codable, Sendable, CaseIterable {
         switch self {
         case .demo: String(localized: "Demo-Daten")
         case .manual: String(localized: "Manuell erfasst")
-        case .genericCSV, .etherFiCashCSV, .metamaskCardCSV: String(localized: "Datei-Import")
+        case .genericCSV, .legacyCardExportCSV, .legacyCardStatementCSV: String(localized: "Datei-Import")
         case .openBanking: "Open Banking"
         case .blockchain: "Blockchain"
         }

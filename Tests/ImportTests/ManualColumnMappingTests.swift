@@ -52,7 +52,7 @@ struct ManualColumnMappingTests {
     @Test("headers(of:) liefert Spalten aus CSV und xlsx")
     func headersExtraction() async throws {
         let bundle = Bundle(for: BundleMarker.self)
-        guard let url = bundle.url(forResource: "fixture_etherfi_cash", withExtension: "xlsx") else {
+        guard let url = bundle.url(forResource: "fixture_card_cashback", withExtension: "xlsx") else {
             throw ImportError.parsingFailed(stage: "testSetup", reason: "xlsx-Fixture nicht gefunden.")
         }
         let data = try Data(contentsOf: url)

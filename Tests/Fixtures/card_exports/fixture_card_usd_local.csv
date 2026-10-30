@@ -1,0 +1,6 @@
+date,type,description,transaction_hash,amount_usd,amount_usd_currency,amount_local,amount_local_currency,fx_rate,fee,fee_currency
+2026-10-20 18:02:11,Receive,0x0000000000000000000000000000000000000001,0x00aa,500.00,USD,,,,,
+2026-10-21 12:30:00,Card purchase,SUPERMARKT MUSTER,,-46.51,USD,-40.00,EUR,0.86,0.36,USD
+2026-10-22 09:15:00,Card purchase,COFFEE ONLINE,,-7.00,USD,,,,,
+2026-10-23 08:00:00,Card cashback,Cashback,,1.40,USD,,,,,
+2026-10-24 10:00:00,Card top-up,Top up from bank,,200.00,USD,,,,,

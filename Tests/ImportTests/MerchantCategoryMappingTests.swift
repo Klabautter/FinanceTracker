@@ -3,39 +3,39 @@ import Testing
 
 @testable import FinanceTracker
 
-@Suite("ether.fi: Branchenangabe → Kategorie")
-struct EtherFiCategoryMappingTests {
+@Suite("Kartenexport: Branchenangabe → Kategorie")
+struct MerchantCategoryMappingTests {
     private final class BundleMarker {}
 
     private func fixtureFile() throws -> ImportFile {
         let bundle = Bundle(for: BundleMarker.self)
-        let url = try #require(bundle.url(forResource: "fixture_etherfi_cash", withExtension: "csv"))
-        return ImportFile(fileName: "fixture_etherfi_cash.csv", data: try Data(contentsOf: url))
+        let url = try #require(bundle.url(forResource: "fixture_card_cashback", withExtension: "csv"))
+        return ImportFile(fileName: "fixture_card_cashback.csv", data: try Data(contentsOf: url))
     }
 
     @Test("Bekannte Branchen werden zugeordnet, auch mit MCC-Präfix")
     func knownIndustries() {
-        #expect(EtherFiCategoryMapper.categoryID(for: "Grocery Stores and Supermarkets") == Category.groceries.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Miscellaneous Food Stores-Convenience Stores and Specialty Markets") == Category.groceries.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "5814 - Quick Payment Service-Fast Food Restaurants") == Category.restaurants.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Drug Stores and Pharmacies") == Category.health.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Bicycle Shop-Sales and Services") == Category.shopping.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Digital Goods: Games") == Category.shopping.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Family Clothing Stores") == Category.shopping.id)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Electronics Stores") == Category.shopping.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Grocery Stores and Supermarkets") == Category.groceries.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Miscellaneous Food Stores-Convenience Stores and Specialty Markets") == Category.groceries.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "5814 - Quick Payment Service-Fast Food Restaurants") == Category.restaurants.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Drug Stores and Pharmacies") == Category.health.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Bicycle Shop-Sales and Services") == Category.shopping.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Digital Goods: Games") == Category.shopping.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Family Clothing Stores") == Category.shopping.id)
+        #expect(MerchantCategoryMapper.categoryID(for: "Electronics Stores") == Category.shopping.id)
     }
 
     @Test("Unbekannte oder fehlende Branche ergibt keinen Vorschlag, kein Sonstiges-Fallback")
     func unknownIndustries() {
-        #expect(EtherFiCategoryMapper.categoryID(for: nil) == nil)
-        #expect(EtherFiCategoryMapper.categoryID(for: "   ") == nil)
-        #expect(EtherFiCategoryMapper.categoryID(for: "Government Services-Not Elsewhere Classified") == nil)
+        #expect(MerchantCategoryMapper.categoryID(for: nil) == nil)
+        #expect(MerchantCategoryMapper.categoryID(for: "   ") == nil)
+        #expect(MerchantCategoryMapper.categoryID(for: "Government Services-Not Elsewhere Classified") == nil)
     }
 
     @Test("Import ordnet nach Branche zu; eigene Regeln haben Vorrang")
     func pipelineUsesSuggestionAfterRules() async throws {
         let store = try SwiftDataStore(inMemory: true)
-        let provider = EtherFiCSVProvider(fallbackCurrency: .eur)
+        let provider = GenericCSVProvider(fallbackCurrency: .eur)
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur, importProviders: [provider])
         try await dependencies.categoryRepository.upsert(Category.defaultCatalog())
         // Eigene Regel: der Fahrradladen gehört für diesen Nutzer zu „Reisen".

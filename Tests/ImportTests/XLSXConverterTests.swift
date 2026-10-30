@@ -17,7 +17,7 @@ struct ZipArchiveReaderTests {
 
     @Test("Listet Einträge und extrahiert deflatete XML-Dateien")
     func extractsEntries() throws {
-        let archive = try ZipArchiveReader(data: fixtureData("fixture_etherfi_cash", ext: "xlsx"))
+        let archive = try ZipArchiveReader(data: fixtureData("fixture_card_cashback", ext: "xlsx"))
 
         #expect(archive.containsEntry(named: "xl/workbook.xml"))
         #expect(archive.containsEntry(named: "xl/worksheets/sheet1.xml"))
@@ -34,7 +34,7 @@ struct ZipArchiveReaderTests {
             _ = try ZipArchiveReader(data: Data("definitely not a zip".utf8))
         }
 
-        let archive = try ZipArchiveReader(data: fixtureData("fixture_etherfi_cash", ext: "xlsx"))
+        let archive = try ZipArchiveReader(data: fixtureData("fixture_card_cashback", ext: "xlsx"))
         #expect(throws: ZipArchiveError.entryNotFound(name: "xl/does-not-exist.xml")) {
             _ = try archive.extractEntry("xl/does-not-exist.xml")
         }
@@ -45,10 +45,10 @@ struct ZipArchiveReaderTests {
 struct XLSXConverterTests {
     private final class BundleMarker {}
 
-    @Test("Konvertiert ether.fi-xlsx zu CSV mit Header in erster Zeile")
-    func convertsEtherFiFixture() throws {
+    @Test("Konvertiert Kartenexport-xlsx zu CSV mit Header in erster Zeile")
+    func convertsCardExportFixture() throws {
         let bundle = Bundle(for: BundleMarker.self)
-        guard let url = bundle.url(forResource: "fixture_etherfi_cash", withExtension: "xlsx") else {
+        guard let url = bundle.url(forResource: "fixture_card_cashback", withExtension: "xlsx") else {
             throw ImportError.parsingFailed(stage: "testSetup", reason: "xlsx-Fixture nicht gefunden.")
         }
         let data = try Data(contentsOf: url)

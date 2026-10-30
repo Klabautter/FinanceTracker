@@ -1022,6 +1022,22 @@
         }
       }
     },
+    "%lld Buchungsarten sind unbekannt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Buchungsarten sind unbekannt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld transaction types are unknown"
+          }
+        }
+      }
+    },
     "%lld Budgets" : {
       "localizations" : {
         "de" : {
@@ -2086,6 +2102,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 transaction applied"
+          }
+        }
+      }
+    },
+    "1 Buchungsart ist unbekannt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Buchungsart ist unbekannt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 transaction type is unknown"
           }
         }
       }
@@ -6158,6 +6190,22 @@
         }
       }
     },
+    "Bis du sie zuordnest, zählen Abgänge als Ausgabe und Zugänge als Einnahme. Die Zuordnung gilt für künftige Importe in dieses Konto." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bis du sie zuordnest, zählen Abgänge als Ausgabe und Zugänge als Einnahme. Die Zuordnung gilt für künftige Importe in dieses Konto."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Until you assign them, outgoing amounts count as expenses and incoming amounts as income. Your choice applies to future imports into this account."
+          }
+        }
+      }
+    },
     "Bitte Application ID und privaten Schlüssel einfügen." : {
       "localizations" : {
         "de" : {
@@ -6650,6 +6698,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transactions are manual and cash-flow neutral, no money is sent."
+          }
+        }
+      }
+    },
+    "Buchungsart %@ zuordnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buchungsart %@ zuordnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assign transaction type %@"
           }
         }
       }
@@ -7887,22 +7951,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Date couldn't be recognized"
-          }
-        }
-      }
-    },
-    "Datum/Zeit konnte nicht erkannt werden" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datum/Zeit konnte nicht erkannt werden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Date/time couldn't be recognized"
           }
         }
       }
@@ -11748,6 +11796,22 @@
         }
       }
     },
+    "Gebühr konnte nicht erkannt werden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebühr konnte nicht erkannt werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee could not be read"
+          }
+        }
+      }
+    },
     "Gebühren" : {
       "localizations" : {
         "de" : {
@@ -13360,38 +13424,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Card (Physical)"
-          }
-        }
-      }
-    },
-    "Kartenexport" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartenexport"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Card Export"
-          }
-        }
-      }
-    },
-    "Kartenexport mit Cashback" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartenexport mit Cashback"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Card Export with Cashback"
           }
         }
       }
@@ -16213,6 +16245,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check for Updates…"
+          }
+        }
+      }
+    },
+    "Nach Vorzeichen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Vorzeichen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By Sign"
           }
         }
       }
@@ -24188,22 +24236,6 @@
         }
       }
     },
-    "Zeitstempel konnte nicht erkannt werden" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeitstempel konnte nicht erkannt werden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Timestamp couldn’t be recognized"
-          }
-        }
-      }
-    },
     "Ziel" : {
       "localizations" : {
         "de" : {
@@ -24632,6 +24664,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Change Collection Assignment"
+          }
+        }
+      }
+    },
+    "Zuordnung übernehmen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuordnung übernehmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply Assignment"
           }
         }
       }
@@ -25649,6 +25697,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” (%@) will be permanently removed along with %lld transactions. This can’t be undone."
+          }
+        }
+      }
+    },
+    "„%@“ (%lld×)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ (%lld×)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” (%lld×)"
           }
         }
       }

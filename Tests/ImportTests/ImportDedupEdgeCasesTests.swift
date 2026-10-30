@@ -413,6 +413,22 @@ struct ImportDedupEdgeCasesTests {
         let dependencies = try makeDependencies()
         let accountID = UUID()
         let paidAt = bookedDate("2026-08-05T12:00:00Z")
+        // Bestand aus einem PDF-Auszug (gleiche Quelle „Datei-Import“,
+        // anderes Format).
+        let pdfBatch = ImportBatch(
+            providerIdentifier: GenericCSVProvider.providerIdentifier,
+            sourceRaw: TransactionSource.genericCSV.rawValue,
+            fileName: "auszug.pdf",
+            fileHashSHA256: "pdf",
+            startedAt: paidAt,
+            completedAt: paidAt,
+            totalRows: 1,
+            importedCount: 1,
+            updatedCount: 0,
+            duplicateCount: 0,
+            failedCount: 0
+        )
+        try await dependencies.importBatchRepository.upsert([pdfBatch])
         try await dependencies.transactionRepository.upsert([
             Transaction(
                 accountID: accountID,
@@ -422,13 +438,15 @@ struct ImportDedupEdgeCasesTests {
                 amount: Money(amount: Decimal(string: "-18.30")!, currency: .eur),
                 bookedAt: paidAt,
                 rawDescription: "MCDONALDS 155",
-                rawMerchantName: "MCDONALDS 155"
+                rawMerchantName: "MCDONALDS 155",
+                importBatchID: pdfBatch.id
             )
         ])
 
-        let etherFiPipe = ImportPipeline(
-            providers: [EtherFiCSVProvider(fallbackCurrency: .eur)],
+        let csvPipe = ImportPipeline(
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
             transactionRepository: dependencies.transactionRepository,
+            importBatchRepository: dependencies.importBatchRepository,
             fallbackCurrency: .eur
         )
         let csv = Data("""
@@ -437,7 +455,7 @@ struct ImportDedupEdgeCasesTests {
         2026-08-07 10:00:00 UTC,card_spend,McDonald's Wien,CLEARED,18.3,EUR
         2026-08-07 11:00:00 UTC,card_spend,BILLA,CLEARED,18.3,EUR
         """.utf8)
-        let prepared = try await etherFiPipe.prepare(ImportFile(fileName: "card.csv", data: csv), into: accountID)
+        let prepared = try await csvPipe.prepare(ImportFile(fileName: "card.csv", data: csv), into: accountID)
 
         // Eine vorhandene Buchung deckt genau eine neue Zeile ab; der zweite
         // gleiche Einkauf und der andere Händler kommen neu dazu.

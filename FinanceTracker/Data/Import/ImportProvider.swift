@@ -101,10 +101,24 @@ struct ProviderParseResult: Sendable, Equatable {
     let totalRows: Int
     let transactions: [ImportedTransaction]
     let issues: [ImportRowIssue]
+    /// Buchungsarten der Datei, deren Bedeutung die App nicht kennt. Die
+    /// Zeilen sind nach Vorzeichen importiert; die Vorschau fragt nach.
+    var unknownTypes: [UnknownTransactionType] = []
 
     static func empty(totalRows: Int = 0) -> ProviderParseResult {
         ProviderParseResult(totalRows: totalRows, transactions: [], issues: [])
     }
+}
+
+/// Eine Buchungsart, die das Wörterbuch nicht kennt („Card top-up").
+struct UnknownTransactionType: Sendable, Hashable, Identifiable {
+    /// Normalisierter Schlüssel für gespeicherte Entscheidungen.
+    let key: String
+    /// So, wie die Art in der Datei steht.
+    let label: String
+    let count: Int
+
+    var id: String { key }
 }
 
 enum ImportError: Error, Equatable, Sendable {

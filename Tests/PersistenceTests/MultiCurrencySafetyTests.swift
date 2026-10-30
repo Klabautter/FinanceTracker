@@ -10,7 +10,7 @@ struct MultiCurrencySafetyTests {
     private func txn(amount: Decimal, currency: CurrencyCode, accountID: UUID) -> Transaction {
         Transaction(
             accountID: accountID,
-            source: .etherFiCashCSV,
+            source: .legacyCardExportCSV,
             amount: Money(amount: amount, currency: currency),
             bookedAt: calendar.date(from: DateComponents(year: 2026, month: 8, day: 5))
         )
