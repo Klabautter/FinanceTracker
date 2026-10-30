@@ -22,6 +22,7 @@ struct FixkostenView: View {
     @State private var selectedCommitmentID: RecurringCommitment.ID?
     @State private var showsInspector = false
     @State private var sortOrder = [KeyPathComparator(\FixkostenOverviewRow.name)]
+    @State private var showsHiddenSuggestions = false
     @Environment(PrivacyPresentationState.self) private var privacyState
 
     private enum FixkostenSheet: Identifiable {
@@ -649,7 +650,7 @@ struct FixkostenView: View {
     @ViewBuilder
     private var hiddenSuggestionsSection: some View {
         if !model.hiddenSuggestions.isEmpty {
-            DisclosureGroup {
+            DisclosureGroup(isExpanded: $showsHiddenSuggestions) {
                 VStack(spacing: 0) {
                     ForEach(Array(model.hiddenSuggestions.enumerated()), id: \.element.id) { index, series in
                         if index > 0 { Divider() }
@@ -679,9 +680,18 @@ struct FixkostenView: View {
                 .financeCard(padding: AppSpacing.s)
                 .padding(.top, AppSpacing.s)
             } label: {
+                // Die ganze Zeile klappt auf, nicht nur das kleine Dreieck.
                 Text("Ausgeblendete Vorschläge (\(model.hiddenSuggestions.count))")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation { showsHiddenSuggestions.toggle() }
+                    }
+                    // Nur die Kopfzeile benennen: am ganzen Bereich würde die
+                    // Beschriftung auch die Knöpfe darin überschreiben.
+                    .accessibilityIdentifier("recurring-hidden-suggestions")
             }
         }
     }

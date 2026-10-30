@@ -238,7 +238,7 @@ final class ImportModel {
     private static let typeMeaningsDefaultsKey = "importTypeMeaningsByAccount"
 
     func savedTypeMeanings(for accountID: UUID) -> [String: TransactionTypeMeaning] {
-        let stored = UserDefaults.standard.dictionary(forKey: Self.typeMeaningsDefaultsKey) as? [String: [String: String]]
+        let stored = dependencies.userDefaults.dictionary(forKey: Self.typeMeaningsDefaultsKey) as? [String: [String: String]]
         return (stored?[accountID.uuidString] ?? [:]).compactMapValues(TransactionTypeMeaning.init(rawValue:))
     }
 
@@ -247,11 +247,11 @@ final class ImportModel {
     /// mehr.
     func applyTypeMeanings(_ choices: [String: TransactionTypeMeaning]) async {
         guard let accountID = preparedImport?.targetAccountID ?? selectedAccountID, !choices.isEmpty else { return }
-        var stored = UserDefaults.standard.dictionary(forKey: Self.typeMeaningsDefaultsKey) as? [String: [String: String]] ?? [:]
+        var stored = dependencies.userDefaults.dictionary(forKey: Self.typeMeaningsDefaultsKey) as? [String: [String: String]] ?? [:]
         var forAccount = stored[accountID.uuidString] ?? [:]
         for (key, meaning) in choices { forAccount[key] = meaning.rawValue }
         stored[accountID.uuidString] = forAccount
-        UserDefaults.standard.set(stored, forKey: Self.typeMeaningsDefaultsKey)
+        dependencies.userDefaults.set(stored, forKey: Self.typeMeaningsDefaultsKey)
 
         guard let last = lastPreparation else { return }
         do {

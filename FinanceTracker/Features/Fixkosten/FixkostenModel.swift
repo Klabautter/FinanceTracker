@@ -52,7 +52,7 @@ final class FixkostenModel {
         defer { isLoading = false }
 
         dismissedKeys = Set(
-            UserDefaults.standard.stringArray(forKey: dismissedDefaultsKey) ?? []
+            dependencies.userDefaults.stringArray(forKey: dismissedDefaultsKey) ?? []
         )
 
         do {
@@ -201,7 +201,7 @@ final class FixkostenModel {
     /// Holt einen ausgeblendeten Vorschlag zurück in die Vorschläge.
     func restoreSuggestion(_ series: RecurringSeries) async {
         dismissedKeys.remove(dismissKey(for: series))
-        UserDefaults.standard.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
+        dependencies.userDefaults.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
         if lastDismissedSuggestion?.id == series.id {
             lastDismissedSuggestion = nil
         }
@@ -365,7 +365,7 @@ final class FixkostenModel {
 
     private func markDismissed(_ key: String) {
         dismissedKeys.insert(key)
-        UserDefaults.standard.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
+        dependencies.userDefaults.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
     }
 
     private func cadence(from seriesCadence: RecurringSeries.Cadence) -> RecurringCommitment.Cadence {

@@ -163,6 +163,73 @@ final class VisualQAUITests: XCTestCase {
         }
     }
 
+    /// Übernimmt während des Laufs Maus und Tastatur. Für Prüfungen
+    /// nebenher den Demo-Modus im Hintergrund per Accessibility bedienen;
+    /// diesen Lauf nur starten, wenn der Rechner frei ist.
+    ///
+    /// UI/UX-Durchlauf über die Zustände des Demo-Datensatzes
+    /// (`DemoDataCoverageTests` stellt sicher, dass es sie gibt): offene und
+    /// ausgeblendete Vorschläge, vorgemerkte und unkategorisierte Buchungen,
+    /// Einstellungsreiter, halbe Fensterbreite. Screenshots unter
+    /// `TMP/FinanceTrackerVisualQA/…-states-*.png` zur Sichtprüfung.
+    @MainActor
+    func testCaptureStateCoverage() {
+        for variant in [
+            QAVariant(windowSize: "1280x800", appearance: "light", privacy: "off"),
+            QAVariant(windowSize: "840x800", appearance: "dark", privacy: "off")
+        ] {
+            let app = launchApp(variant: variant, dataMode: "-screenshot-demo", extraArguments: ["-AppleLanguages", "(de)"])
+            defer { app.terminate() }
+
+            for (key, ready, name) in [
+                ("1", "screen-ready-dashboard", "overview"),
+                ("2", "screen-ready-transactions", "transactions"),
+                ("3", "screen-ready-analytics", "analytics"),
+                ("4", "screen-ready-budgets", "budgets"),
+                ("5", "screen-ready-recurring", "recurring")
+            ] {
+                app.typeKey(key, modifierFlags: .command)
+                XCTAssertTrue(app.descendants(matching: .any)[ready].firstMatch.waitForExistence(timeout: 20), "\(name) nicht bereit")
+                settle()
+                capture(app, name: "states-\(name)")
+            }
+
+            // Vorschläge: offen, einer ausgeblendet, wieder angezeigt.
+            app.typeKey("5", modifierFlags: .command)
+            let suggestionsTab = app.radioButtons["Vorschläge"].firstMatch
+            XCTAssertTrue(suggestionsTab.waitForExistence(timeout: 10), "Tab Vorschläge fehlt")
+            // Segmente reagieren im macOS-UI-Test zuverlässig nur auf einen
+            // Klick in ihre Mitte, nicht auf die Accessibility-Aktion.
+            suggestionsTab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+            let dismiss = app.buttons["Nicht anzeigen"].firstMatch
+            XCTAssertTrue(dismiss.waitForExistence(timeout: 10), "Demo-Daten liefern keinen Vorschlag")
+            settle()
+            capture(app, name: "states-suggestions")
+            dismiss.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+            let hiddenGroup = app.descendants(matching: .any)["recurring-hidden-suggestions"].firstMatch
+            XCTAssertTrue(hiddenGroup.waitForExistence(timeout: 10), "Ausgeblendete Vorschläge fehlen")
+            // Klick auf den Zeilenanfang (Text), wie ein Nutzer es tut.
+            hiddenGroup.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 40, dy: 8)).click()
+            settle()
+            capture(app, name: "states-suggestions-hidden")
+            let restore = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'wieder anzeigen' OR title CONTAINS[c] 'wieder anzeigen'")).firstMatch
+            XCTAssertTrue(restore.waitForExistence(timeout: 10), "Wieder anzeigen fehlt")
+            restore.tap()
+            XCTAssertTrue(hiddenGroup.waitForNonExistence(timeout: 10), "Vorschlag wurde nicht wiederhergestellt")
+
+            // Einstellungen: alle Reiter.
+            app.typeKey(",", modifierFlags: .command)
+            for tab in ["Allgemein", "Datenschutz", "Konten", "Daten"] {
+                let button = app.toolbars.buttons[tab].firstMatch
+                XCTAssertTrue(button.waitForExistence(timeout: 10), "Einstellungsreiter \(tab) fehlt")
+                button.tap()
+                settle()
+                capture(app, window: app.windows[tab].firstMatch, name: "states-settings-\(tab)")
+            }
+            app.typeKey("w", modifierFlags: .command)
+        }
+    }
+
     @MainActor
     func testCaptureEmptyFirstRun() {
         let variant = QAVariant(windowSize: "1240x800", appearance: "light", privacy: "off")
@@ -438,8 +505,16 @@ final class VisualQAUITests: XCTestCase {
         extraArguments: [String] = []
     ) -> XCUIApplication {
         currentVariant = variant
+        // Die installierte App teilt die App-Kennung; der Durchlauf würde
+        // sie beenden. Lieber klar abbrechen.
+        let installedIsRunning = NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == Self.bundleID && $0.bundleURL?.path.hasPrefix("/Applications/") == true
+        }
+        if installedIsRunning {
+            XCTFail("Die installierte FinanceTracker-App läuft. Bitte zuerst beenden, dann den UI-Durchlauf starten.")
+        }
         for running in NSWorkspace.shared.runningApplications
-        where running.bundleIdentifier == Self.bundleID {
+        where running.bundleIdentifier == Self.bundleID && running.bundleURL?.path.hasPrefix("/Applications/") != true {
             running.forceTerminate()
         }
         let terminationDeadline = Date().addingTimeInterval(10)

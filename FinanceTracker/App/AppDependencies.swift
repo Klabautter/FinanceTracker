@@ -34,6 +34,10 @@ struct AppDependencies: @unchecked Sendable {
     let backupRestoreService: BackupRestoreService?
     /// Nutzereinstellungen außerhalb der Datenbank (z. B. Bargeld-Automatik).
     let preferences: any AppPreferences
+    /// Ablage für kleine UI-Zustände (ausgeblendete Vorschläge, Zuordnungen
+    /// von Buchungsarten). Im Demo-Modus ein eigener, leerer Bereich, damit
+    /// Durchläufe die echten Einstellungen nicht verändern.
+    let userDefaults: UserDefaults
     /// Kategorie-Vorschläge aus dem Händlernamen über das Sprachmodell des
     /// Geräts. `nil`, wo es keines gibt, und in Tests.
     let categoryAdvisor: (any MerchantCategoryAdvisor)?
@@ -67,6 +71,7 @@ struct AppDependencies: @unchecked Sendable {
         fxRateProvider: any FXRateProvider = ECBFXRateProvider(),
         backupRestoreService: BackupRestoreService? = nil,
         preferences: any AppPreferences = UserDefaultsAppPreferences(),
+        userDefaults: UserDefaults = .standard,
         categoryAdvisor: (any MerchantCategoryAdvisor)? = nil,
         enableBankingCredentialStore: any EnableBankingCredentialStoring = KeychainEnableBankingCredentialStore(),
         bankInstitutionCache: BankInstitutionCache = BankInstitutionCache()
@@ -95,6 +100,7 @@ struct AppDependencies: @unchecked Sendable {
         self.fxRateProvider = fxRateProvider
         self.backupRestoreService = backupRestoreService
         self.preferences = preferences
+        self.userDefaults = userDefaults
         self.categoryAdvisor = categoryAdvisor
         self.enableBankingCredentialStore = enableBankingCredentialStore
         self.bankInstitutionCache = bankInstitutionCache
@@ -106,14 +112,19 @@ struct AppDependencies: @unchecked Sendable {
         let launch = AppLaunchEnvironment.live
         let location: StoreLocation = launch.uiTestStoreURL.map { .url($0) } ?? .live
         let store = try SwiftDataStore(location: location)
+        var userDefaults = UserDefaults.standard
         #if DEBUG
         if launch.isScreenshotDemoMode {
             PreviewDependencies.seedDemoData(into: store.container)
+            let suite = "de.klabautter.FinanceTracker.screenshot-demo"
+            UserDefaults.standard.removePersistentDomain(forName: suite)
+            userDefaults = UserDefaults(suiteName: suite) ?? .standard
         }
         #endif
         return make(
             container: store.container,
             baseCurrency: .eur,
+            userDefaults: userDefaults,
             categoryAdvisor: MerchantCategoryAdvisorFactory.systemAdvisor()
         )
     }
@@ -126,6 +137,7 @@ struct AppDependencies: @unchecked Sendable {
         bankProviderFactory: (any BankProviderResolving)? = nil,
         fxRateProvider: (any FXRateProvider)? = nil,
         preferences: (any AppPreferences)? = nil,
+        userDefaults: UserDefaults = .standard,
         categoryAdvisor: (any MerchantCategoryAdvisor)? = nil
     ) -> AppDependencies {
         let enableBankingCredentialStore = KeychainEnableBankingCredentialStore()
@@ -164,6 +176,7 @@ struct AppDependencies: @unchecked Sendable {
             fxRateProvider: fxRateProvider ?? ECBFXRateProvider(),
             backupRestoreService: BackupRestoreService(modelContainer: container),
             preferences: preferences ?? UserDefaultsAppPreferences(),
+            userDefaults: userDefaults,
             categoryAdvisor: categoryAdvisor,
             enableBankingCredentialStore: enableBankingCredentialStore
         )

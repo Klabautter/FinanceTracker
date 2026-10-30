@@ -390,10 +390,20 @@ enum DemoDataFactory {
         let monthStart = calendar2.date(from: calendar2.dateComponents([.year, .month], from: now)) ?? now
         let rentDue = calendar2.date(byAdding: .day, value: 0, to: monthStart) ?? now
         let salaryDue = calendar2.date(byAdding: .month, value: 1, to: monthStart) ?? now
+        // Gleiche Händler-Kennung wie die Erkennung (Konto + normalisierter
+        // Anzeigename): Sonst erschiene ein bestätigter Zahlungsplan
+        // zusätzlich als Vorschlag.
+        func recurringKey(_ displayName: String, account: Account) -> String {
+            let canonical = MerchantNormalizer().canonicalDisplayName(from: displayName) ?? displayName
+            return RecurringMerchantIdentity(
+                accountID: account.id,
+                merchantKey: CategoryRuleEngine.normalizedKey(canonical)
+            ).persistedKey
+        }
         let demoCommitments = [
             RecurringCommitment(
                 name: String(localized: "Miete"),
-                merchantKey: "MIETE MUSTERSTRASSE",
+                merchantKey: recurringKey(String(localized: "Vermieter Musterstraße"), account: giroAccount),
                 direction: .expense,
                 cadence: .monthly,
                 amountPolicy: .fixed,
@@ -406,7 +416,7 @@ enum DemoDataFactory {
             ),
             RecurringCommitment(
                 name: String(localized: "Gehalt Acme GmbH"),
-                merchantKey: "GEHALT ACME GMBH",
+                merchantKey: recurringKey("Acme GmbH", account: giroAccount),
                 direction: .income,
                 cadence: .monthly,
                 amountPolicy: .fixed,
