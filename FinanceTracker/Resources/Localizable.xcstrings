@@ -110,22 +110,6 @@
         }
       }
     },
-    "%@ (gleicher Tag/Betrag/Händler, Quelle %@). Kein automatischer Abgleich, bitte in der Review-Queue prüfen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (gleicher Tag/Betrag/Händler, Quelle %@). Kein automatischer Abgleich, bitte in der Review-Queue prüfen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (same day/amount/merchant, source %@). Not matched automatically, please check it in the review queue."
-          }
-        }
-      }
-    },
     "%@ (zählt nicht in Auswertungen)" : {
       "localizations" : {
         "de" : {
@@ -16117,22 +16101,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Music"
-          }
-        }
-      }
-    },
-    "Mögliche Doppelbuchung aus anderer Quelle" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mögliche Doppelbuchung aus anderer Quelle"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Possible duplicate transaction from another source"
           }
         }
       }

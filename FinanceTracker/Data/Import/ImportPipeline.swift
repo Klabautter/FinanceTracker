@@ -60,9 +60,6 @@ enum ImportDedupNotices: Sendable {
     static var differentAccountHint: String {
         String(localized: "Gleiche Zeilen auf einem anderen Konto werden bewusst nicht als Duplikate gewertet (konto-scharfer Fingerprint aus Konto, Quelle, Währung und Betrag/Text).")
     }
-    /// Cross-Source-Hinweis (CSV vs. openBanking): kein stilles Mergen (#18),
-    /// nur Review-Kandidat.
-    static var crossSourceHintPrefix: String { String(localized: "Mögliche Doppelbuchung aus anderer Quelle") }
 }
 
 private struct ExternalTransactionKey: Hashable, Sendable {
@@ -190,17 +187,15 @@ struct ImportPipeline: Sendable {
         }
         let pendingCandidates = existing.filter { $0.status == .pending }
 
-        // Cross-Source-Hinweis (kein stilles Mergen): gleiche reale
-        // Buchung aus anderer Quelle (gleicher Account/Tag/Betrag/Text) wird NICHT
-        // als Duplikat gewertet. Stattdessen wird ein Review-Kandidat markiert,
-        // die Zeile wird trotzdem importiert (heutiges Verhalten: 2 Einträge).
-        // ReviewQueue-Anbindung (Vorschlag): `ReviewItem.Reason` um
-        // `.possibleCrossSourceDuplicate` erweitern und `crossSourceHints` in
-        // `ReviewQueueBuilder.buildItems` einspeisen.
+        // Liegt dieselbe Buchung schon aus einer Datei auf dem Konto, legt
+        // der Abruf keinen zweiten Eintrag an, sondern übernimmt den
+        // vorhandenen: Bankdaten kommen dazu, Kategorie, Notiz, Tags und
+        // Belege bleiben (gleiche ID). Danach greift die Bank-Kennung.
         var accountQuery = TransactionQuery()
         accountQuery.accountIDs = [accountID]
         let accountWideExisting = try await transactionRepository.transactions(matching: accountQuery)
-        let crossSourceIndex = Self.crossSourceIndex(from: accountWideExisting, excludingSource: source)
+        let crossSourceMatcher = CrossSourceDuplicateMatcher()
+        var crossSourceCandidates = accountWideExisting.filter { $0.source != source }
 
         let rules: [CategoryRule]
         if let ruleRepository {
@@ -223,7 +218,6 @@ struct ImportPipeline: Sendable {
         var inserts: [Transaction] = []
         var updates: [Transaction] = []
         var mutations: [ImportMutation] = []
-        var crossSourceHints: [ImportRowIssue] = []
         var duplicateCount = 0
 
         let startedAt = Date()
@@ -334,14 +328,18 @@ struct ImportPipeline: Sendable {
                 continue
             }
 
+            if let fileTransaction = crossSourceMatcher.match(draft, among: crossSourceCandidates) {
+                crossSourceCandidates.removeAll { $0.id == fileTransaction.id }
+                mutations.append(ImportMutation(
+                    transactionID: fileTransaction.id,
+                    kind: .updated,
+                    previousSnapshot: TransactionSnapshot(transaction: fileTransaction)
+                ))
+                updates.append(Self.adoptedByBank(target: fileTransaction, with: draft))
+                continue
+            }
+
             draft.importBatchID = batchID
-            Self.appendCrossSourceHint(
-                for: imported,
-                rowIndex: rowOffset + 1,
-                accountID: accountID,
-                into: &crossSourceHints,
-                index: crossSourceIndex
-            )
             inserts.append(draft)
             mutations.append(ImportMutation(transactionID: draft.id, kind: .inserted, previousSnapshot: nil))
         }
@@ -371,8 +369,7 @@ struct ImportPipeline: Sendable {
                 duplicateCount: duplicateCount,
                 failedCount: 0,
                 mutations: mutations
-            ),
-            crossSourceHints: crossSourceHints
+            )
         )
 
         return try await commit(prepared)
@@ -654,6 +651,18 @@ struct ImportPipeline: Sendable {
         return updated
     }
 
+    /// Eine aus einer Datei importierte Buchung wird zur Bankbuchung: Quelle,
+    /// Bank-Kennung und Bankdaten kommen dazu, ID und Nutzerdaten bleiben.
+    private static func adoptedByBank(target: Transaction, with draft: Transaction) -> Transaction {
+        var adopted = merged(target: target, with: draft)
+        adopted.source = draft.source
+        adopted.externalID = draft.externalID
+        if draft.rawMerchantName != nil { adopted.rawMerchantName = draft.rawMerchantName }
+        if draft.valueDate != nil { adopted.valueDate = draft.valueDate }
+        if draft.paymentMethod != nil { adopted.paymentMethod = draft.paymentMethod }
+        return adopted
+    }
+
     private static func merged(target: Transaction, with draft: Transaction) -> Transaction {
         var updated = target
         updated.status = draft.status
@@ -789,55 +798,11 @@ struct ImportPipeline: Sendable {
     /// Baut den source-agnostischen Index für Cross-Source-Hinweise:
     /// gleicher Account/Tag/Betrag/Währung/Text, aber andere Quelle.
     /// Gleiche Quelle wird ausgeschlossen (das ist exakter Dedup, kein Hinweis).
-    private static func crossSourceIndex(
-        from transactions: [Transaction],
-        excludingSource: TransactionSource
-    ) -> [String: Transaction] {
-        var index: [String: Transaction] = [:]
-        for txn in transactions where txn.source != excludingSource {
-            let bookingDate = txn.bookedAt ?? txn.authorizedAt
-            let key = TransactionFingerprinter.crossSourceFingerprint(
-                accountID: txn.accountID,
-                bookingDate: bookingDate,
-                amount: txn.amount,
-                merchantOrDescription: txn.rawMerchantName ?? txn.rawDescription ?? ""
-            )
-            if index[key] == nil {
-                index[key] = txn
-            }
-        }
-        return index
-    }
-
     private static func crossSourceIssue(rowIndex: Int, existing: Transaction) -> ImportRowIssue {
         ImportRowIssue(
             rowIndex: rowIndex,
             reason: String(localized: "Bereits vorhanden aus \(existing.source.displayName): \(existing.displayDate.formatted(date: .abbreviated, time: .omitted)), \(existing.effectiveMerchantName)")
         )
-    }
-
-    /// Markiert einen Cross-Source-Kandidaten als Review-Hinweis statt still
-    /// zu duplizieren/mergen. Die Zeile wird trotzdem
-    /// importiert; `failedCount` bleibt unberührt (Warnung, kein Fehler).
-    private static func appendCrossSourceHint(
-        for imported: ImportedTransaction,
-        rowIndex: Int,
-        accountID: UUID,
-        into hints: inout [ImportRowIssue],
-        index: [String: Transaction]
-    ) {
-        let bookingDate = imported.bookedAt ?? imported.authorizedAt
-        let key = TransactionFingerprinter.crossSourceFingerprint(
-            accountID: accountID,
-            bookingDate: bookingDate,
-            amount: imported.amount,
-            merchantOrDescription: imported.rawMerchantName ?? imported.rawDescription ?? ""
-        )
-        guard let match = index[key] else { return }
-        hints.append(ImportRowIssue(
-            rowIndex: rowIndex,
-            reason: String(localized: "\(ImportDedupNotices.crossSourceHintPrefix) (gleicher Tag/Betrag/Händler, Quelle \(match.source.displayName)). Kein automatischer Abgleich, bitte in der Review-Queue prüfen.")
-        ))
     }
 
     private static func makeTransaction(

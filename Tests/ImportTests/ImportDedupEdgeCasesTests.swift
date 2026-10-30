@@ -11,9 +11,9 @@ import Testing
 /// c) gleiche Zeilen, anderer Account → KEIN Duplikat (konto-scharf).
 /// d) pending X → booked X+2 → updatedCount=1 (Reconciliation, kein Insert).
 /// e) booked-Datum >7 Tage → neuer Insert (Reconciler-Limit fixiert).
-/// Cross-Source: Bankabruf auf ein Konto mit Datei-Buchungen ergibt
-/// 2 Einträge + Prüfhinweis; ein Datei-Import überspringt die Buchung und
-/// zählt sie (`crossSourceDuplicates`).
+/// Cross-Source: Ein Bankabruf übernimmt eine schon per Datei importierte
+/// Buchung (ein Eintrag, Nutzerdaten bleiben); ein Datei-Import überspringt
+/// sie und zählt sie (`crossSourceDuplicates`).
 ///
 /// Fixture-basiert wo CSV (inline CSV-Fixtures, vgl. ImportPipelineTests).
 @Suite("ImportDedupEdgeCases")
@@ -285,8 +285,8 @@ struct ImportDedupEdgeCasesTests {
 
     // MARK: - Cross-Source (CSV vs. openBanking)
 
-    @Test("Cross-Source wird NICHT still gemergt: 2 Einträge + Prüfhinweis")
-    func crossSourceDuplicateCreatesHintInsteadOfSilentMerge() async throws {
+    @Test("Bankabruf übernimmt die schon per Datei importierte Buchung, Nutzerdaten bleiben")
+    func bankSyncAdoptsFileTransaction() async throws {
         let dependencies = try makeDependencies()
         let csvPipe = ImportPipeline(
             providers: [GenericCSVProvider(fallbackCurrency: .eur)],
@@ -302,52 +302,48 @@ struct ImportDedupEdgeCasesTests {
 
         let first = try await csvPipe.run(ImportFile(fileName: "csv.csv", data: csv), into: accountID)
         #expect(first.importedCount == 1)
+        var fileTransaction = try #require(try await dependencies.transactionRepository.transactions(matching: TransactionQuery()).first)
+        fileTransaction.categoryID = Category.restaurants.id
+        fileTransaction.note = "Mit Anna"
+        try await dependencies.transactionRepository.upsert([fileTransaction])
 
-        // Gleiche reale Buchung aus anderer Quelle (openBanking), gleicher
-        // Account/Tag/Betrag/Text. Erwartetes heutiges Verhalten: KEIN Duplikat,
-        // sondern Insert + Hinweis (kein stilles Mergen, #18).
+        // Dieselbe Buchung kommt einen Tag später per Bankabruf, mit Kennung.
         let syncPipe = ImportPipeline(
             providers: [],
             transactionRepository: dependencies.transactionRepository,
             importBatchRepository: dependencies.importBatchRepository,
             fallbackCurrency: .eur
         )
-        let bookedAt = bookedDate("2026-08-05T12:00:00Z")
-        _ = try await syncPipe.commitParsedTransactions(
-            [ImportedTransaction(
-                status: .booked,
-                kind: .purchase,
-                amount: Money(amount: Decimal(string: "-5.40")!, currency: .eur),
-                bookedAt: bookedAt,
-                rawDescription: "COFFEE SHOP",
-                rawMerchantName: "COFFEE SHOP"
-            )],
-            source: .openBanking,
-            providerIdentifier: "openbanking",
-            into: accountID
+        let bankRow = ImportedTransaction(
+            externalID: "bank-1",
+            status: .booked,
+            kind: .purchase,
+            amount: Money(amount: Decimal(string: "-5.40")!, currency: .eur),
+            bookedAt: bookedDate("2026-08-06T12:00:00Z"),
+            rawDescription: "COFFEE SHOP 4711",
+            rawMerchantName: "COFFEE SHOP 4711"
         )
-        #expect(try await dependencies.transactionRepository.count() == 2)
+        let sync = try await syncPipe.commitParsedTransactions(
+            [bankRow], source: .openBanking, providerIdentifier: "openbanking", into: accountID
+        )
 
-        // Hinweis-Pfad über prepare(): CSV erneut prüfen → exakter Dedup für
-        // gleiche Quelle, aber Cross-Source-Hinweis entsteht beim Sync-Pfad.
-        // Direkt: prepare mit openBanking-ähnlicher Datei ist providergebunden,
-        // daher Hinweis über commitParsedTransactions-Zählung fixieren:
-        // Zweiter Sync mit identischer openBanking-Zeile ist jetzt Duplikat.
+        #expect(sync.importedCount == 0)
+        #expect(sync.updatedCount == 1)
+        let all = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        #expect(all.count == 1)
+        let adopted = try #require(all.first)
+        #expect(adopted.id == fileTransaction.id)
+        #expect(adopted.source == .openBanking)
+        #expect(adopted.externalID == "bank-1")
+        #expect(adopted.categoryID == Category.restaurants.id)
+        #expect(adopted.note == "Mit Anna")
+
+        // Der nächste Abruf erkennt sie an der Bank-Kennung.
         let secondSync = try await syncPipe.commitParsedTransactions(
-            [ImportedTransaction(
-                status: .booked,
-                kind: .purchase,
-                amount: Money(amount: Decimal(string: "-5.40")!, currency: .eur),
-                bookedAt: bookedAt,
-                rawDescription: "COFFEE SHOP",
-                rawMerchantName: "COFFEE SHOP"
-            )],
-            source: .openBanking,
-            providerIdentifier: "openbanking",
-            into: accountID
+            [bankRow], source: .openBanking, providerIdentifier: "openbanking", into: accountID
         )
-        #expect(secondSync.duplicateCount == 1)
-        #expect(try await dependencies.transactionRepository.count() == 2)
+        #expect(secondSync.importedCount == 0)
+        #expect(try await dependencies.transactionRepository.count() == 1)
     }
 
     @Test("Dieselbe Buchung aus anderer Quelle wird übersprungen und gezählt")
