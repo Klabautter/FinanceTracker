@@ -228,25 +228,36 @@ struct FixkostenView: View {
                     .tableCard()
             case .suggestions:
                 ScrollView {
-                    if model.suggestions.isEmpty {
-                        EmptyStateView(
-                            title: String(localized: "Keine Vorschläge"),
-                            message: String(localized: "Neue wiederkehrende Muster erscheinen hier zur ausdrücklichen Bestätigung."),
-                            systemImage: "sparkles"
-                        )
-                        .frame(height: 280)
-                    } else {
-                        VStack(spacing: 0) {
-                            ForEach(Array(model.suggestions.enumerated()), id: \.element.id) { index, series in
-                                if index > 0 { Divider() }
-                                suggestionRow(series)
+                    // Fester Stapel: Ohne ihn legten sich Leerzustand und
+                    // ausgeblendete Vorschläge übereinander.
+                    VStack(alignment: .leading, spacing: AppSpacing.l) {
+                        if !model.suggestions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(Array(model.suggestions.enumerated()), id: \.element.id) { index, series in
+                                    if index > 0 { Divider() }
+                                    suggestionRow(series)
+                                }
                             }
+                            .financeCard(padding: AppSpacing.s)
+                        } else if model.hiddenSuggestions.isEmpty {
+                            EmptyStateView(
+                                title: String(localized: "Keine Vorschläge"),
+                                message: String(localized: "Neue wiederkehrende Muster erscheinen hier zur ausdrücklichen Bestätigung."),
+                                systemImage: "sparkles"
+                            )
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 280)
+                        } else {
+                            // Nur ausgeblendete: leise Zeile statt großem
+                            // Leerzustand, damit die Liste darunter lesbar bleibt.
+                            Label("Keine neuen Vorschläge. Neue wiederkehrende Muster erscheinen hier zur Bestätigung.", systemImage: "sparkles")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                         }
-                        .financeCard(padding: AppSpacing.s)
-                        .padding(.horizontal, AppLayout.pageHorizontalPadding)
-                        .padding(.bottom, AppSpacing.l)
+                        hiddenSuggestionsSection
                     }
-                    hiddenSuggestionsSection
+                    .padding(.horizontal, AppLayout.pageHorizontalPadding)
+                    .padding(.bottom, AppSpacing.xl)
                 }
             }
 
@@ -638,7 +649,7 @@ struct FixkostenView: View {
     @ViewBuilder
     private var hiddenSuggestionsSection: some View {
         if !model.hiddenSuggestions.isEmpty {
-            DisclosureGroup("Ausgeblendete Vorschläge (\(model.hiddenSuggestions.count))") {
+            DisclosureGroup {
                 VStack(spacing: 0) {
                     ForEach(Array(model.hiddenSuggestions.enumerated()), id: \.element.id) { index, series in
                         if index > 0 { Divider() }
@@ -667,9 +678,11 @@ struct FixkostenView: View {
                 }
                 .financeCard(padding: AppSpacing.s)
                 .padding(.top, AppSpacing.s)
+            } label: {
+                Text("Ausgeblendete Vorschläge (\(model.hiddenSuggestions.count))")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, AppLayout.pageHorizontalPadding)
-            .padding(.bottom, AppSpacing.xl)
         }
     }
 

@@ -14181,6 +14181,22 @@
         }
       }
     },
+    "Keine neuen Vorschläge. Neue wiederkehrende Muster erscheinen hier zur Bestätigung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine neuen Vorschläge. Neue wiederkehrende Muster erscheinen hier zur Bestätigung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No new suggestions. New recurring patterns appear here for confirmation."
+          }
+        }
+      }
+    },
     "Keine offenen Anteile." : {
       "localizations" : {
         "de" : {
