@@ -7,3 +7,7 @@ A smarter file import that understands what each transaction is, from any bank o
 - Transactions already in an account are no longer imported twice, whether they came from another file format (PDF, CSV, Excel) or from bank sync.
 - When bank sync delivers a transaction that was imported from a file before, the existing entry is updated instead of duplicated; categories, notes, tags and receipts stay.
 - A pending transaction is updated once the booked version arrives, even from a different source.
+- The overview now focuses on the current month; the multi-month cashflow chart is in Analytics.
+- Consistent wording throughout the app, pending transactions marked in the transaction list, and a quieter currency conversion note.
+- Settings open in a window with General, Privacy, Accounts and Data tabs.
+- Scroll bars are hidden throughout the app.
