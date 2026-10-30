@@ -22,8 +22,9 @@ struct TransactionFocusedActions: ViewModifier {
     }
 }
 
-/// Bearbeiten → Widerrufen nach „Nicht anzeigen“ in den wiederkehrenden
-/// Vorschlägen. Nutzt dieselbe Menü-Anbindung wie die Transaktionen.
+/// Bearbeiten → Widerrufen nach „Nicht anzeigen“ oder „Bestätigen“ in den
+/// wiederkehrenden Vorschlägen. Nutzt dieselbe Menü-Anbindung wie die
+/// Transaktionen.
 struct SuggestionUndoFocusedAction: ViewModifier {
     @Environment(\.isWorkspaceActive) private var isActive
     let model: FixkostenModel
@@ -34,13 +35,13 @@ struct SuggestionUndoFocusedAction: ViewModifier {
     }
 
     private var undoActions: TransactionUndoActions? {
-        guard model.lastDismissedSuggestion != nil else { return nil }
+        guard let step = model.lastSuggestionUndo else { return nil }
         return TransactionUndoActions(
-            undo: { Task { await model.undoLastDismiss() } },
+            undo: { Task { await model.undoLastSuggestionAction() } },
             redo: {},
             canUndo: true,
             canRedo: false,
-            undoName: String(localized: "Vorschlag ausblenden"),
+            undoName: step.undoName,
             redoName: nil
         )
     }

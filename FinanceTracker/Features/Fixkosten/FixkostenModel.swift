@@ -12,8 +12,25 @@ final class FixkostenModel {
     /// Mit „Nicht anzeigen“ ausgeblendete Vorschläge, die weiterhin erkannt
     /// werden: Ein Verklicken lässt sich so jederzeit zurücknehmen.
     private(set) var hiddenSuggestions: [RecurringSeries] = []
-    /// Zuletzt ausgeblendeter Vorschlag, für Bearbeiten → Widerrufen.
-    private(set) var lastDismissedSuggestion: RecurringSeries?
+    /// Letzter Schritt bei den Vorschlägen, für Bearbeiten → Widerrufen.
+    enum SuggestionUndoStep: Equatable {
+        case dismissed(RecurringSeries)
+        /// Bestätigt: Widerrufen löscht den angelegten Zahlungsplan wieder.
+        case confirmed(RecurringSeries, commitmentID: RecurringCommitment.ID)
+
+        var undoName: String {
+            switch self {
+            case .dismissed: String(localized: "Vorschlag ausblenden")
+            case .confirmed: String(localized: "Vorschlag bestätigen")
+            }
+        }
+    }
+
+    private(set) var lastSuggestionUndo: SuggestionUndoStep?
+
+    var lastDismissedSuggestion: RecurringSeries? {
+        if case .dismissed(let series) = lastSuggestionUndo { series } else { nil }
+    }
     private var accountsByID: [UUID: Account] = [:]
     private var categoriesByID: [UUID: Category] = [:]
     /// WP7: Anzahl bezahlter Occurrences im aktuellen Zeitraum.
@@ -185,6 +202,7 @@ final class FixkostenModel {
         do {
             try await dependencies.recurringCommitmentRepository.upsert([commitment])
             markDismissed(dismissKey(for: series))
+            lastSuggestionUndo = .confirmed(series, commitmentID: commitment.id)
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
@@ -194,7 +212,7 @@ final class FixkostenModel {
 
     func dismissSuggestion(_ series: RecurringSeries) async {
         markDismissed(dismissKey(for: series))
-        lastDismissedSuggestion = series
+        lastSuggestionUndo = .dismissed(series)
         await load()
     }
 
@@ -203,14 +221,28 @@ final class FixkostenModel {
         dismissedKeys.remove(dismissKey(for: series))
         dependencies.userDefaults.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
         if lastDismissedSuggestion?.id == series.id {
-            lastDismissedSuggestion = nil
+            lastSuggestionUndo = nil
         }
         await load()
     }
 
-    func undoLastDismiss() async {
-        guard let series = lastDismissedSuggestion else { return }
-        await restoreSuggestion(series)
+    /// Nimmt das letzte Ausblenden oder Bestätigen eines Vorschlags zurück.
+    func undoLastSuggestionAction() async {
+        switch lastSuggestionUndo {
+        case .dismissed(let series):
+            await restoreSuggestion(series)
+        case .confirmed(let series, let commitmentID):
+            do {
+                try await dependencies.recurringCommitmentRepository.delete(id: commitmentID)
+                lastSuggestionUndo = nil
+                await restoreSuggestion(series)
+                dependencies.changeTracker.markChanged()
+            } catch {
+                errorMessage = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
+            }
+        case nil:
+            break
+        }
     }
 
     func createManualCommitment(
@@ -244,6 +276,9 @@ final class FixkostenModel {
     func delete(_ commitment: RecurringCommitment) async {
         do {
             try await dependencies.recurringCommitmentRepository.delete(id: commitment.id)
+            if case .confirmed(_, let id) = lastSuggestionUndo, id == commitment.id {
+                lastSuggestionUndo = nil
+            }
             dependencies.changeTracker.markChanged()
             await load()
         } catch {

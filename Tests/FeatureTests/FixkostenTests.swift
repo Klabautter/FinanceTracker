@@ -286,7 +286,7 @@ struct FixkostenTests {
         #expect(model.hiddenSuggestions.map(\.id) == [series.id])
         #expect(model.lastDismissedSuggestion?.id == series.id)
 
-        await model.undoLastDismiss()
+        await model.undoLastSuggestionAction()
         #expect(model.suggestions.map(\.id) == [series.id])
         #expect(model.hiddenSuggestions.isEmpty)
         #expect(model.lastDismissedSuggestion == nil)
@@ -294,6 +294,38 @@ struct FixkostenTests {
         await model.dismissSuggestion(series)
         await model.restoreSuggestion(series)
         #expect(model.suggestions.map(\.id) == [series.id])
+    }
+
+    @Test("Bestätigen lässt sich widerrufen: Zahlungsplan weg, Vorschlag wieder offen")
+    func confirmedSuggestionCanBeUndone() async throws {
+        let defaultsKey = "dismissedRecurringKeys"
+        let previous = UserDefaults.standard.object(forKey: defaultsKey)
+        UserDefaults.standard.removeObject(forKey: defaultsKey)
+        defer { UserDefaults.standard.set(previous, forKey: defaultsKey) }
+
+        let dependencies = try makeDependencies()
+        let accountID = UUID()
+        let history = [-90, -60, -30, -1].map { offset in
+            var transaction = txn(merchant: "NETFLIX", amount: -Decimal(string: "13.99")!, dayOffset: offset)
+            transaction.accountID = accountID
+            return transaction
+        }
+        try await dependencies.transactionRepository.upsert(history)
+
+        let model = FixkostenModel(dependencies: dependencies)
+        await model.load()
+        let series = try #require(model.suggestions.first)
+
+        await model.confirmSuggestion(series, categoryID: nil)
+        #expect(model.commitments.count == 1)
+        #expect(model.suggestions.isEmpty)
+        #expect(model.lastSuggestionUndo?.undoName == "Vorschlag bestätigen")
+
+        await model.undoLastSuggestionAction()
+        #expect(model.commitments.isEmpty)
+        #expect(model.suggestions.map(\.id) == [series.id])
+        #expect(model.hiddenSuggestions.isEmpty)
+        #expect(model.lastSuggestionUndo == nil)
     }
 
     @Test("Nächster Termin wird fortgeschrieben und stimmt mit der Vorschau überein")
