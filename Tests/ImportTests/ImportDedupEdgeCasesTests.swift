@@ -11,8 +11,9 @@ import Testing
 /// c) gleiche Zeilen, anderer Account → KEIN Duplikat (konto-scharf).
 /// d) pending X → booked X+2 → updatedCount=1 (Reconciliation, kein Insert).
 /// e) booked-Datum >7 Tage → neuer Insert (Reconciler-Limit fixiert).
-/// Cross-Source (CSV vs. openBanking): KEIN stilles Mergen: 2 Einträge +
-/// Review-Hinweis (`crossSourceHints`), kein Duplikat.
+/// Cross-Source: Bankabruf auf ein Konto mit Datei-Buchungen ergibt
+/// 2 Einträge + Prüfhinweis; ein Datei-Import überspringt die Buchung und
+/// zählt sie (`crossSourceDuplicates`).
 ///
 /// Fixture-basiert wo CSV (inline CSV-Fixtures, vgl. ImportPipelineTests).
 @Suite("ImportDedupEdgeCases")
@@ -349,7 +350,7 @@ struct ImportDedupEdgeCasesTests {
         #expect(try await dependencies.transactionRepository.count() == 2)
     }
 
-    @Test("Cross-Source-Hinweis erscheint in der Preview statt zu duplizieren")
+    @Test("Dieselbe Buchung aus anderer Quelle wird übersprungen und gezählt")
     func crossSourceHintAppearsInPreview() async throws {
         let dependencies = try makeDependencies()
         let accountID = UUID()
@@ -389,17 +390,63 @@ struct ImportDedupEdgeCasesTests {
         """.utf8)
         let prepared = try await csvPipe.prepare(ImportFile(fileName: "csv.csv", data: csv), into: accountID)
 
-        // Kein stilles Mergen: Insert bleibt, Hinweis zählt separat (kein Fehler).
-        #expect(prepared.transactions.count == 1)
+        // Dieselbe Buchung aus anderer Quelle wird übersprungen, aber gezählt
+        // und mit der vorhandenen Quelle benannt (nicht still verworfen).
+        #expect(prepared.transactions.isEmpty)
         #expect(prepared.duplicateCount == 0)
         #expect(prepared.failedCount == 0)
-        #expect(prepared.crossSourceHints.count == 1)
-        #expect(prepared.crossSourceHints.first?.reason.contains("anderer Quelle") == true)
-        #expect(prepared.importResultPreview.crossSourceHintCount == 1)
-        #expect(prepared.importResultPreview.summaryMessage.contains("Prüfhinweise"))
-        // ReviewQueue-Anbindung (Vorschlag, bewusst noch nicht verdrahtet):
-        // `ReviewItem.Reason` um `.possibleCrossSourceDuplicate` erweitern und
-        // `crossSourceHints` in `ReviewQueueBuilder.buildItems` einspeisen.
+        #expect(prepared.crossSourceDuplicates.count == 1)
+        #expect(prepared.crossSourceHints.isEmpty)
+        #expect(prepared.importResultPreview.crossSourceDuplicateCount == 1)
+        #expect(prepared.importResultPreview.summaryMessage.contains("Bereits vorhanden"))
+        #expect(prepared.batch?.duplicateCount == 1)
+
+        // „Trotzdem importieren“: Zeile kommt dazu, als Prüfhinweis markiert.
+        let forced = try await csvPipe.prepare(
+            ImportFile(fileName: "csv.csv", data: csv),
+            into: accountID,
+            importCrossSourceDuplicates: true
+        )
+        #expect(forced.transactions.count == 1)
+        #expect(forced.crossSourceDuplicates.isEmpty)
+        #expect(forced.crossSourceHints.count == 1)
+    }
+
+    @Test("PDF und CSV derselben Karte: abweichendes Datum und Händlertext werden erkannt")
+    func crossSourceToleratesDateAndTextVariants() async throws {
+        let dependencies = try makeDependencies()
+        let accountID = UUID()
+        let paidAt = bookedDate("2026-08-05T12:00:00Z")
+        try await dependencies.transactionRepository.upsert([
+            Transaction(
+                accountID: accountID,
+                source: .genericCSV,
+                status: .booked,
+                kind: .purchase,
+                amount: Money(amount: Decimal(string: "-18.30")!, currency: .eur),
+                bookedAt: paidAt,
+                rawDescription: "MCDONALDS 155",
+                rawMerchantName: "MCDONALDS 155"
+            )
+        ])
+
+        let etherFiPipe = ImportPipeline(
+            providers: [EtherFiCSVProvider(fallbackCurrency: .eur)],
+            transactionRepository: dependencies.transactionRepository,
+            fallbackCurrency: .eur
+        )
+        let csv = Data("""
+        timestamp,type,description,status,amount,currency
+        2026-08-07 09:10:38 UTC,card_spend,McDonald's Wien,CLEARED,18.3,EUR
+        2026-08-07 10:00:00 UTC,card_spend,McDonald's Wien,CLEARED,18.3,EUR
+        2026-08-07 11:00:00 UTC,card_spend,BILLA,CLEARED,18.3,EUR
+        """.utf8)
+        let prepared = try await etherFiPipe.prepare(ImportFile(fileName: "card.csv", data: csv), into: accountID)
+
+        // Eine vorhandene Buchung deckt genau eine neue Zeile ab; der zweite
+        // gleiche Einkauf und der andere Händler kommen neu dazu.
+        #expect(prepared.crossSourceDuplicates.count == 1)
+        #expect(prepared.transactions.count == 2)
     }
 
     // MARK: - Summary-Konsistenz (#5)

@@ -966,6 +966,22 @@
         }
       }
     },
+    "%lld Buchungen liegen schon aus einer anderen Quelle auf dem Konto und werden übersprungen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Buchungen liegen schon aus einer anderen Quelle auf dem Konto und werden übersprungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld transactions are already in this account from another source and will be skipped"
+          }
+        }
+      }
+    },
     "%lld Buchungen wurden" : {
       "localizations" : {
         "de" : {
@@ -2054,6 +2070,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 transaction"
+          }
+        }
+      }
+    },
+    "1 Buchung liegt schon aus einer anderen Quelle auf dem Konto und wird übersprungen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Buchung liegt schon aus einer anderen Quelle auf dem Konto und wird übersprungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 transaction is already in this account from another source and will be skipped"
           }
         }
       }
@@ -5694,6 +5726,54 @@
         }
       }
     },
+    "Bereits vorhanden (andere Quelle)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereits vorhanden (andere Quelle)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already Present (Other Source)"
+          }
+        }
+      }
+    },
+    "Bereits vorhanden (andere Quelle): %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereits vorhanden (andere Quelle): %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already present (other source): %lld"
+          }
+        }
+      }
+    },
+    "Bereits vorhanden aus %@: %@, %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereits vorhanden aus %@: %@, %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already present from %@: %@, %@"
+          }
+        }
+      }
+    },
     "Beschreibung" : {
       "localizations" : {
         "de" : {
@@ -8811,6 +8891,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The file is too large. Maximum %lld MB."
+          }
+        }
+      }
+    },
+    "Die Datei konnte nicht erneut vorbereitet werden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Datei konnte nicht erneut vorbereitet werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file couldn’t be prepared again."
           }
         }
       }
@@ -12960,6 +13056,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Imported"
+          }
+        }
+      }
+    },
+    "Importiert auch die Buchungen, die schon aus einer anderen Quelle vorhanden sind" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importiert auch die Buchungen, die schon aus einer anderen Quelle vorhanden sind"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also imports the transactions that already exist from another source"
           }
         }
       }
@@ -21593,6 +21705,22 @@
         }
       }
     },
+    "Trotzdem importieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trotzdem importieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Anyway"
+          }
+        }
+      }
+    },
     "Turnus" : {
       "localizations" : {
         "de" : {
@@ -25457,6 +25585,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Overview"
+          }
+        }
+      }
+    },
+    "Übersprungene Buchungen anzeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersprungene Buchungen anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Skipped Transactions"
           }
         }
       }

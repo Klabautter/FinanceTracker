@@ -37,6 +37,9 @@ final class ImportModel {
     }
 
     private var pendingFile: ImportFile?
+    /// Letzte Vorbereitung, damit „Trotzdem importieren“ dieselbe Datei mit
+    /// demselben Format erneut vorbereiten kann.
+    private var lastPreparation: (file: ImportFile, providerDisplayName: String, provider: any ImportProvider)?
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
@@ -230,11 +233,31 @@ final class ImportModel {
         }
     }
 
+    /// Übernimmt auch die Zeilen, die schon aus einer anderen Quelle auf dem
+    /// Konto liegen (die Vorschau hatte sie übersprungen).
+    func includeCrossSourceDuplicates() async {
+        guard let last = lastPreparation else { return }
+        do {
+            try await runPreparation(
+                last.file,
+                providerDisplayName: last.providerDisplayName,
+                provider: last.provider,
+                importCrossSourceDuplicates: true
+            )
+        } catch let error as ImportError {
+            phase = .failed(error.userFacingMessage)
+        } catch {
+            phase = .failed(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
+        }
+    }
+
     private func runPreparation(
         _ file: ImportFile,
         providerDisplayName: String,
-        provider: any ImportProvider
+        provider: any ImportProvider,
+        importCrossSourceDuplicates: Bool = false
     ) async throws {
+        lastPreparation = (file, providerDisplayName, provider)
         guard let accountID = selectedAccountID else {
             phase = .needsAccount(suggestedName: "")
             return
@@ -255,7 +278,11 @@ final class ImportModel {
         // XLSXConverter.csvText, CSVReader.parse, Fingerprint-/Rule-Loop)
         // läuft im Hintergrund; State-Updates bleiben auf dem MainActor.
         let prepared = try await Task.detached(priority: .userInitiated) {
-            try await singleProviderPipeline.prepare(file, into: accountID)
+            try await singleProviderPipeline.prepare(
+                file,
+                into: accountID,
+                importCrossSourceDuplicates: importCrossSourceDuplicates
+            )
         }.value
 
         if prepared.transactions.isEmpty
@@ -270,7 +297,8 @@ final class ImportModel {
                     duplicateCount: prepared.duplicateCount,
                     failedCount: prepared.failedCount,
                     isExactFileReplay: prepared.isExactFileReplay,
-                    crossSourceHintCount: prepared.crossSourceHints.count
+                    crossSourceHintCount: prepared.crossSourceHints.count,
+                    crossSourceDuplicateCount: prepared.crossSourceDuplicates.count
                 )
             )
             pendingFile = nil

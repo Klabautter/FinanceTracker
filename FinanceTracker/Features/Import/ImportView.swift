@@ -257,6 +257,9 @@ struct ImportView: View {
             }
             // Konsistent mit ImportResult.summaryMessage (#5): identisches Label.
             LabeledContent(ImportResult.duplicateLabel, value: "\(prepared.duplicateCount)")
+            if !prepared.crossSourceDuplicates.isEmpty {
+                LabeledContent("Bereits vorhanden (andere Quelle)", value: "\(prepared.crossSourceDuplicates.count)")
+            }
             if prepared.failedCount > 0 {
                 LabeledContent("Nicht importierbare Zeilen", value: "\(prepared.failedCount)")
             }
@@ -293,6 +296,35 @@ struct ImportView: View {
             }
 
             previewTable(prepared)
+
+            if !prepared.crossSourceDuplicates.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpacing.s) {
+                    Label(
+                        prepared.crossSourceDuplicates.count == 1
+                            ? String(localized: "1 Buchung liegt schon aus einer anderen Quelle auf dem Konto und wird übersprungen")
+                            : String(localized: "\(prepared.crossSourceDuplicates.count) Buchungen liegen schon aus einer anderen Quelle auf dem Konto und werden übersprungen"),
+                        systemImage: "doc.on.doc"
+                    )
+                    .font(.subheadline.weight(.medium))
+
+                    DisclosureGroup("Übersprungene Buchungen anzeigen") {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(prepared.crossSourceDuplicates, id: \.self) { issue in
+                                Text(issue.displayMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+
+                    Button("Trotzdem importieren") {
+                        Task { await model.includeCrossSourceDuplicates() }
+                    }
+                    .accessibilityHint("Importiert auch die Buchungen, die schon aus einer anderen Quelle vorhanden sind")
+                }
+                .padding(.vertical, 4)
+            }
 
             if !prepared.crossSourceHints.isEmpty {
                 VStack(alignment: .leading, spacing: AppSpacing.s) {
@@ -417,6 +449,9 @@ struct ImportView: View {
                 LabeledContent(ImportResult.duplicateLabel, value: "\(result.duplicateCount)")
                 if result.failedCount > 0 {
                     LabeledContent("Fehlgeschlagen", value: "\(result.failedCount)")
+                }
+                if result.crossSourceDuplicateCount > 0 {
+                    LabeledContent("Bereits vorhanden (andere Quelle)", value: "\(result.crossSourceDuplicateCount)")
                 }
                 if result.crossSourceHintCount > 0 {
                     LabeledContent("Prüfhinweise (andere Quelle)", value: "\(result.crossSourceHintCount)")

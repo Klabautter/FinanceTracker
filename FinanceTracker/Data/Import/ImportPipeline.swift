@@ -14,6 +14,10 @@ struct ImportResult: Sendable, Equatable {
     /// Cross-Source-Prüfhinweise (Warnungen, keine Fehler): gleiche reale
     /// Buchung aus anderer Quelle. Zählt NICHT als Duplikat/Fehler (#18).
     var crossSourceHintCount: Int = 0
+    /// Zeilen, die auf dem Konto schon aus einer anderen Quelle vorliegen
+    /// (z. B. PDF-Auszug und CSV-Export derselben Karte) und deshalb nicht
+    /// importiert wurden. Gezählt und sichtbar, nicht still verworfen.
+    var crossSourceDuplicateCount: Int = 0
 
     /// UI-Label für Duplikate, bewusst identisch mit der ImportView-Preview
     /// („Duplikate übersprungen: N"), damit Summary + Preview konsistent bleiben (#5).
@@ -29,6 +33,9 @@ struct ImportResult: Sendable, Equatable {
         }
         if failedCount > 0 {
             parts.append(String(localized: "Fehlgeschlagen: \(failedCount)"))
+        }
+        if crossSourceDuplicateCount > 0 {
+            parts.append(String(localized: "Bereits vorhanden (andere Quelle): \(crossSourceDuplicateCount)"))
         }
         if crossSourceHintCount > 0 {
             parts.append(String(localized: "Prüfhinweise (andere Quelle): \(crossSourceHintCount)"))
@@ -80,12 +87,12 @@ struct PreparedImport: Sendable, Equatable {
     /// FileHash-Frühwarnung (#1): exakt gleiche Datei (gleicher Hash) wurde
     /// schon importiert. Preview zeigt den Hinweis, Zählung bleibt row-level.
     var isExactFileReplay: Bool = false
-    /// Cross-Source-Kandidaten (gleicher Account/Tag/Betrag/Text, andere
-    /// Quelle): Warnungen, KEINE Duplikate, KEIN stilles Mergen. Die Zeilen
-    /// werden trotzdem importiert; Anbindung an die Review-Queue siehe
-    /// Kommentar in `prepare()` (Vorschlag: `ReviewItem.Reason`
-    /// um `.possibleCrossSourceDuplicate` erweitern).
+    /// Prüfhinweise: Zeilen, die trotz vorhandener Buchung aus anderer
+    /// Quelle importiert werden (Bankabruf oder „Trotzdem importieren“).
     var crossSourceHints: [ImportRowIssue] = []
+    /// Zeilen, die schon aus einer anderen Quelle auf dem Konto liegen und
+    /// übersprungen werden (je Zeile ein Hinweis mit der vorhandenen Quelle).
+    var crossSourceDuplicates: [ImportRowIssue] = []
 
     var fileReplayNotice: String? {
         isExactFileReplay ? ImportDedupNotices.fileReplayDetail : nil
@@ -100,7 +107,8 @@ struct PreparedImport: Sendable, Equatable {
             duplicateCount: duplicateCount,
             failedCount: failedCount,
             isExactFileReplay: isExactFileReplay,
-            crossSourceHintCount: crossSourceHints.count
+            crossSourceHintCount: crossSourceHints.count,
+            crossSourceDuplicateCount: crossSourceDuplicates.count
         )
     }
 }
@@ -384,14 +392,15 @@ struct ImportPipeline: Sendable {
     ///   nicht bloß Deduplication, #21).
     /// - e) booked-Datum >7 Tage verschoben → KEIN Reconcile (Reconciler-Limit),
     ///   neuer Insert; Limit ist per Test fixiert.
-    /// - Cross-Source (CSV vs. openBanking, gleicher Account/Tag/Betrag/Text,
-    ///   anderer Source): KEIN stilles Mergen (#18): Inserts bleiben
-    ///   (2 Einträge), stattdessen `crossSourceHints` als Review-Kandidat.
-    ///   ReviewQueue-Vorschlag: `ReviewItem.Reason.possibleCrossSourceDuplicate`.
+    /// - Cross-Source (dieselbe Buchung schon aus anderer Quelle auf dem Konto,
+    ///   z. B. PDF-Auszug vs. CSV-Export): wird übersprungen und als
+    ///   `crossSourceDuplicates` gezählt und angezeigt (#18: nicht still).
+    ///   Mit `importCrossSourceDuplicates` importiert, dann als Prüfhinweis.
     func prepare(
         _ file: ImportFile,
         into accountID: UUID,
-        preferredProviderIdentifier: String? = nil
+        preferredProviderIdentifier: String? = nil,
+        importCrossSourceDuplicates: Bool = false
     ) async throws -> PreparedImport {
         let normalizedFile = try Self.withNormalizedSpreadsheet(file)
         guard let provider = try await detectProvider(for: normalizedFile, preferred: preferredProviderIdentifier) else {
@@ -456,16 +465,20 @@ struct ImportPipeline: Sendable {
         var updates: [Transaction] = []
         var mutations: [ImportMutation] = []
         var crossSourceHints: [ImportRowIssue] = []
+        var crossSourceDuplicates: [ImportRowIssue] = []
         var duplicateCount = 0
         let reconciler = PendingBookedReconciler()
         var availablePendingCandidates = pendingCandidates
 
-        // Cross-Source-Index für den Hinweis (gleicher Account, andere Quelle).
-        // Lädt konto-weit (alle Sources), damit CSV vs. openBanking erkannt wird.
+        // Dieselbe Buchung aus einer anderen Quelle (PDF vs. CSV, Datei vs.
+        // Bankabruf) auf demselben Konto: wird übersprungen und gezählt. Auf
+        // Wunsch importiert die Vorschau sie trotzdem, dann als Prüfhinweis.
+        // Jede vorhandene Buchung deckt höchstens eine neue Zeile ab.
         var accountQuery = TransactionQuery()
         accountQuery.accountIDs = [accountID]
         let accountWideExisting = try await transactionRepository.transactions(matching: accountQuery)
-        let crossSourceIndex = Self.crossSourceIndex(from: accountWideExisting, excludingSource: source)
+        let crossSourceMatcher = CrossSourceDuplicateMatcher()
+        var crossSourceCandidates = accountWideExisting.filter { $0.source != source }
 
         var occurrencesByBaseFingerprint: [String: Int] = [:]
         for (rowOffset, imported) in importedTransactions.enumerated() {
@@ -569,14 +582,18 @@ struct ImportPipeline: Sendable {
                 continue
             }
 
+            if let existing = crossSourceMatcher.match(draft, among: crossSourceCandidates) {
+                crossSourceCandidates.removeAll { $0.id == existing.id }
+                let issue = Self.crossSourceIssue(rowIndex: rowOffset + 1, existing: existing)
+                if importCrossSourceDuplicates {
+                    crossSourceHints.append(issue)
+                } else {
+                    crossSourceDuplicates.append(issue)
+                    continue
+                }
+            }
+
             draft.importBatchID = importBatchID
-            Self.appendCrossSourceHint(
-                for: imported,
-                rowIndex: rowOffset + 1,
-                accountID: accountID,
-                into: &crossSourceHints,
-                index: crossSourceIndex
-            )
             batch.append(draft)
             mutations.append(ImportMutation(transactionID: draft.id, kind: .inserted, previousSnapshot: nil))
         }
@@ -603,12 +620,13 @@ struct ImportPipeline: Sendable {
                 totalRows: parseResult.totalRows,
                 importedCount: batch.count,
                 updatedCount: updates.count,
-                duplicateCount: duplicateCount,
+                duplicateCount: duplicateCount + crossSourceDuplicates.count,
                 failedCount: parseResult.issues.count,
                 mutations: mutations
             ),
             isExactFileReplay: isExactFileReplay,
-            crossSourceHints: crossSourceHints
+            crossSourceHints: crossSourceHints,
+            crossSourceDuplicates: crossSourceDuplicates
         )
     }
 
@@ -751,7 +769,8 @@ struct ImportPipeline: Sendable {
             duplicateCount: prepared.duplicateCount,
             failedCount: prepared.failedCount,
             isExactFileReplay: prepared.isExactFileReplay,
-            crossSourceHintCount: prepared.crossSourceHints.count
+            crossSourceHintCount: prepared.crossSourceHints.count,
+            crossSourceDuplicateCount: prepared.crossSourceDuplicates.count
         )
     }
 
@@ -788,6 +807,13 @@ struct ImportPipeline: Sendable {
             }
         }
         return index
+    }
+
+    private static func crossSourceIssue(rowIndex: Int, existing: Transaction) -> ImportRowIssue {
+        ImportRowIssue(
+            rowIndex: rowIndex,
+            reason: String(localized: "Bereits vorhanden aus \(existing.source.displayName): \(existing.displayDate.formatted(date: .abbreviated, time: .omitted)), \(existing.effectiveMerchantName)")
+        )
     }
 
     /// Markiert einen Cross-Source-Kandidaten als Review-Hinweis statt still
