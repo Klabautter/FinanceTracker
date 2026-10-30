@@ -6702,6 +6702,22 @@
         }
       }
     },
+    "Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen. Gleiche Zeilen in einem anderen Konto gelten nicht als doppelt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen. Gleiche Zeilen in einem anderen Konto gelten nicht als doppelt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transactions already in the account are not imported twice, even if they come from another file or from bank sync. Identical rows in a different account are not treated as duplicates."
+          }
+        }
+      }
+    },
     "Buchungsart %@ zuordnen" : {
       "localizations" : {
         "de" : {
@@ -7215,18 +7231,18 @@
         }
       }
     },
-    "CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Die Spalten werden automatisch erkannt; gelingt das nicht, kannst du sie zuordnen. Bereits vorhandene Buchungen werden übersprungen, Kategorien über deine Regeln zugewiesen." : {
+    "CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Spalten und Buchungsarten (Kartenzahlung, Aufladung, Erstattung, Cashback, Gebühr, Zinsen) werden auf Deutsch und Englisch erkannt; unbekannte Arten ordnest du einmal zu. Kategorien kommen aus deinen Regeln." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Die Spalten werden automatisch erkannt; gelingt das nicht, kannst du sie zuordnen. Bereits vorhandene Buchungen werden übersprungen, Kategorien über deine Regeln zugewiesen."
+            "value" : "CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Spalten und Buchungsarten (Kartenzahlung, Aufladung, Erstattung, Cashback, Gebühr, Zinsen) werden auf Deutsch und Englisch erkannt; unbekannte Arten ordnest du einmal zu. Kategorien kommen aus deinen Regeln."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CSV and Excel files as well as PDF statements with a date and an amount column, from any bank or card. Columns are detected automatically; if that fails, you can map them yourself. Existing transactions are skipped, and categories are assigned by your rules."
+            "value" : "CSV and Excel files as well as PDF statements with a date and an amount column, from any bank or card. Columns and transaction types (card payments, top-ups, refunds, cashback, fees, interest) are recognised in English and German; you assign unknown types once. Categories come from your rules."
           }
         }
       }
@@ -12228,22 +12244,6 @@
         }
       }
     },
-    "Gleiche Buchungen aus CSV und Open Banking werden nicht automatisch zusammengeführt, sondern als mögliche Doppelbuchung zur Prüfung markiert." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gleiche Buchungen aus CSV und Open Banking werden nicht automatisch zusammengeführt, sondern als mögliche Doppelbuchung zur Prüfung markiert."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Identical transactions from CSV and Open Banking aren't merged automatically; they're flagged as possible duplicates for review."
-          }
-        }
-      }
-    },
     "Gleiche Zeilen auf einem anderen Konto werden bewusst nicht als Duplikate gewertet (konto-scharfer Fingerprint aus Konto, Quelle, Währung und Betrag/Text)." : {
       "localizations" : {
         "de" : {
@@ -12512,22 +12512,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Planning Note"
-          }
-        }
-      }
-    },
-    "Hinweis zur konto-scharfen Duplikaterkennung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hinweis zur konto-scharfen Duplikaterkennung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Note on account-specific duplicate detection"
           }
         }
       }

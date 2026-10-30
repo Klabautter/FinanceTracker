@@ -273,6 +273,15 @@ struct ImportView: View {
                 .accessibilityLabel(ImportDedupNotices.fileAlreadyImported)
             }
 
+            // Rückfrage zu unbekannten Arten vor der Bestätigung, damit sie
+            // auch bei langen Dateien nicht unter der Vorschau verschwindet.
+            if !prepared.unknownTypes.isEmpty {
+                UnknownTypesSection(unknownTypes: prepared.unknownTypes) { choices in
+                    Task { await model.applyTypeMeanings(choices) }
+                }
+                .id(prepared.unknownTypes)
+            }
+
             // Die Bestätigung steht direkt unter der Zusammenfassung; unter der
             // Vorschau lag sie außerhalb des sichtbaren Bereichs.
             HStack {
@@ -296,13 +305,6 @@ struct ImportView: View {
             }
 
             previewTable(prepared)
-
-            if !prepared.unknownTypes.isEmpty {
-                UnknownTypesSection(unknownTypes: prepared.unknownTypes) { choices in
-                    Task { await model.applyTypeMeanings(choices) }
-                }
-                .id(prepared.unknownTypes)
-            }
 
             if !prepared.crossSourceDuplicates.isEmpty {
                 VStack(alignment: .leading, spacing: AppSpacing.s) {
@@ -402,6 +404,17 @@ struct ImportView: View {
         .padding(.vertical, 6)
     }
 
+    /// Datum, Art (außer bei gewöhnlichen Käufen und Unbekanntem) und was
+    /// mit der Zeile passiert: So sieht man, als was eine Buchung zählt.
+    private func previewSubtitle(_ txn: Transaction, changeDescription: String) -> String {
+        var parts = [AppDateFormatter.day(txn.displayDate)]
+        if txn.kind != .purchase && txn.kind != .unknown {
+            parts.append(txn.kind.displayName)
+        }
+        parts.append(changeDescription)
+        return parts.joined(separator: " · ")
+    }
+
     private func previewRows(
         _ transactions: [Transaction],
         title: String,
@@ -416,7 +429,7 @@ struct ImportView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(txn.effectiveMerchantName)
                             .lineLimit(1)
-                        Text("\(AppDateFormatter.day(txn.displayDate)) · \(changeDescription)")
+                        Text(previewSubtitle(txn, changeDescription: changeDescription))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -560,14 +573,10 @@ struct ImportView: View {
 
     private var hintSection: some View {
         Section("Unterstützte Formate") {
-            Text("CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Die Spalten werden automatisch erkannt; gelingt das nicht, kannst du sie zuordnen. Bereits vorhandene Buchungen werden übersprungen, Kategorien über deine Regeln zugewiesen.")
+            Text("CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Spalten und Buchungsarten (Kartenzahlung, Aufladung, Erstattung, Cashback, Gebühr, Zinsen) werden auf Deutsch und Englisch erkannt; unbekannte Arten ordnest du einmal zu. Kategorien kommen aus deinen Regeln.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Text(ImportDedupNotices.differentAccountHint)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Hinweis zur konto-scharfen Duplikaterkennung")
-            Text("Gleiche Buchungen aus CSV und Open Banking werden nicht automatisch zusammengeführt, sondern als mögliche Doppelbuchung zur Prüfung markiert.")
+            Text("Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen. Gleiche Zeilen in einem anderen Konto gelten nicht als doppelt.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
