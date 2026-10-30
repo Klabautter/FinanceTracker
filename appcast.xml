@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.2.2</title>
-      <pubDate>Thu, 29 Oct 2026 00:10:09 +0000</pubDate>
-      <sparkle:version>5</sparkle:version>
-      <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
+      <title>Version 0.3.0</title>
+      <pubDate>Fri, 30 Oct 2026 19:55:47 +0000</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[Hidden recurring suggestions can now be restored.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.2.2/FinanceTracker-0.2.2.zip"
-                 sparkle:edSignature="afZA4OeAxrRIQRfEQMxjCmwI6ZLb7n5rbfq0RWZ8Ua/d3VU0LYiAFLyfioFlXxx0aeTq1P6dxWFFN33l0dBCDw==" length="14974885" type="application/octet-stream"/>
+      <description><![CDATA[A smarter file import that understands what each transaction is, from any bank or card.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.3.0/FinanceTracker-0.3.0.zip"
+                 sparkle:edSignature="xAbBxDcTO+9E98sJ45RhQ17gFsrWPqnT2AA0rw4/Tz7JagLKcHp8+bF38xyjFSneVSujiQxP5tBYgNPCQQ3OAQ==" length="15094016" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
