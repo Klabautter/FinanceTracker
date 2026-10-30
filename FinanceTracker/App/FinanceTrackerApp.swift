@@ -152,6 +152,7 @@ struct FinanceTrackerApp: App {
                 )
             }
             .frame(width: 620, height: 500)
+            .scrollIndicators(.never)
         } else {
             Text("Lokale Daten nicht verfügbar.")
                 .frame(width: 420, height: 240)

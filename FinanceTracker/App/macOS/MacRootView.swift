@@ -31,6 +31,9 @@ struct MacRootView: View {
         // Tabelle und das Layout wird teurer. 840 lässt Platz für die Ränder
         // beim Andocken.
         .frame(minWidth: 840, minHeight: 600)
+        // Keine Rollbalken, auch wenn macOS sie dauerhaft einblenden will:
+        // Scrollen geht per Trackpad, Mausrad und Tastatur.
+        .scrollIndicators(.never)
     }
 
     private var reviewBadgeCount: Int? {

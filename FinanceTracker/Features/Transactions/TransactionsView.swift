@@ -688,9 +688,6 @@ private struct MacTransactionsTable: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
-        // ohne dauerhaft sichtbaren Rollbalken.
-        .scrollIndicators(.never, axes: .horizontal)
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 240
         } action: { _, nearEnd in

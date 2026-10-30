@@ -578,9 +578,6 @@ private struct PocketMacDetail: View {
             }
             .width(36)
         }
-        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
-        // ohne dauerhaft sichtbaren Rollbalken.
-        .scrollIndicators(.never, axes: .horizontal)
         .accessibilityLabel(
             displayMode == .included
                 ? String(localized: "Transaktionen in der Sammlung")

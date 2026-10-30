@@ -301,9 +301,6 @@ struct FixkostenView: View {
                 statusBadge(row)
             }
         }
-        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
-        // ohne dauerhaft sichtbaren Rollbalken.
-        .scrollIndicators(.never, axes: .horizontal)
         .onChange(of: selectedCommitmentID) { _, selection in
             if selection != nil {
                 showsInspector = true
