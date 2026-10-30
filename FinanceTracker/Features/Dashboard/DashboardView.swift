@@ -194,7 +194,7 @@ struct DashboardView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .appSurface(.groupedContent)
 
-                Text("Weitere Quellen lassen sich jederzeit unter „Konten & Verbindungen“ ergänzen.")
+                Text("Weitere Quellen lassen sich jederzeit unter „Konten“ ergänzen.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

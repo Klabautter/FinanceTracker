@@ -3885,38 +3885,6 @@
         }
       }
     },
-    "Anteile werden geladen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anteile werden geladen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading shares"
-          }
-        }
-      }
-    },
-    "Anteile werden geladen…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anteile werden geladen…"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading shares…"
-          }
-        }
-      }
-    },
     "Anwendung anlegen" : {
       "localizations" : {
         "de" : {
@@ -4557,38 +4525,6 @@
         }
       }
     },
-    "Ausstehend" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ausstehend"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pending"
-          }
-        }
-      }
-    },
-    "Auswertung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auswertung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Insights"
-          }
-        }
-      }
-    },
     "Auto" : {
       "localizations" : {
         "de" : {
@@ -4649,22 +4585,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Automatic Assignment"
-          }
-        }
-      }
-    },
-    "Automatisierung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatisierung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automation"
           }
         }
       }
@@ -7599,6 +7519,22 @@
         }
       }
     },
+    "Das vollständige Backup enthält alles, auch deine Belege, und lässt sich komplett wiederherstellen. Ohne Belege ist es kleiner, Belegdateien fehlen dann nach einer Wiederherstellung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das vollständige Backup enthält alles, auch deine Belege, und lässt sich komplett wiederherstellen. Ohne Belege ist es kleiner, Belegdateien fehlen dann nach einer Wiederherstellung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The full backup contains everything, including your receipts, and can be fully restored. Without receipts it is smaller, but receipt files are missing after a restore."
+          }
+        }
+      }
+    },
     "Datei" : {
       "localizations" : {
         "de" : {
@@ -8443,6 +8379,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The type couldn't be saved."
+          }
+        }
+      }
+    },
+    "Der Zahlungsplan konnte nicht gelöscht werden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Zahlungsplan konnte nicht gelöscht werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The payment plan couldn’t be deleted."
+          }
+        }
+      }
+    },
+    "Der Zahlungsplan konnte nicht gespeichert werden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Zahlungsplan konnte nicht gespeichert werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The payment plan couldn’t be saved."
           }
         }
       }
@@ -9923,22 +9891,6 @@
         }
       }
     },
-    "Ein Datenbackup ohne Belege dient dem Datenexport. Zur vollständigen Wiederherstellung benötigst du ein Backup mit allen Belegdateien." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Datenbackup ohne Belege dient dem Datenexport. Zur vollständigen Wiederherstellung benötigst du ein Backup mit allen Belegdateien."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A data backup without receipts is meant for exporting data. For a complete restore, you need a backup with all receipt files."
-          }
-        }
-      }
-    },
     "Ein Jahr" : {
       "localizations" : {
         "de" : {
@@ -10436,6 +10388,22 @@
         }
       }
     },
+    "Enthält umgerechnete Beträge in %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enthält umgerechnete Beträge in %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes amounts converted from %@"
+          }
+        }
+      }
+    },
     "Erfasse wiederkehrende Beträge wie Miete, Abos oder Gehalt, damit Termine und Zahlstatus an einem Ort sichtbar sind." : {
       "localizations" : {
         "de" : {
@@ -10452,12 +10420,12 @@
         }
       }
     },
-    "Erfasste Buchungen" : {
+    "Erfasste Transaktionen" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erfasste Buchungen"
+            "value" : "Erfasste Transaktionen"
           }
         },
         "en" : {
@@ -11220,38 +11188,6 @@
         }
       }
     },
-    "Fixkosten %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixed costs %@"
-          }
-        }
-      }
-    },
-    "Fixkosten filtern" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten filtern"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filter fixed costs"
-          }
-        }
-      }
-    },
     "Fixkosten fällig" : {
       "localizations" : {
         "de" : {
@@ -11264,86 +11200,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fixed costs due"
-          }
-        }
-      }
-    },
-    "Fixkosten konnten nicht geladen werden." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten konnten nicht geladen werden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixed costs couldn't be loaded."
-          }
-        }
-      }
-    },
-    "Fixkosten konnten nicht gelöscht werden." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten konnten nicht gelöscht werden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixed costs couldn't be deleted."
-          }
-        }
-      }
-    },
-    "Fixkosten konnten nicht gespeichert werden." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten konnten nicht gespeichert werden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixed costs couldn't be saved."
-          }
-        }
-      }
-    },
-    "Fixkosten oder wiederkehrende Einnahme erfassen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten oder wiederkehrende Einnahme erfassen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add fixed costs or recurring income"
-          }
-        }
-      }
-    },
-    "Fixkosten pro Monat" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixkosten pro Monat"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fixed Costs per Month"
           }
         }
       }
@@ -13701,23 +13557,6 @@
         }
       }
     },
-    "Kategorien & Regeln" : {
-      "comment" : "Sidebar-Titel: Kategorien und Regeln",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kategorien & Regeln"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Categories & Rules"
-          }
-        }
-      }
-    },
     "Kategorien (%lld)" : {
       "localizations" : {
         "de" : {
@@ -13894,6 +13733,22 @@
         }
       }
     },
+    "Kein Kontostand: Für den echten Stand im Konto einen Anfangsbestand festlegen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Kontostand: Für den echten Stand im Konto einen Anfangsbestand festlegen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not a balance: set an opening balance in the account to see its actual balance."
+          }
+        }
+      }
+    },
     "Kein Symbol gefunden." : {
       "localizations" : {
         "de" : {
@@ -14034,22 +13889,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Amounts"
-          }
-        }
-      }
-    },
-    "Keine Buchungen im Zeitraum" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine Buchungen im Zeitraum"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Transactions in This Period"
           }
         }
       }
@@ -14210,6 +14049,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No transactions found."
+          }
+        }
+      }
+    },
+    "Keine Transaktionen im Zeitraum" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Transaktionen im Zeitraum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Transactions in This Period"
           }
         }
       }
@@ -14435,23 +14290,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Accounts"
-          }
-        }
-      }
-    },
-    "Konten & Verbindungen" : {
-      "comment" : "Sidebar-Titel: Konten und Datenquellenverbindungen",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Konten & Verbindungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accounts & Connections"
           }
         }
       }
@@ -14884,22 +14722,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Balance"
-          }
-        }
-      }
-    },
-    "Kontostand bei Konten mit Anfangsbestand, sonst Netto der erfassten Buchungen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kontostand bei Konten mit Anfangsbestand, sonst Netto der erfassten Buchungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Balance for accounts with an opening balance, otherwise net of recorded transactions"
           }
         }
       }
@@ -15384,22 +15206,6 @@
         }
       }
     },
-    "Letzte Buchungen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Letzte Buchungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent Transactions"
-          }
-        }
-      }
-    },
     "Letzte Imports" : {
       "localizations" : {
         "de" : {
@@ -15860,6 +15666,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "At least one payday-cycle budget is calculated per calendar month because there isn’t enough salary history."
+          }
+        }
+      }
+    },
+    "Mit Anfangsbestand zeigt ein Konto seinen Stand, sonst die Summe seiner Transaktionen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Anfangsbestand zeigt ein Konto seinen Stand, sonst die Summe seiner Transaktionen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With an opening balance an account shows its balance, otherwise the sum of its transactions"
           }
         }
       }
@@ -16473,22 +16295,6 @@
         }
       }
     },
-    "Netto-Bewegung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Netto-Bewegung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Net Change"
-          }
-        }
-      }
-    },
     "Neu autorisieren …" : {
       "localizations" : {
         "de" : {
@@ -16533,22 +16339,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reconnect"
-          }
-        }
-      }
-    },
-    "Neue Buchungen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neue Buchungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New Transactions"
           }
         }
       }
@@ -17899,6 +17689,7 @@
       }
     },
     "Passe FinanceTracker an deinen Alltag an" : {
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18183,6 +17974,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Private key (PEM), hidden"
+          }
+        }
+      }
+    },
+    "Pro Monat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro Monat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per Month"
           }
         }
       }
@@ -20468,6 +20275,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Selection Total"
+          }
+        }
+      }
+    },
+    "Summe der Transaktionen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summe der Transaktionen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sum of Transactions"
           }
         }
       }
@@ -23323,18 +23146,18 @@
         }
       }
     },
-    "Weitere Quellen lassen sich jederzeit unter „Konten & Verbindungen“ ergänzen." : {
+    "Weitere Quellen lassen sich jederzeit unter „Konten“ ergänzen." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Weitere Quellen lassen sich jederzeit unter „Konten & Verbindungen“ ergänzen."
+            "value" : "Weitere Quellen lassen sich jederzeit unter „Konten“ ergänzen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can add more sources anytime under “Accounts & Connections”."
+            "value" : "You can add more sources at any time under “Accounts”."
           }
         }
       }
@@ -23964,6 +23787,22 @@
         }
       }
     },
+    "Zahlungsplan %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zahlungsplan %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payment plan %@"
+          }
+        }
+      }
+    },
     "Zahlungsplan bearbeiten" : {
       "localizations" : {
         "de" : {
@@ -23992,6 +23831,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete Payment Plan?"
+          }
+        }
+      }
+    },
+    "Zahlungsplan oder wiederkehrende Einnahme erfassen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zahlungsplan oder wiederkehrende Einnahme erfassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a payment plan or recurring income"
           }
         }
       }
@@ -24028,6 +23883,22 @@
         }
       }
     },
+    "Zahlungspläne filtern" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zahlungspläne filtern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter payment plans"
+          }
+        }
+      }
+    },
     "Zahlungspläne konnten nicht geladen werden" : {
       "localizations" : {
         "de" : {
@@ -24040,6 +23911,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Payment Plans Couldn’t Be Loaded"
+          }
+        }
+      }
+    },
+    "Zahlungspläne konnten nicht geladen werden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zahlungspläne konnten nicht geladen werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payment plans couldn’t be loaded."
           }
         }
       }
@@ -25633,22 +25520,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "over budget"
-          }
-        }
-      }
-    },
-    "–" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "–"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "–"
           }
         }
       }

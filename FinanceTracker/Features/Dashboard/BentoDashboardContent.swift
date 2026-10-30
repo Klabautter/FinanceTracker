@@ -34,7 +34,7 @@ struct BentoDashboardContent: View {
             PageHeader(
                 monthTitle,
                 subtitle: String(localized: "Alle Konten · Beträge in \(model.currency.rawValue)"),
-                eyebrow: String(localized: "Übersicht")
+                eyebrow: String(localized: "Alltag")
             ) {
                 HStack(spacing: AppSpacing.m) {
                     monthSwitcher
@@ -51,16 +51,17 @@ struct BentoDashboardContent: View {
             MetricStrip(metrics: headlineMetrics)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: AppSpacing.l) {
+                    // Der laufende Monat steht im Mittelpunkt; der Verlauf über
+                    // mehrere Monate (Cashflow) gehört in die Analyse.
                     VStack(alignment: .leading, spacing: AppSpacing.l) {
-                        historySection
                         ledgerTile
+                        allocationSection
                     }
                     .frame(minWidth: 460, maxWidth: .infinity, alignment: .topLeading)
                     VStack(alignment: .leading, spacing: AppSpacing.l) {
                         planningSection
                         if !model.budgetProgresses.isEmpty { budgetSection }
                         if !model.upcomingOccurrences.isEmpty { upcomingSection }
-                        allocationSection
                     }
                     .frame(minWidth: 300, idealWidth: 360, maxWidth: 400, alignment: .topLeading)
                 }
@@ -68,7 +69,6 @@ struct BentoDashboardContent: View {
 
                 VStack(alignment: .leading, spacing: AppSpacing.l) {
                     planningSection
-                    historySection
                     if !model.budgetProgresses.isEmpty { budgetSection }
                     if !model.upcomingOccurrences.isEmpty { upcomingSection }
                     allocationSection
@@ -394,7 +394,7 @@ struct BentoDashboardContent: View {
             }
         } accessory: {
             if let onShowBudgets {
-                SectionLinkButton(String(localized: "Alle"), action: onShowBudgets)
+                SectionLinkButton(String(localized: "Alle anzeigen"), action: onShowBudgets)
             }
         }
     }
@@ -470,16 +470,8 @@ struct BentoDashboardContent: View {
             }
         } accessory: {
             if let onShowRecurring {
-                SectionLinkButton(String(localized: "Alle"), action: onShowRecurring)
+                SectionLinkButton(String(localized: "Alle anzeigen"), action: onShowRecurring)
             }
-        }
-    }
-
-    // MARK: - Cashflow
-
-    private var historySection: some View {
-        PageSection(String(localized: "Cashflow"), subtitle: String(localized: "Einnahmen und Ausgaben der letzten Monate")) {
-            MonthlyCashflowChart(points: model.monthlyPoints, currency: model.currency, onMonthTap: onShowTransactionsInMonth, showsHeading: false)
         }
     }
 
@@ -537,7 +529,7 @@ struct BentoDashboardContent: View {
     // MARK: - Letzte Buchungen
 
     private var ledgerTile: some View {
-        PageSection(String(localized: "Letzte Buchungen")) {
+        PageSection(String(localized: "Letzte Transaktionen")) {
             if model.recentTransactions.isEmpty {
                 Text("Es sind noch keine Transaktionen vorhanden.")
                     .font(.callout)

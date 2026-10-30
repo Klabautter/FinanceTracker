@@ -31,7 +31,7 @@ enum TransactionStatus: String, Codable, Sendable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .pending: String(localized: "Ausstehend")
+        case .pending: String(localized: "Vorgemerkt")
         case .booked: String(localized: "Gebucht")
         case .reversed: String(localized: "Rückgängig")
         case .cancelled: String(localized: "Storniert")

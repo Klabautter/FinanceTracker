@@ -124,7 +124,7 @@ struct AccountDetailSheet: View {
                     )
                 }
                 LabeledContent(
-                    "Netto-Bewegung",
+                    "Summe der Transaktionen",
                     value: PrivacyAwareMoney.signed(Money(amount: model.netMovement, currency: model.account.currency), privacy: privacyState)
                 )
                 LabeledContent("Transaktionen", value: "\(model.transactionCount)")
@@ -135,7 +135,7 @@ struct AccountDetailSheet: View {
                     )
                 }
             } header: {
-                Text("Erfasste Buchungen")
+                Text("Erfasste Transaktionen")
             } footer: {
                 model.balance == nil
                     ? Text("Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest. Fremdwährungen werden getrennt ausgewiesen.")

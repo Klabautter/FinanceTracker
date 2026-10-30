@@ -205,8 +205,33 @@ struct CurrencyConversionNotice: View {
     let fxSnapshot: FXRateSnapshot?
     let fxIsLoading: Bool
 
+    /// Nur wenn etwas fehlt oder der Kurs veraltet ist, braucht es den
+    /// auffälligen Kasten; eine gewöhnliche Umrechnung ist eine leise Zeile
+    /// mit den Details als Tooltip.
+    private var needsAttention: Bool {
+        snapshot.excludedForeignTransactionCount > 0
+            || (fxSnapshot.map { FXRateStatusPresentation.isWarning($0) } ?? false)
+    }
+
+    private var convertedText: String {
+        let count = snapshot.convertedForeignTransactionCount
+        let currencies = snapshot.convertedCurrencies.map(\.rawValue).sorted().joined(separator: ", ")
+        return count == 1
+            ? String(localized: "1 Transaktion in \(currencies) wurde zum Referenzkurs in \(baseCurrency.rawValue) umgerechnet.")
+            : String(localized: "\(count) Transaktionen in \(currencies) wurden zum Referenzkurs in \(baseCurrency.rawValue) umgerechnet.")
+    }
+
     var body: some View {
-        if snapshot.convertedForeignTransactionCount > 0 || snapshot.excludedForeignTransactionCount > 0 {
+        if !needsAttention, snapshot.convertedForeignTransactionCount > 0 {
+            let currencies = snapshot.convertedCurrencies.map(\.rawValue).sorted().joined(separator: ", ")
+            let status = fxSnapshot.map { FXRateStatusPresentation.text(for: $0, detailed: false) }
+            Label(String(localized: "Enthält umgerechnete Beträge in \(currencies)"), systemImage: "arrow.left.arrow.right.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help([convertedText, status].compactMap { $0 }.joined(separator: "\n"))
+                .accessibilityLabel([convertedText, status].compactMap { $0 }.joined(separator: " "))
+        } else if snapshot.convertedForeignTransactionCount > 0 || snapshot.excludedForeignTransactionCount > 0 {
             VStack(alignment: .leading, spacing: 6) {
                 if snapshot.excludedForeignTransactionCount > 0 {
                     let count = snapshot.excludedForeignTransactionCount

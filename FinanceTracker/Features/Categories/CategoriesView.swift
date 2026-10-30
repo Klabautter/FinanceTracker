@@ -35,7 +35,7 @@ struct CategoriesView: View {
         var title: String {
             switch self {
             case .categories: String(localized: "Kategorien")
-            case .automation: String(localized: "Automatisierung")
+            case .automation: String(localized: "Regeln")
             case .tags: String(localized: "Tags")
             }
         }
@@ -91,7 +91,7 @@ struct CategoriesView: View {
             }
         }
         .workspaceHeading(
-            String(localized: "Kategorien & Regeln"),
+            String(localized: "Kategorien"),
             subtitle: String(localized: "Ordne deine Ausgaben, automatisiere Zuordnungen und markiere Buchungen mit Tags"),
             eyebrow: String(localized: "Organisation")
         )
@@ -103,7 +103,7 @@ struct CategoriesView: View {
                     Button {
                         activeSheet = .categoryEditor(nil)
                     } label: {
-                        Label("Neue Kategorie", systemImage: "plus.circle")
+                        Label("Neue Kategorie", systemImage: "plus")
                     }
                     .accessibilityLabel("Neue Kategorie erstellen")
                     .help("Neue Kategorie erstellen")
@@ -184,7 +184,7 @@ struct CategoriesView: View {
                 .padding(.bottom, AppSpacing.s)
             }
         }
-        .workspaceNavigationTitle(String(localized: "Kategorien & Regeln"))
+        .workspaceNavigationTitle(String(localized: "Kategorien"))
         .refreshable { await model.load() }
         .task(id: model.dataRevision) { await model.load() }
         .confirmationDialog(

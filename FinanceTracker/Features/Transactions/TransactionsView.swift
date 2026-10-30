@@ -404,7 +404,7 @@ private struct MacTransactionsContent: View {
             Button {
                 activeSheet = .addTransaction
             } label: {
-                Label("Neue Transaktion", systemImage: "plus.circle")
+                Label("Neue Transaktion", systemImage: "plus")
             }
             .keyboardShortcut("n", modifiers: .command)
             .accessibilityLabel("Neue Transaktion erfassen")
@@ -688,6 +688,9 @@ private struct MacTransactionsTable: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
+        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
+        // ohne dauerhaft sichtbaren Rollbalken.
+        .scrollIndicators(.never, axes: .horizontal)
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 240
         } action: { _, nearEnd in
@@ -785,7 +788,7 @@ private struct MacTransactionsTable: View {
                     IconTile(systemName: category.systemIconName, color: category.colorToken.color, size: 20)
                     Text(category.name)
                 } else {
-                    Text("–")
+                    Text(Category.uncategorizedDisplayName)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -804,13 +807,25 @@ private struct MacTransactionsTable: View {
 
     private func amountCell(_ txn: Transaction) -> some View {
         let voided = isVoided(txn)
+        let pending = txn.status == .pending
         return withTransactionContextMenu(
             txn,
-            MoneyText(money: txn.amount, signed: true)
-                .strikethrough(voided)
-                .opacity(voided ? 0.55 : 1)
-                .help(voided ? String(localized: "\(txn.status.displayName) (zählt nicht in Auswertungen)") : "")
-                .accessibilityValue(voided ? txn.status.displayName : "")
+            HStack(spacing: 6) {
+                // Vorgemerkt: kleine Uhr vor dem Betrag, wie in der Übersicht.
+                if pending {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundStyle(AppPalette.warning)
+                        .help(String(localized: "Vorgemerkt"))
+                        .accessibilityHidden(true)
+                }
+                MoneyText(money: txn.amount, signed: true)
+                    .strikethrough(voided)
+                    .opacity(voided ? 0.55 : 1)
+            }
+            .help(voided ? String(localized: "\(txn.status.displayName) (zählt nicht in Auswertungen)") : (pending ? String(localized: "Vorgemerkt") : ""))
+            .accessibilityElement(children: .combine)
+            .accessibilityValue(voided || pending ? txn.status.displayName : "")
         )
     }
 
@@ -1117,7 +1132,7 @@ private struct MobileTransactionsContent: View {
             Button {
                 activeSheet = .addTransaction
             } label: {
-                Label("Neue Transaktion", systemImage: "plus.circle")
+                Label("Neue Transaktion", systemImage: "plus")
             }
             .accessibilityLabel("Neue Transaktion erfassen")
             .accessibilityIdentifier("transaction-add-button")

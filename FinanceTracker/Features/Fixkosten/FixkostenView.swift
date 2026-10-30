@@ -84,9 +84,9 @@ struct FixkostenView: View {
                 Button {
                     activeSheet = .create
                 } label: {
-                    Label("Neuer Zahlungsplan", systemImage: "plus.circle")
+                    Label("Neuer Zahlungsplan", systemImage: "plus")
                 }
-                .accessibilityLabel("Fixkosten oder wiederkehrende Einnahme erfassen")
+                .accessibilityLabel("Zahlungsplan oder wiederkehrende Einnahme erfassen")
                 .help("Neuen Zahlungsplan anlegen")
             }
             #if os(macOS)
@@ -301,6 +301,9 @@ struct FixkostenView: View {
                 statusBadge(row)
             }
         }
+        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
+        // ohne dauerhaft sichtbaren Rollbalken.
+        .scrollIndicators(.never, axes: .horizontal)
         .onChange(of: selectedCommitmentID) { _, selection in
             if selection != nil {
                 showsInspector = true
@@ -325,7 +328,7 @@ struct FixkostenView: View {
                 .lineLimit(1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Fixkosten \(row.name)")
+        .accessibilityLabel("Zahlungsplan \(row.name)")
     }
 
     private func amountCell(_ row: FixkostenOverviewRow) -> some View {
@@ -426,7 +429,7 @@ struct FixkostenView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
-            Section("Fixkosten und Einnahmen") {
+            Section("Zahlungspläne und Einnahmen") {
                 if visibleRows.isEmpty {
                     Text("Keine Einträge für diesen Filter.")
                         .foregroundStyle(.secondary)
@@ -465,7 +468,7 @@ struct FixkostenView: View {
 
     private var summaryBar: some View {
         PlanningSummaryHero(
-            title: String(localized: "Fixkosten pro Monat"),
+            title: String(localized: "Pro Monat"),
             value: formattedSummaryAmount(model.monthlyTotal),
             caption: String(localized: "wiederkehrende Ausgaben im Monatsdurchschnitt"),
             systemImage: "calendar.badge.clock",
@@ -612,7 +615,7 @@ struct FixkostenView: View {
             #else
             .pickerStyle(.menu)
             #endif
-            .accessibilityLabel("Fixkosten filtern")
+            .accessibilityLabel("Zahlungspläne filtern")
         }
     }
 

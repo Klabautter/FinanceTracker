@@ -24,8 +24,8 @@ enum AppSection: String, Hashable, Identifiable, CaseIterable {
         case .analytics: String(localized: "Analyse", comment: "Sidebar-Titel: Analyse-Sektion")
         case .budgets: String(localized: "Budgets", comment: "Sidebar-Titel: Budgets")
         case .pockets: String(localized: "Sammlungen", comment: "Sidebar-Titel: zeitlich begrenzte Transaktionssammlungen")
-        case .accounts: String(localized: "Konten & Verbindungen", comment: "Sidebar-Titel: Konten und Datenquellenverbindungen")
-        case .categories: String(localized: "Kategorien & Regeln", comment: "Sidebar-Titel: Kategorien und Regeln")
+        case .accounts: String(localized: "Konten", comment: "Sidebar-Titel (kurz): Konten")
+        case .categories: String(localized: "Kategorien", comment: "Sidebar-Titel (kurz): Kategorien")
         case .recurring: String(localized: "Wiederkehrend", comment: "Sidebar-Titel: wiederkehrende Buchungen")
         }
     }

@@ -135,7 +135,7 @@ struct AnalyticsView: View {
                     PageHeader(
                         String(localized: "Analyse"),
                         subtitle: model.scope?.summary ?? String(localized: "Deine Einnahmen und Ausgaben im Überblick"),
-                        eyebrow: String(localized: "Auswertung")
+                        eyebrow: String(localized: "Alltag")
                     ) {
                         Button { showsFilterSheet = true } label: {
                             Label(
@@ -272,7 +272,7 @@ struct AnalyticsView: View {
                 }
             } else if let snapshot = model.snapshot, snapshot.transactionCount == 0 {
                 EmptyStateView(
-                    title: String(localized: "Keine Buchungen im Zeitraum"),
+                    title: String(localized: "Keine Transaktionen im Zeitraum"),
                     message: String(localized: "Für den gewählten Zeitraum und Filter gibt es keine Transaktionen. Passe „Zeitraum & Filter“ an oder importiere Daten."),
                     systemImage: "chart.pie.fill"
                 ) {

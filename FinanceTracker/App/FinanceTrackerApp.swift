@@ -151,7 +151,7 @@ struct FinanceTrackerApp: App {
                     updatesContent: AnyView(UpdateSettingsSection(updateChecker: updateChecker))
                 )
             }
-            .frame(width: 620, height: 680)
+            .frame(width: 620, height: 500)
         } else {
             Text("Lokale Daten nicht verfügbar.")
                 .frame(width: 420, height: 240)

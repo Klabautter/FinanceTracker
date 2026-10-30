@@ -16,8 +16,8 @@ struct L10nKeysTests {
             (.analytics, "Analyse"),
             (.budgets, "Budgets"),
             (.pockets, "Sammlungen"),
-            (.accounts, "Konten & Verbindungen"),
-            (.categories, "Kategorien & Regeln"),
+            (.accounts, "Konten"),
+            (.categories, "Kategorien"),
             (.recurring, "Wiederkehrend"),
         ]
         for (section, expected) in titles {

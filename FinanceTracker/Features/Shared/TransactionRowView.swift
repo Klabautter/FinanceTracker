@@ -31,7 +31,7 @@ struct TransactionRowView: View {
                 MoneyText(money: transaction.amount, signed: true)
                 HStack(spacing: 4) {
                     if transaction.status == .pending {
-                        Text("Ausstehend")
+                        Text("Vorgemerkt")
                             .font(.caption2)
                             .foregroundStyle(AppPalette.warning)
                     }

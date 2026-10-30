@@ -56,8 +56,11 @@ struct GroupExpenseSectionView: View {
                 .foregroundStyle(.secondary)
 
             if model.isLoading && model.shares.isEmpty {
-                ProgressView("Anteile werden geladen…")
-                    .accessibilityLabel("Anteile werden geladen")
+                // Laden dauert nur einen Augenblick: ruhiger Platzhalter in
+                // Knopfhöhe statt eines aufblitzenden Ladekreises.
+                Color.clear
+                    .frame(height: 24)
+                    .accessibilityHidden(true)
             } else if let error = model.errorMessage, model.shares.isEmpty {
                 InlineNotice(
                     message: error,

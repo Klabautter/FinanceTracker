@@ -49,7 +49,7 @@ struct AccountsView: View {
         Button {
             activeSheet = .addDataSource
         } label: {
-            Label("Datenquelle hinzufügen", systemImage: "plus.circle.fill")
+            Label("Datenquelle hinzufügen", systemImage: "plus")
         }
         .accessibilityLabel("Neue Datenquelle hinzufügen oder Datei importieren")
         .accessibilityIdentifier("account-add-source-button")
@@ -64,10 +64,8 @@ struct AccountsView: View {
     var body: some View {
         kontenContent
         .workspaceToolbar {
-            ToolbarItem(placement: .primaryAction) {
-                addManualAccountButton
-                    .help("Konto manuell anlegen, zum Beispiel Bargeld")
-            }
+            // Ein Plus für alles: Das Datenquellen-Blatt enthält auch
+            // „Konto manuell anlegen".
             ToolbarItem(placement: .primaryAction) {
                 addDataSourceButton
                     .help("Bank verbinden oder Datei importieren")
@@ -79,7 +77,7 @@ struct AccountsView: View {
             #endif
             }
         }
-        .workspaceNavigationTitle(String(localized: "Konten & Verbindungen"))
+        .workspaceNavigationTitle(String(localized: "Konten"))
         .workspaceHeading(String(localized: "Konten"), subtitle: String(localized: "Deine Konten und Bankverbindungen an einem Ort"), eyebrow: String(localized: "Daten"))
         .workspaceCanvas()
         .task(id: model.dataRevision) {
@@ -228,7 +226,7 @@ struct AccountsView: View {
                     }
                 }
                 if !model.accounts.isEmpty {
-                    PageSection(String(localized: "Deine Konten"), subtitle: String(localized: "Kontostand bei Konten mit Anfangsbestand, sonst Netto der erfassten Buchungen")) {
+                    PageSection(String(localized: "Deine Konten"), subtitle: String(localized: "Mit Anfangsbestand zeigt ein Konto seinen Stand, sonst die Summe seiner Transaktionen")) {
                         VStack(spacing: 0) {
                             ForEach(model.accounts) { summary in
                                 row(for: summary)
@@ -422,9 +420,10 @@ struct AccountsView: View {
                 } else {
                     MoneyText(money: summary.netMovement, signed: true)
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Netto-Bewegung")
+                    Text("Summe der Transaktionen")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .help(String(localized: "Kein Kontostand: Für den echten Stand im Konto einen Anfangsbestand festlegen."))
                 }
             }
             Image(systemName: "chevron.right")

@@ -64,7 +64,7 @@ struct PocketsView: View {
                 Button {
                     activeSheet = .create
                 } label: {
-                    Label("Neue Sammlung", systemImage: "plus.circle")
+                    Label("Neue Sammlung", systemImage: "plus")
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .accessibilityIdentifier("pocket-add-button")
@@ -578,6 +578,9 @@ private struct PocketMacDetail: View {
             }
             .width(36)
         }
+        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
+        // ohne dauerhaft sichtbaren Rollbalken.
+        .scrollIndicators(.never, axes: .horizontal)
         .accessibilityLabel(
             displayMode == .included
                 ? String(localized: "Transaktionen in der Sammlung")

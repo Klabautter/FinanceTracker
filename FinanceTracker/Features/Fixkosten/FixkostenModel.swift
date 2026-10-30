@@ -152,7 +152,7 @@ final class FixkostenModel {
             suggestions = open.filter { !dismissedKeys.contains(dismissKey(for: $0)) }
             hiddenSuggestions = open.filter { dismissedKeys.contains(dismissKey(for: $0)) }
         } catch {
-            errorMessage = String(localized: "Fixkosten konnten nicht geladen werden.")
+            errorMessage = String(localized: "Zahlungspläne konnten nicht geladen werden.")
         }
     }
 
@@ -237,7 +237,7 @@ final class FixkostenModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Fixkosten konnten nicht gespeichert werden.")
+            errorMessage = String(localized: "Der Zahlungsplan konnte nicht gespeichert werden.")
         }
     }
 
@@ -247,7 +247,7 @@ final class FixkostenModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Fixkosten konnten nicht gelöscht werden.")
+            errorMessage = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
         }
     }
 

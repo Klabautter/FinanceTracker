@@ -388,7 +388,7 @@ struct ImportView: View {
             if !prepared.transactions.isEmpty {
                 previewRows(
                     prepared.transactions,
-                    title: String(localized: "Neue Buchungen"),
+                    title: String(localized: "Neue Transaktionen"),
                     changeDescription: String(localized: "Wird neu importiert")
                 )
             }

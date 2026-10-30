@@ -394,7 +394,7 @@ final class AppCriticalFlowUITests: XCTestCase {
             "Kategorien & Regeln",
             timeout: 20
         )
-        // Tags sind ein Segment in „Kategorien & Regeln", kein Sidebar-Eintrag.
+        // Tags sind ein Segment in „Kategorien", kein Sidebar-Eintrag.
         let tagsTab = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == 'Tags'")).firstMatch
         assertExists(tagsTab, "Tags-Segment")

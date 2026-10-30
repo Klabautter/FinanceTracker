@@ -257,6 +257,9 @@ struct BudgetsView: View {
                 }
             }
         }
+        // Im schmalen Fenster scrollt die Tabelle seitlich per Trackpad,
+        // ohne dauerhaft sichtbaren Rollbalken.
+        .scrollIndicators(.never, axes: .horizontal)
         .onChange(of: selectedBudgetID) { _, selection in
             if selection != nil {
                 showsInspector = true
@@ -355,8 +358,10 @@ struct BudgetsView: View {
                 metrics: budgetSummaryMetrics,
                 notice: budgetCurrencyNotice
             )
-            if model.fxSnapshot != nil || model.fxIsLoading {
-                FXRateStatusView(snapshot: model.fxSnapshot, isLoading: model.fxIsLoading)
+            // Kursstatus nur, wenn er Aufmerksamkeit braucht (veraltet,
+            // fehlend); den Normalfall zeigen die Einstellungen.
+            if let fxSnapshot = model.fxSnapshot, FXRateStatusPresentation.isWarning(fxSnapshot) {
+                FXRateStatusView(snapshot: fxSnapshot, isLoading: model.fxIsLoading)
             }
         }
         .padding(.horizontal, AppLayout.pageHorizontalPadding)
@@ -593,8 +598,15 @@ enum BudgetOverviewPresentation {
     }
 
     static func periodRange(_ period: DateInterval, calendar: Calendar = .current) -> String {
-        let inclusiveEnd = calendar.date(byAdding: .day, value: -1, to: period.end) ?? period.end
-        return "\(AppDateFormatter.day(period.start)) – \(AppDateFormatter.day(inclusiveEnd))"
+        let inclusiveEnd = max(period.start, calendar.date(byAdding: .day, value: -1, to: period.end) ?? period.end)
+        // Kompakt und sprachgerecht („1.–31. Okt.", „Oct 1 – 31"); das Jahr
+        // nur, wenn der Zeitraum nicht im laufenden Jahr liegt.
+        let sameYear = calendar.isDate(period.start, equalTo: Date(), toGranularity: .year)
+            && calendar.isDate(inclusiveEnd, equalTo: Date(), toGranularity: .year)
+        let style = sameYear
+            ? Date.IntervalFormatStyle().day().month(.abbreviated)
+            : Date.IntervalFormatStyle().day().month(.abbreviated).year()
+        return (period.start..<inclusiveEnd).formatted(style)
     }
 
     static func variance(for progress: BudgetProgress) -> Decimal {

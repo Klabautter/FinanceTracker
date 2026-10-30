@@ -14,8 +14,8 @@ struct SidebarP0UXTests {
     func sectionTitles() {
         #expect(AppSection.recurring.title == "Wiederkehrend")
         #expect(AppSection.pockets.title == "Sammlungen")
-        #expect(AppSection.accounts.title == "Konten & Verbindungen")
-        #expect(AppSection.categories.title == "Kategorien & Regeln")
+        #expect(AppSection.accounts.title == "Konten")
+        #expect(AppSection.categories.title == "Kategorien")
     }
 
     @Test("Jede Sektion hat ein SF-Symbol")

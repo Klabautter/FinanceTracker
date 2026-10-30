@@ -32,7 +32,9 @@ struct SettingsView: View {
     var body: some View {
         settingsLayout
         .workspaceNavigationTitle(String(localized: "Einstellungen"))
-        .workspaceHeading(String(localized: "Einstellungen"), subtitle: String(localized: "Passe FinanceTracker an deinen Alltag an"), eyebrow: "FinanceTracker")
+        #if !os(macOS)
+        .workspaceHeading(String(localized: "Einstellungen"), subtitle: String(localized: "Passe FinanceTracker an deinen Alltag an"))
+        #endif
         .workspaceCanvas()
         .task { await model.loadFXRates() }
         .task { await model.loadCashAccounts() }
@@ -87,15 +89,17 @@ struct SettingsView: View {
     @ViewBuilder
     private var settingsLayout: some View {
         #if os(macOS)
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.l) {
-                settingsSections
-            }
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .padding(.horizontal, AppSpacing.xl)
-            .padding(.bottom, AppSpacing.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        // Mac-typisch: Reiter oben im Einstellungsfenster statt einer
+        // langen Seite.
+        TabView {
+            settingsTab { generalSections }
+                .tabItem { Label("Allgemein", systemImage: "gearshape") }
+            settingsTab { privacySections }
+                .tabItem { Label("Datenschutz", systemImage: "hand.raised") }
+            settingsTab { accountSections }
+                .tabItem { Label("Konten", systemImage: "building.columns") }
+            settingsTab { dataSections }
+                .tabItem { Label("Daten", systemImage: "externaldrive") }
         }
         #else
         Form { settingsSections }
@@ -103,9 +107,29 @@ struct SettingsView: View {
         #endif
     }
 
+    #if os(macOS)
+    private func settingsTab<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.l, content: content)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .padding(AppSpacing.xl)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+    #endif
+
     private var settingsSections: some View {
-        @Bindable var model = model
-        return Group {
+        Group {
+            generalSections
+            privacySections
+            accountSections
+            dataSections
+        }
+    }
+
+    @ViewBuilder
+    private var generalSections: some View {
             settingsSection(String(localized: "Allgemein", comment: "Settings-Sektion: allgemeine Angaben")) {
                 HStack {
                     Text("Basiswährung")
@@ -139,6 +163,10 @@ struct SettingsView: View {
                 .accessibilityLabel("Wechselkurse jetzt aktualisieren")
             }
 
+    }
+
+    @ViewBuilder
+    private var privacySections: some View {
             settingsSection(String(localized: "Datenschutz", comment: "Settings-Sektion: Datenschutz")) {
                 Toggle(isOn: Binding(
                     get: { privacyState.hidesAmounts },
@@ -150,6 +178,12 @@ struct SettingsView: View {
                 .accessibilityLabel("Beträge in der gesamten App verbergen oder anzeigen")
             }
 
+            mitteilungenSection
+    }
+
+    @ViewBuilder
+    private var accountSections: some View {
+            @Bindable var model = model
             settingsSection(String(localized: "Bargeld", comment: "Settings-Sektion: Bargeld-Automatik")) {
                 Picker("Abhebungen gutschreiben", selection: $model.cashWithdrawalTargetAccountID) {
                     Text("Aus").tag(UUID?.none)
@@ -166,6 +200,118 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            settingsSection(String(localized: "Datenquellen", comment: "Settings-Sektion: Datenquellen")) {
+                // P1 UX: Echter Navigations-Link auf Konten & Verbindungen
+                // statt reiner Label-Sektion.
+                if let onShowAccounts {
+                    Button(action: onShowAccounts) {
+                        HStack {
+                            Label("Konten", systemImage: "building.columns")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Konten und Verbindungen öffnen")
+                    .accessibilityIdentifier("settings-show-accounts")
+                } else {
+                    NavigationLink {
+                        AccountsView(dependencies: dependencies, pendingRoute: .constant(nil))
+                    } label: {
+                        Label("Konten", systemImage: "building.columns")
+                    }
+                    .accessibilityLabel("Konten und Verbindungen öffnen")
+                    .accessibilityIdentifier("settings-show-accounts")
+                }
+                Text("CSV-, Excel- und PDF-Importe werden lokal verarbeitet. FinanceTracker führt keine Zahlungen aus.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+    }
+
+    @ViewBuilder
+    private var dataSections: some View {
+            settingsSection(String(localized: "Daten & Export", comment: "Settings-Sektion: Daten und Export")) {
+                Menu {
+                    Button("Transaktionen als CSV exportieren", systemImage: "square.and.arrow.up") {
+                    Task {
+                        exportSuccessMessage = nil
+                        exportDocument = await model.prepareCSVExport()
+                        showsCSVExporter = exportDocument != nil
+                    }
+                }
+                    .disabled(model.isBusyWithData)
+                .accessibilityLabel("Alle Transaktionen als CSV-Datei exportieren")
+                    Button("Vollständiges Backup exportieren", systemImage: "archivebox") {
+                    Task {
+                        exportSuccessMessage = nil
+                        backupDocument = await model.prepareBackupExport()
+                        showsBackupExporter = backupDocument != nil
+                    }
+                }
+                    .disabled(model.isBusyWithData)
+                    Button("Datenbackup ohne Belege exportieren", systemImage: "archivebox") {
+                    Task {
+                        exportSuccessMessage = nil
+                        backupDocument = await model.prepareBackupExport(includeAttachments: false)
+                        showsBackupExporter = backupDocument != nil
+                    }
+                }
+                    .disabled(model.isBusyWithData)
+                } label: {
+                    Label("Daten exportieren", systemImage: "square.and.arrow.up")
+                }
+                .disabled(model.isBusyWithData)
+                Text("Das vollständige Backup enthält alles, auch deine Belege, und lässt sich komplett wiederherstellen. Ohne Belege ist es kleiner, Belegdateien fehlen dann nach einer Wiederherstellung.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Button("Backup wiederherstellen…", systemImage: "arrow.counterclockwise") {
+                    showsBackupImporter = true
+                }
+                .disabled(model.isBusyWithData || dependencies.backupRestoreService == nil)
+                .accessibilityLabel("Backup-Datei auswählen und vor der Wiederherstellung prüfen")
+                if model.isBusyWithData {
+                    ProgressView(model.isRestoring ? String(localized: "Backup wird verarbeitet…") : String(localized: "Export wird erstellt…"))
+                }
+                if let message = model.dataMessage {
+                    Text(message).font(.footnote).textSelection(.enabled)
+                    #if os(macOS)
+                    if let safetyURL = model.lastSafetyBackupURL {
+                        Button("Sicherheitskopie im Finder zeigen") {
+                            NSWorkspace.shared.activateFileViewerSelecting([safetyURL])
+                        }
+                        .controlSize(.small)
+                    }
+                    #endif
+                }
+
+                if let exportSuccessMessage {
+                    Label(exportSuccessMessage, systemImage: "checkmark.circle")
+                        .font(.footnote)
+                        .foregroundStyle(AppPalette.positive)
+                        .accessibilityIdentifier("settings-export-success")
+                }
+
+                if let exportErrorMessage {
+                    Label(exportErrorMessage, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(AppPalette.critical)
+                }
+
+                // Privacy Mode ist UI-Presentation: Exporte enthalten immer
+                // die echten Daten, die UI muss das erklären.
+                if privacyState.hidesAmounts {
+                    Label(PrivacyAwareMoney.exportContainsRealAmountsHint, systemImage: "info.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+    }
+
+    @ViewBuilder
+    private var mitteilungenSection: some View {
             settingsSection(String(localized: "Mitteilungen", comment: "Settings-Sektion: Mitteilungen")) {
                 Toggle(isOn: Binding(
                     get: { model.notificationsEnabled },
@@ -210,111 +356,6 @@ struct SettingsView: View {
                 }
             }
 
-            settingsSection(String(localized: "Daten & Export", comment: "Settings-Sektion: Daten und Export")) {
-                Menu {
-                    Button("Transaktionen als CSV exportieren", systemImage: "square.and.arrow.up") {
-                    Task {
-                        exportSuccessMessage = nil
-                        exportDocument = await model.prepareCSVExport()
-                        showsCSVExporter = exportDocument != nil
-                    }
-                }
-                    .disabled(model.isBusyWithData)
-                .accessibilityLabel("Alle Transaktionen als CSV-Datei exportieren")
-                    Button("Vollständiges Backup exportieren", systemImage: "archivebox") {
-                    Task {
-                        exportSuccessMessage = nil
-                        backupDocument = await model.prepareBackupExport()
-                        showsBackupExporter = backupDocument != nil
-                    }
-                }
-                    .disabled(model.isBusyWithData)
-                    Button("Datenbackup ohne Belege exportieren", systemImage: "archivebox") {
-                    Task {
-                        exportSuccessMessage = nil
-                        backupDocument = await model.prepareBackupExport(includeAttachments: false)
-                        showsBackupExporter = backupDocument != nil
-                    }
-                }
-                    .disabled(model.isBusyWithData)
-                } label: {
-                    Label("Daten exportieren", systemImage: "square.and.arrow.up")
-                }
-                .disabled(model.isBusyWithData)
-                Text("Ein Datenbackup ohne Belege dient dem Datenexport. Zur vollständigen Wiederherstellung benötigst du ein Backup mit allen Belegdateien.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Button("Backup wiederherstellen…", systemImage: "arrow.counterclockwise") {
-                    showsBackupImporter = true
-                }
-                .disabled(model.isBusyWithData || dependencies.backupRestoreService == nil)
-                .accessibilityLabel("Backup-Datei auswählen und vor der Wiederherstellung prüfen")
-                if model.isBusyWithData {
-                    ProgressView(model.isRestoring ? String(localized: "Backup wird verarbeitet…") : String(localized: "Export wird erstellt…"))
-                }
-                if let message = model.dataMessage {
-                    Text(message).font(.footnote).textSelection(.enabled)
-                    #if os(macOS)
-                    if let safetyURL = model.lastSafetyBackupURL {
-                        Button("Sicherheitskopie im Finder zeigen") {
-                            NSWorkspace.shared.activateFileViewerSelecting([safetyURL])
-                        }
-                        .controlSize(.small)
-                    }
-                    #endif
-                }
-
-                if let exportSuccessMessage {
-                    Label(exportSuccessMessage, systemImage: "checkmark.circle")
-                        .font(.footnote)
-                        .foregroundStyle(AppPalette.positive)
-                        .accessibilityIdentifier("settings-export-success")
-                }
-
-                if let exportErrorMessage {
-                    Label(exportErrorMessage, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(AppPalette.critical)
-                }
-
-                // Privacy Mode ist UI-Presentation: Exporte enthalten immer
-                // die echten Daten, die UI muss das erklären.
-                if privacyState.hidesAmounts {
-                    Label(PrivacyAwareMoney.exportContainsRealAmountsHint, systemImage: "info.circle")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            settingsSection(String(localized: "Datenquellen", comment: "Settings-Sektion: Datenquellen")) {
-                // P1 UX: Echter Navigations-Link auf Konten & Verbindungen
-                // statt reiner Label-Sektion.
-                if let onShowAccounts {
-                    Button(action: onShowAccounts) {
-                        HStack {
-                            Label("Konten & Verbindungen", systemImage: "building.columns")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Konten und Verbindungen öffnen")
-                    .accessibilityIdentifier("settings-show-accounts")
-                } else {
-                    NavigationLink {
-                        AccountsView(dependencies: dependencies, pendingRoute: .constant(nil))
-                    } label: {
-                        Label("Konten & Verbindungen", systemImage: "building.columns")
-                    }
-                    .accessibilityLabel("Konten und Verbindungen öffnen")
-                    .accessibilityIdentifier("settings-show-accounts")
-                }
-                Text("CSV-, Excel- und PDF-Importe werden lokal verarbeitet. FinanceTracker führt keine Zahlungen aus.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     @ViewBuilder
