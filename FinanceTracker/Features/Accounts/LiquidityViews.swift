@@ -56,15 +56,22 @@ enum LiquidityPresentation {
         return notes
     }
 
-    /// „Stand heute 09:41", „Stand 12.10.2026" oder „aus Anfangsbestand".
-    static func asOfText(_ summary: AccountSummary, calendar: Calendar = .current) -> String? {
+    /// „Stand heute 09:41", „Stand 12.10.2026", „… · umgerechnet aus
+    /// 1.375,17 $" oder „aus Anfangsbestand".
+    static func asOfText(
+        _ summary: AccountSummary,
+        privacy: PrivacyPresentationState,
+        calendar: Calendar = .current
+    ) -> String? {
         switch summary.balanceBasis {
         case .reported:
             guard let date = summary.balanceReportedAt else { return nil }
-            if calendar.isDateInToday(date) {
-                return String(localized: "Stand heute \(date.formatted(date: .omitted, time: .shortened))")
-            }
-            return String(localized: "Stand \(AppDateFormatter.day(date))")
+            let stand = calendar.isDateInToday(date)
+                ? String(localized: "Stand heute \(date.formatted(date: .omitted, time: .shortened))")
+                : String(localized: "Stand \(AppDateFormatter.day(date))")
+            guard let original = summary.balanceConvertedFrom else { return stand }
+            let amount = PrivacyAwareMoney.string(original, privacy: privacy)
+            return String(localized: "\(stand) · umgerechnet aus \(amount)")
         case .openingBalance:
             return String(localized: "aus Anfangsbestand")
         case nil:

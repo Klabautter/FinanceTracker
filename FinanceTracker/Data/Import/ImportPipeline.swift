@@ -18,6 +18,8 @@ struct ImportResult: Sendable, Equatable {
     /// (z. B. PDF-Auszug und CSV-Export derselben Karte) und deshalb nicht
     /// importiert wurden. Gezählt und sichtbar, nicht still verworfen.
     var crossSourceDuplicateCount: Int = 0
+    /// Aus der Datei übernommener Kontostand.
+    var savedBalance: ReportedBalance?
 
     /// UI-Label für Duplikate, bewusst identisch mit der ImportView-Preview
     /// („Duplikate übersprungen: N"), damit Summary + Preview konsistent bleiben (#5).
@@ -835,13 +837,21 @@ struct ImportPipeline: Sendable {
     }
 
     @discardableResult
+    /// Übernimmt aus einer Datei nur den Kontostand, ohne Buchungen und ohne
+    /// Eintrag im Importverlauf (z. B. ein Auszug nur für den Stand, wenn
+    /// die Buchungen schon aus einem anderen Export stammen).
+    func commitBalanceOnly(_ prepared: PreparedImport) async throws {
+        guard prepared.reportedBalanceIsNew, let balance = prepared.reportedBalance, let accountRepository else { return }
+        try await accountRepository.saveReportedBalance(balance, accountID: prepared.targetAccountID)
+    }
+
     func commit(_ prepared: PreparedImport) async throws -> ImportResult {
         // Nur der Stand ist neu: kein leerer Eintrag im Importverlauf.
         if prepared.transactions.isEmpty, prepared.updates.isEmpty {
-            if prepared.reportedBalanceIsNew, let balance = prepared.reportedBalance, let accountRepository {
-                try await accountRepository.saveReportedBalance(balance, accountID: prepared.targetAccountID)
-            }
-            return prepared.importResultPreview
+            try await commitBalanceOnly(prepared)
+            var result = prepared.importResultPreview
+            result.savedBalance = prepared.reportedBalanceIsNew ? prepared.reportedBalance : nil
+            return result
         }
         if !prepared.newMerchants.isEmpty, let merchantRepository {
             try await merchantRepository.upsert(prepared.newMerchants)
@@ -864,10 +874,14 @@ struct ImportPipeline: Sendable {
         // Ist mit dieser Datei die Gegenseite einer Umbuchung angekommen,
         // werden beide Seiten verknüpft und zählen nicht mehr doppelt.
         try await LinkOwnTransfers(transactionRepository: transactionRepository).run()
+        var savedBalance: ReportedBalance?
         if let balance = prepared.reportedBalance, let accountRepository {
             // Nicht fatal: Die Buchungen sind schon gespeichert. Ein älterer
             // Auszug ersetzt keinen neueren Stand.
-            try? await accountRepository.saveReportedBalance(balance, accountID: prepared.targetAccountID)
+            if (try? await accountRepository.saveReportedBalance(balance, accountID: prepared.targetAccountID)) != nil,
+               prepared.reportedBalanceIsNew {
+                savedBalance = balance
+            }
         }
 
         return ImportResult(
@@ -879,7 +893,8 @@ struct ImportPipeline: Sendable {
             failedCount: prepared.failedCount,
             isExactFileReplay: prepared.isExactFileReplay,
             crossSourceHintCount: prepared.crossSourceHints.count,
-            crossSourceDuplicateCount: prepared.crossSourceDuplicates.count
+            crossSourceDuplicateCount: prepared.crossSourceDuplicates.count,
+            savedBalance: savedBalance
         )
     }
 

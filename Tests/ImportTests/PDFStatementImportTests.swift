@@ -190,6 +190,64 @@ struct PDFStatementImportTests {
         #expect(stored.reportedBalance?.amount.amount == Decimal(string: "1004.20")!)
     }
 
+    /// Kontoauszug mit Bilanz-Kästen: Stichwort, Betrag und Datum stehen
+    /// untereinander, Stand in USD, darunter eine Umsatztabelle.
+    private static var boxedStatement: Data {
+        makePDF(pages: [[
+            Text(string: "Account statement", x: 74, top: 60),
+            Text(string: "Opening balance", x: 74, top: 100),
+            Text(string: "Closing balance", x: 250, top: 100),
+            Text(string: "Available balance", x: 420, top: 100),
+            Text(string: "$0.00", x: 74, top: 115),
+            Text(string: "$812.40", x: 250, top: 115),
+            Text(string: "$812.40", x: 420, top: 115),
+            Text(string: "at start of 1 May 2026", x: 74, top: 130),
+            Text(string: "at end of 31 Oct 2026", x: 250, top: 130),
+            Text(string: "after pending transactions", x: 420, top: 130),
+            Text(string: "Date", x: 74, top: 180),
+            Text(string: "Description", x: 160, top: 180),
+            Text(string: "Amount (USD)", x: 420, top: 180),
+            Text(string: "12 May 2026", x: 74, top: 200),
+            Text(string: "Top-up", x: 160, top: 200),
+            Text(string: "+$900.00", x: 420, top: 200),
+            Text(string: "13 May 2026", x: 74, top: 220),
+            Text(string: "Supermarket", x: 160, top: 220),
+            Text(string: "-$87.60", x: 420, top: 220)
+        ]])
+    }
+
+    @Test("Stand aus Bilanz-Kästen in Fremdwährung: nur der Stand wird übernommen und umgerechnet")
+    @MainActor
+    func boxedBalanceOnly() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        let account = Account(name: "Karte", type: .creditCard, currency: .eur, source: .csvImport)
+        try await dependencies.accountRepository.upsert([account])
+        let pipeline = ImportPipeline(
+            providers: dependencies.importProviders,
+            transactionRepository: dependencies.transactionRepository,
+            importBatchRepository: dependencies.importBatchRepository,
+            accountRepository: dependencies.accountRepository,
+            fallbackCurrency: .eur
+        )
+        let prepared = try await pipeline.prepare(ImportFile(fileName: "statement.pdf", data: Self.boxedStatement), into: account.id)
+        #expect(prepared.reportedBalance?.amount == Money(amount: Decimal(string: "812.40")!, currency: .usd))
+        #expect(prepared.reportedBalanceIsNew)
+        #expect(!prepared.transactions.isEmpty)
+
+        try await pipeline.commitBalanceOnly(prepared)
+        #expect(try await dependencies.transactionRepository.count() == 0)
+        #expect(try await dependencies.importBatchRepository.batches().isEmpty)
+
+        let balances = try await LoadAccountBalances(
+            accountRepository: dependencies.accountRepository,
+            transactionRepository: dependencies.transactionRepository
+        ).execute(converter: CurrencyConverter(eurPerUnit: [.usd: Decimal(string: "0.9")!]))
+        let summary = try #require(balances.active.first)
+        #expect(summary.balance == Money(amount: Decimal(string: "731.16")!, currency: .eur))
+        #expect(summary.balanceConvertedFrom == Money(amount: Decimal(string: "812.40")!, currency: .usd))
+    }
+
     @Test("PDF ohne Umsatztabelle wird mit verständlicher Meldung abgelehnt")
     func rejectsPDFWithoutTable() {
         let data = Self.makePDF(pages: [[Text(string: "Nur ein Brief ohne Tabelle", x: 74, top: 100)]])

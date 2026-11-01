@@ -45,14 +45,42 @@ struct StatementBalanceExtractorTests {
         )?.amount.amount == 3000)
     }
 
-    @Test("Buchungszeilen, verfügbarer Betrag und andere Währung zählen nicht")
+    @Test("Buchungszeilen, verfügbarer Betrag und Stand ohne Datum zählen nicht")
     func ignoredLines() {
         #expect(StatementBalanceExtractor.closingBalance(in: [
             "15.09.2026 Saldo Kreditkarte -120,00",
             "Verfügbarer Saldo am 30.09.2026 5.000,00 EUR",
-            "Kontostand am 30.09.2026 1.000,00 USD",
             "Kontostand 1.000,00 EUR"
         ], currency: .eur, calendar: calendar) == nil)
+    }
+
+    @Test("Stand in anderer Währung behält seine Währung")
+    func keepsStatedCurrency() {
+        let balance = StatementBalanceExtractor.closingBalance(
+            in: ["Kontostand am 30.09.2026 1.000,00 USD"],
+            currency: .eur, calendar: calendar
+        )
+        #expect(balance?.amount == Money(amount: 1000, currency: .usd))
+        #expect(StatementBalanceExtractor.closingBalance(
+            in: ["Closing balance on 30/09/2026 1,000.00 USD 900.00 EUR"],
+            currency: .eur, calendar: calendar
+        ) == nil)
+    }
+
+    @Test("Monatsnamen auf Englisch und Deutsch")
+    func monthNames() {
+        let english = StatementBalanceExtractor.closingBalance(
+            in: ["Opening balance $0.00 at start of 1 May 2026", "Closing balance $1,375.17 at end of 31 Oct 2026"],
+            currency: .usd, calendar: calendar
+        )
+        #expect(english?.amount == Money(amount: Decimal(string: "1375.17")!, currency: .usd))
+        #expect(english?.asOf == endOfDay(2026, 10, 31))
+        let german = StatementBalanceExtractor.closingBalance(
+            in: ["Kontostand am 30. September 2026 812,40 €", "Kontostand am 1. März 2026 700,00 €"],
+            currency: .eur, calendar: calendar
+        )
+        #expect(german?.amount.amount == Decimal(string: "812.40")!)
+        #expect(german?.asOf == endOfDay(2026, 9, 30))
     }
 
     @Test("Verschiedene Beträge für denselben Tag ergeben keinen Stand")

@@ -62,6 +62,26 @@ struct LiquidityCalculatorTests {
         #expect(result == .init(amount: 90, basis: .openingBalance, reportedAt: nil))
     }
 
+    @Test("Stand in fremder Währung zählt mit Kurs, als umgerechnet erkennbar")
+    func reportedBalanceConvertedWithRate() throws {
+        let asOf = date(2026, 10, 31, hour: 23)
+        let account = Account(
+            name: "Karte", type: .creditCard, currency: .eur, source: .csvImport,
+            reportedBalance: ReportedBalance(amount: Money(amount: 1000, currency: .usd), asOf: asOf, source: .file)
+        )
+        let converter = CurrencyConverter(eurPerUnit: [.usd: Decimal(string: "0.9")!])
+        let result = try #require(AccountBalanceCalculator.balance(
+            for: account,
+            movements: [.init(date: date(2026, 11, 1), amount: -50)],
+            converter: converter,
+            calendar: calendar
+        ))
+        #expect(result.amount == 850)
+        #expect(result.convertedFrom == Money(amount: 1000, currency: .usd))
+        // Ohne Kurs kein Stand aus fremder Währung.
+        #expect(AccountBalanceCalculator.balance(for: account, movements: [], calendar: calendar) == nil)
+    }
+
     @Test("Ohne gemeldeten Stand und Anfangsbestand gibt es keinen Stand")
     func noBalance() {
         let account = Account(name: "Karte", type: .creditCard, currency: .eur, source: .csvImport)

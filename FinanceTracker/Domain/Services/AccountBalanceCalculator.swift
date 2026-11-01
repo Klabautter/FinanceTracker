@@ -27,6 +27,8 @@ enum AccountBalanceCalculator {
         let basis: Basis
         /// Zeitpunkt des gemeldeten Stands; beim Anfangsbestand `nil`.
         let reportedAt: Date?
+        /// Gemeldeter Stand in anderer Währung, vor der Umrechnung.
+        var convertedFrom: Money? = nil
     }
 
     static func balance(
@@ -44,18 +46,29 @@ enum AccountBalanceCalculator {
     }
 
     /// `movements` in Kontowährung. Ein gemeldeter Stand in anderer Währung
-    /// als das Konto wird nicht verrechnet (#19), dann zählt der
-    /// Anfangsbestand.
+    /// zählt nur über `converter` und bleibt als umgerechnet erkennbar
+    /// (#19); ohne Kurs gilt der Anfangsbestand.
     static func balance(
         for account: Account,
         movements: [Movement],
+        converter: CurrencyConverter? = nil,
         calendar: Calendar = .current
     ) -> Result? {
-        if let reported = account.reportedBalance, reported.amount.currency == account.currency {
-            let amount = movements.reduce(reported.amount.amount) { partial, movement in
-                movement.date > reported.asOf ? partial + movement.amount : partial
+        if let reported = account.reportedBalance {
+            let start: Money? = reported.amount.currency == account.currency
+                ? reported.amount
+                : converter?.convert(reported.amount, to: account.currency)
+            if let start {
+                let amount = movements.reduce(start.amount) { partial, movement in
+                    movement.date > reported.asOf ? partial + movement.amount : partial
+                }
+                return Result(
+                    amount: amount,
+                    basis: .reported(reported.source),
+                    reportedAt: reported.asOf,
+                    convertedFrom: reported.amount.currency == account.currency ? nil : reported.amount
+                )
             }
-            return Result(amount: amount, basis: .reported(reported.source), reportedAt: reported.asOf)
         }
         return balance(
             openingBalance: account.openingBalance,

@@ -168,10 +168,11 @@ final class DashboardModel {
                 fxRateProvider: dependencies.fxRateProvider,
                 calendar: calendar
             )
+            let balanceConverter = await dependencies.fxRateProvider.converter()
             async let balancesTask = LoadAccountBalances(
                 accountRepository: dependencies.accountRepository,
                 transactionRepository: dependencies.transactionRepository
-            ).execute(calendar: calendar)
+            ).execute(converter: balanceConverter, calendar: calendar)
             async let latestBatchTask = dependencies.importBatchRepository.latestBatch()
             async let transactionCountTask = dependencies.transactionRepository.count()
 
@@ -319,7 +320,7 @@ final class DashboardModel {
             if isCurrentMonth, let balances = try? await balancesTask {
                 let calculator = LiquidityCalculator(
                     baseCurrency: dependencies.baseCurrency,
-                    converter: await dependencies.fxRateProvider.converter()
+                    converter: balanceConverter
                 )
                 let overview = calculator.overview(of: balances.active)
                 liquidity = overview.shares.isEmpty ? nil : overview

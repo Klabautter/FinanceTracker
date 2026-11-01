@@ -63,10 +63,11 @@ final class AccountsModel {
         }
 
         do {
+            let converter = await dependencies.fxRateProvider.converter()
             async let balancesTask = LoadAccountBalances(
                 accountRepository: dependencies.accountRepository,
                 transactionRepository: dependencies.transactionRepository
-            ).execute()
+            ).execute(converter: converter)
             async let connectionsTask = dependencies.connectionRepository.connections()
             let balances = try await balancesTask
             let fetchedConnections = try await connectionsTask
@@ -78,7 +79,7 @@ final class AccountsModel {
             disconnectedAccounts = balances.inactive
             let overview = LiquidityCalculator(
                 baseCurrency: dependencies.baseCurrency,
-                converter: await dependencies.fxRateProvider.converter()
+                converter: converter
             ).overview(of: balances.active)
             liquidity = overview.shares.isEmpty ? nil : overview
         } catch {

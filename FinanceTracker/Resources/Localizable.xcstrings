@@ -478,6 +478,22 @@
         }
       }
     },
+    "%@ · umgerechnet aus %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · umgerechnet aus %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · converted from %2$@"
+          }
+        }
+      }
+    },
     "%@ überschritten" : {
       "localizations" : {
         "de" : {
@@ -8303,6 +8319,22 @@
         }
       }
     },
+    "Der Kontostand konnte nicht gespeichert werden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Kontostand konnte nicht gespeichert werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The balance could not be saved."
+          }
+        }
+      }
+    },
     "Der Provider hat eine unlesbare Antwort geschickt." : {
       "localizations" : {
         "de" : {
@@ -14838,6 +14870,22 @@
         }
       }
     },
+    "Kontostand übernommen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontostand übernommen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance saved"
+          }
+        }
+      }
+    },
     "Kontotyp" : {
       "localizations" : {
         "de" : {
@@ -17427,6 +17475,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Only expenses from another account can be credited as a withdrawal."
+          }
+        }
+      }
+    },
+    "Nur Kontostand übernehmen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur Kontostand übernehmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Balance Only"
           }
         }
       }
@@ -25791,6 +25855,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Parent Category"
+          }
+        }
+      }
+    },
+    "Übernimmt den Kontostand aus der Datei, ohne ihre Buchungen zu importieren." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übernimmt den Kontostand aus der Datei, ohne ihre Buchungen zu importieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saves the balance from the file without importing its transactions."
           }
         }
       }

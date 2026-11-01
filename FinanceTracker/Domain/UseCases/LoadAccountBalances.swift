@@ -9,6 +9,8 @@ struct AccountSummary: Identifiable, Hashable, Sendable {
     let balanceBasis: AccountBalanceCalculator.Basis?
     /// Zeitpunkt des zuletzt gemeldeten Stands.
     let balanceReportedAt: Date?
+    /// Gemeldeter Stand in anderer Währung, aus dem `balance` umgerechnet ist.
+    var balanceConvertedFrom: Money? = nil
     let foreignCurrencies: Set<CurrencyCode>
     let transactionCount: Int
 
@@ -35,7 +37,9 @@ struct LoadAccountBalances: Sendable {
         self.transactionRepository = transactionRepository
     }
 
-    func execute(calendar: Calendar = .current) async throws -> AccountBalances {
+    /// `converter` rechnet gemeldete Stände in fremder Währung um (sichtbar
+    /// markiert); ohne ihn zählen sie nicht.
+    func execute(converter: CurrencyConverter? = nil, calendar: Calendar = .current) async throws -> AccountBalances {
         async let accountsTask = accountRepository.accounts()
         // Pushdown (Roadmap #179): Nur die für Bewegungen nötigen Felder
         // laden statt aller vollständigen Transaktionen.
@@ -69,7 +73,12 @@ struct LoadAccountBalances: Sendable {
         func summary(_ account: Account, withBalance: Bool) -> AccountSummary {
             let entry = totalsByAccount[account.id]
             let result = withBalance
-                ? AccountBalanceCalculator.balance(for: account, movements: movementsByAccount[account.id] ?? [], calendar: calendar)
+                ? AccountBalanceCalculator.balance(
+                    for: account,
+                    movements: movementsByAccount[account.id] ?? [],
+                    converter: converter,
+                    calendar: calendar
+                )
                 : nil
             return AccountSummary(
                 account: account,
@@ -77,6 +86,7 @@ struct LoadAccountBalances: Sendable {
                 balance: result.map { Money(amount: $0.amount, currency: account.currency) },
                 balanceBasis: result?.basis,
                 balanceReportedAt: result?.reportedAt,
+                balanceConvertedFrom: result?.convertedFrom,
                 foreignCurrencies: entry?.foreign ?? [],
                 transactionCount: entry?.count ?? 0
             )

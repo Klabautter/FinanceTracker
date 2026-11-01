@@ -351,6 +351,29 @@ final class ImportModel {
         phase = .reviewing(fileName: file.fileName, providerName: providerDisplayName)
     }
 
+    /// Nur den Kontostand aus der Datei übernehmen, keine Buchungen.
+    func confirmBalanceOnly() async {
+        guard let prepared = preparedImport else { return }
+        phase = .running
+        do {
+            try await pipeline.commitBalanceOnly(prepared)
+            phase = .completed(ImportResult(
+                providerIdentifier: prepared.providerIdentifier,
+                totalRows: prepared.totalRows,
+                importedCount: 0,
+                updatedCount: 0,
+                duplicateCount: 0,
+                failedCount: 0,
+                savedBalance: prepared.reportedBalance
+            ))
+            dependencies.changeTracker.markChanged()
+        } catch {
+            phase = .failed(String(localized: "Der Kontostand konnte nicht gespeichert werden."))
+        }
+        pendingFile = nil
+        preparedImport = nil
+    }
+
     func confirmImport() async {
         guard let prepared = preparedImport else { return }
         phase = .running

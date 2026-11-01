@@ -318,6 +318,13 @@ struct ImportView: View {
                     "Import bestätigen: \(prepared.transactions.count) neue Transaktionen und \(prepared.updates.count) Aktualisierungen"
                 )
 
+                if prepared.reportedBalanceIsNew, !(prepared.transactions.isEmpty && prepared.updates.isEmpty) {
+                    Button("Nur Kontostand übernehmen") {
+                        Task { await model.confirmBalanceOnly() }
+                    }
+                    .help(String(localized: "Übernimmt den Kontostand aus der Datei, ohne ihre Buchungen zu importieren."))
+                }
+
                 Button("Andere Datei") {
                     model.reset()
                 }
@@ -479,6 +486,12 @@ struct ImportView: View {
         switch model.phase {
         case .completed(let result):
             Section("Ergebnis") {
+                if let balance = result.savedBalance {
+                    LabeledContent(
+                        "Kontostand übernommen",
+                        value: "\(PrivacyAwareMoney.string(balance.amount, privacy: privacyState)) · \(AppDateFormatter.day(balance.asOf))"
+                    )
+                }
                 LabeledContent("Datensätze", value: "\(result.totalRows)")
                 LabeledContent("Importiert", value: "\(result.importedCount)")
                 if result.updatedCount > 0 {

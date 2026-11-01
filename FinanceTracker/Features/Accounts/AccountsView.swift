@@ -437,7 +437,7 @@ struct AccountsView: View {
                 if let balance = summary.balance {
                     MoneyText(money: balance, signed: true, tintsNegative: true)
                         .font(.system(size: 16, weight: .semibold))
-                    Text(LiquidityPresentation.asOfText(summary) ?? String(localized: "Stand"))
+                    Text(LiquidityPresentation.asOfText(summary, privacy: privacyState) ?? String(localized: "Stand"))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 } else {

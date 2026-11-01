@@ -49,7 +49,29 @@ enum PDFStatementConverter {
     }
 
     static func textLines(fromPages pages: [[Word]]) -> [String] {
-        pages.flatMap { lines(of: $0).map { $0.map(\.text).joined(separator: " ") } }
+        pages.flatMap { page in
+            let pageLines = lines(of: page)
+            return pageLines.map { $0.map(\.text).joined(separator: " ") } + stackedLines(pageLines)
+        }
+    }
+
+    /// Kästen wie „Closing balance" mit Betrag und Datum darunter werden zu
+    /// einer Zeile („Closing balance $1,375.17 at end of 31 Oct 2026"): Ein
+    /// Feld ohne Ziffern sammelt, was in den zwei Zeilen darunter linksbündig
+    /// unter ihm steht.
+    private static func stackedLines(_ pageLines: [[Word]]) -> [String] {
+        let cellLines = pageLines.map(merged)
+        var result: [String] = []
+        for (index, cells) in cellLines.enumerated() {
+            for label in cells where !label.text.contains(where: \.isNumber) {
+                let below = cellLines.dropFirst(index + 1).prefix(2).compactMap { line in
+                    line.first { abs($0.minX - label.minX) <= label.height }
+                }
+                guard below.count == 2 || (below.count == 1 && below[0].text.contains(where: \.isNumber)) else { continue }
+                result.append(([label] + below).map(\.text).joined(separator: " "))
+            }
+        }
+        return result
     }
 
     // MARK: - Wörter mit Position

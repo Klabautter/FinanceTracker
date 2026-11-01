@@ -26,7 +26,9 @@ struct LiquidityOverview: Sendable, Hashable {
     /// Konten mit Stand, aber ohne Kurs in die Basiswährung.
     let unconvertible: [AccountSummary]
 
-    var usesConversion: Bool { shares.contains(where: \.isConverted) }
+    var usesConversion: Bool {
+        shares.contains { $0.isConverted || $0.summary.balanceConvertedFrom != nil }
+    }
     /// Ältester gemeldeter Stand, der in die Summe eingeht.
     var oldestReportedAt: Date? { shares.compactMap(\.summary.balanceReportedAt).min() }
 }
