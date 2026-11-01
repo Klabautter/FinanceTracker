@@ -26,7 +26,8 @@ Screenshots show made-up demo data.
 - **Automatic categories** from merchant rules, a built-in merchant list and,
   if available on your Mac, Apple's on-device model. Your own rules always win.
 - **Overview and analysis**: monthly spending, cashflow, categories and top
-  merchants. Multiple currencies are kept separate unless converted.
+  merchants. Accounts keep their own currency; totals convert foreign
+  transactions at the ECB rate of their booking day.
 - **Total balance** across all accounts with a per-account split, using the
   balance reported by your bank or statement, and how long it lasts at your
   usual spending.
