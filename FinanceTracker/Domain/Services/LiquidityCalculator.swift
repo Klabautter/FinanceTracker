@@ -33,9 +33,12 @@ struct LiquidityOverview: Sendable, Hashable {
 
 /// Wie lange der Gesamtstand bei den bisherigen Ausgaben reicht.
 struct LiquidityRunway: Sendable, Hashable {
-    let averageMonthlySpending: Money
-    let averageMonthlyNet: Money
-    /// Anzahl voller Monate, über die gemittelt wurde.
+    /// Ausgaben eines typischen Monats: Median der Monate, damit ein
+    /// einzelner Ausreißer (z. B. ein Autokauf) die Reichweite nicht
+    /// verzerrt. Unter drei Monaten der Mittelwert.
+    let typicalMonthlySpending: Money
+    let typicalMonthlyNet: Money
+    /// Anzahl voller Monate, die eingeflossen sind.
     let monthCount: Int
     /// Monate, die der Gesamtstand bei den Durchschnittsausgaben reicht;
     /// `nil` ohne Ausgaben.
@@ -88,7 +91,7 @@ struct LiquidityCalculator: Sendable {
         )
     }
 
-    /// Mittel über die letzten vollen Monate mit Buchungen (höchstens
+    /// Typischer Monat aus den letzten vollen Monaten mit Buchungen (höchstens
     /// `maximumRunwayMonths`), der laufende Monat zählt nicht. `points` sind
     /// die Monatswerte der Übersicht: Umbuchungen zählen dort nicht als
     /// Ausgabe, Sparpläne und Käufe schon (#28).
@@ -104,14 +107,26 @@ struct LiquidityCalculator: Sendable {
             .sorted { $0.monthStart > $1.monthStart }
             .prefix(Self.maximumRunwayMonths)
         guard !full.isEmpty else { return nil }
-        let count = Decimal(full.count)
-        let spending = full.reduce(Decimal(0)) { $0 + $1.spending } / count
-        let income = full.reduce(Decimal(0)) { $0 + $1.income } / count
+        let spending = Self.typical(full.map(\.spending))
+        let net = Self.typical(full.map { $0.income - $0.spending })
         return LiquidityRunway(
-            averageMonthlySpending: Money(amount: spending, currency: baseCurrency),
-            averageMonthlyNet: Money(amount: income - spending, currency: baseCurrency),
+            typicalMonthlySpending: Money(amount: spending, currency: baseCurrency),
+            typicalMonthlyNet: Money(amount: net, currency: baseCurrency),
             monthCount: full.count,
             months: spending > 0 ? max(0, total.amount) / spending : nil
         )
+    }
+
+    /// Median ab drei Werten (robust gegen einen Ausreißer), sonst Mittelwert.
+    static func typical(_ values: [Decimal]) -> Decimal {
+        guard !values.isEmpty else { return 0 }
+        guard values.count >= 3 else {
+            return values.reduce(Decimal(0), +) / Decimal(values.count)
+        }
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        return sorted.count.isMultiple(of: 2)
+            ? (sorted[middle - 1] + sorted[middle]) / 2
+            : sorted[middle]
     }
 }

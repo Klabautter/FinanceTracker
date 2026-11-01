@@ -104,7 +104,7 @@ struct LiquidityCalculatorTests {
         #expect(overview.oldestReportedAt == older)
     }
 
-    @Test("Reichweite: Mittel der vollen Monate mit Buchungen, laufender Monat zählt nicht")
+    @Test("Reichweite: typischer Monat aus den vollen Monaten mit Buchungen, laufender Monat zählt nicht")
     func runwayAveragesFullMonths() throws {
         let calculator = LiquidityCalculator(baseCurrency: .eur, converter: CurrencyConverter())
         let points = [
@@ -121,9 +121,30 @@ struct LiquidityCalculatorTests {
             calendar: calendar
         ))
         #expect(runway.monthCount == 3)
-        #expect(runway.averageMonthlySpending == Money(amount: 2000, currency: .eur))
-        #expect(runway.averageMonthlyNet == Money(amount: 1000, currency: .eur))
+        #expect(runway.typicalMonthlySpending == Money(amount: 2000, currency: .eur))
+        #expect(runway.typicalMonthlyNet == Money(amount: 1000, currency: .eur))
         #expect(runway.months == 4)
+    }
+
+    @Test("Ein Ausreißer-Monat (Autokauf) verzerrt die Reichweite nicht")
+    func runwayIgnoresOutlierMonth() throws {
+        let calculator = LiquidityCalculator(baseCurrency: .eur, converter: CurrencyConverter())
+        let points = [
+            MonthlyCashflowPoint(monthStart: date(2026, 5, 1), income: 3000, spending: 2100),
+            MonthlyCashflowPoint(monthStart: date(2026, 6, 1), income: 3000, spending: 1900),
+            MonthlyCashflowPoint(monthStart: date(2026, 7, 1), income: 3000, spending: 17000),
+            MonthlyCashflowPoint(monthStart: date(2026, 8, 1), income: 3000, spending: 2000),
+            MonthlyCashflowPoint(monthStart: date(2026, 9, 1), income: 3000, spending: 2200)
+        ]
+        let runway = try #require(calculator.runway(
+            total: Money(amount: 10000, currency: .eur),
+            monthlyPoints: points,
+            now: date(2026, 10, 15),
+            calendar: calendar
+        ))
+        #expect(runway.typicalMonthlySpending == Money(amount: 2100, currency: .eur))
+        #expect(runway.typicalMonthlyNet == Money(amount: 900, currency: .eur))
+        #expect(runway.monthCount == 5)
     }
 
     @Test("Ohne volle Monate keine Reichweite; ohne Ausgaben keine Monatszahl")
@@ -143,6 +164,6 @@ struct LiquidityCalculatorTests {
             calendar: calendar
         )
         #expect(incomeOnly?.months == nil)
-        #expect(incomeOnly?.averageMonthlyNet == Money(amount: 500, currency: .eur))
+        #expect(incomeOnly?.typicalMonthlyNet == Money(amount: 500, currency: .eur))
     }
 }

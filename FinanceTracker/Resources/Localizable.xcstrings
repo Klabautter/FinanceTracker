@@ -16887,6 +16887,22 @@
         }
       }
     },
+    "Nicht enthalten: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht enthalten: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not included: %@"
+          }
+        }
+      }
+    },
     "Nicht geplant" : {
       "localizations" : {
         "de" : {
@@ -21800,6 +21816,22 @@
         }
       }
     },
+    "Typischer Monat netto %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typischer Monat netto %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Net in a typical month %@"
+          }
+        }
+      }
+    },
     "Türkis" : {
       "localizations" : {
         "de" : {
@@ -24983,12 +25015,12 @@
         }
       }
     },
-    "bei Ø %@ Ausgaben im letzten Monat" : {
+    "bei %@ Ausgaben im letzten Monat" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "bei Ø %@ Ausgaben im letzten Monat"
+            "value" : "bei %@ Ausgaben im letzten Monat"
           }
         },
         "en" : {
@@ -24999,18 +25031,18 @@
         }
       }
     },
-    "bei Ø %@ Ausgaben pro Monat (letzte %lld Monate)" : {
+    "bei %@ Ausgaben im typischen Monat (letzte %lld Monate)" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "bei Ø %@ Ausgaben pro Monat (letzte %lld Monate)"
+            "value" : "bei %@ Ausgaben im typischen Monat (letzte %lld Monate)"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "at an average of %@ spending per month (last %lld months)"
+            "value" : "at %@ spending in a typical month (last %lld months)"
           }
         }
       }
@@ -25647,22 +25679,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opens the review list for categorizing and confirming."
-          }
-        }
-      }
-    },
-    "Ø pro Monat netto %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ø pro Monat netto %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Net per month on average %@"
           }
         }
       }

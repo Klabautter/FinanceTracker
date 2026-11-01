@@ -24,15 +24,15 @@ enum LiquidityPresentation {
     }
 
     static func averageText(_ runway: LiquidityRunway, privacy: PrivacyPresentationState) -> String {
-        let amount = PrivacyAwareMoney.string(runway.averageMonthlySpending, privacy: privacy)
+        let amount = PrivacyAwareMoney.string(runway.typicalMonthlySpending, privacy: privacy)
         return runway.monthCount == 1
-            ? String(localized: "bei Ø \(amount) Ausgaben im letzten Monat")
-            : String(localized: "bei Ø \(amount) Ausgaben pro Monat (letzte \(runway.monthCount) Monate)")
+            ? String(localized: "bei \(amount) Ausgaben im letzten Monat")
+            : String(localized: "bei \(amount) Ausgaben im typischen Monat (letzte \(runway.monthCount) Monate)")
     }
 
     static func netText(_ runway: LiquidityRunway, privacy: PrivacyPresentationState) -> String {
-        let amount = PrivacyAwareMoney.signed(runway.averageMonthlyNet, privacy: privacy)
-        return String(localized: "Ø pro Monat netto \(amount)")
+        let amount = PrivacyAwareMoney.signed(runway.typicalMonthlyNet, privacy: privacy)
+        return String(localized: "Typischer Monat netto \(amount)")
     }
 
     /// Hinweise, was in der Summe fehlt oder umgerechnet ist (#35: nichts

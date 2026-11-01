@@ -336,8 +336,6 @@ struct BentoDashboardContent: View {
                     .monospacedDigit()
                     .foregroundStyle(liquidity.total.amount < 0 ? AppPalette.critical : Color.primary)
                     .accessibilityIdentifier("dashboard-liquidity-total")
-                LiquidityShareBar(overview: liquidity, height: 6)
-                    .padding(.vertical, 2)
                 if let runway = model.runway {
                     VStack(alignment: .leading, spacing: 2) {
                         if let runwayText = LiquidityPresentation.runwayText(runway) {
@@ -354,7 +352,15 @@ struct BentoDashboardContent: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityElement(children: .combine)
                 }
-                LiquidityNotes(overview: liquidity)
+                // Aufteilung und Hinweise stehen auf der Konten-Seite; hier
+                // nur, was in der Summe fehlt.
+                let missing = (liquidity.withoutBalance + liquidity.unconvertible).map(\.account.name)
+                if !missing.isEmpty {
+                    Text("Nicht enthalten: \(missing.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         } accessory: {
             if let onShowAccounts {
