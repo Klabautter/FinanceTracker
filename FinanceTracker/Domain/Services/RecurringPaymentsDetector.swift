@@ -94,13 +94,13 @@ struct RecurringPaymentsDetector: Sendable {
             // Einkaufsbeträge keine Serie ergeben.
             for cluster in amountClusters(txns) where cluster.count >= tolerance.minimumOccurrences + 1 {
                 let clusterAmount = medianDecimal(cluster.map { abs($0.amount.amount) }) ?? 0
-                guard let part = makeSeries(
-                    id: key + "|" + NSDecimalNumber(decimal: clusterAmount).stringValue,
-                    transactions: cluster,
-                    calendar: calendar,
-                    now: now
-                ), part.confidence >= 0.75 else { continue }
-                series.append(part)
+                let clusterID = key + "|" + NSDecimalNumber(decimal: clusterAmount).stringValue
+                if let part = makeSeries(id: clusterID, transactions: cluster, calendar: calendar, now: now),
+                   part.confidence >= 0.75 {
+                    series.append(part)
+                } else if let part = monthlySubscription(id: clusterID, in: cluster, calendar: calendar, now: now) {
+                    series.append(part)
+                }
             }
         }
 
@@ -194,6 +194,44 @@ struct RecurringPaymentsDetector: Sendable {
     /// Teilt Buchungen in Betragsstufen: Eine Stufe nimmt Beträge auf,
     /// solange sie innerhalb der Betragstoleranz ihres kleinsten Betrags
     /// liegen.
+    /// Ein Abo zwischen gleich teuren Einzelkäufen beim selben Händler
+    /// (z. B. Monatsabo am 28. und API-Käufe zum selben Preis): je Monat
+    /// zählt die Buchung, die dem üblichen Tag am nächsten liegt. Nur wenn
+    /// das ein sauberes Muster ergibt: mindestens vier Monate ohne Lücke,
+    /// jede Buchung höchstens drei Tage vom üblichen Tag entfernt und die
+    /// Beträge auf 2 % gleich. Häufige Einkäufe ergeben so kein Abo.
+    private func monthlySubscription(
+        id: String,
+        in cluster: [Transaction],
+        calendar: Calendar,
+        now: Date
+    ) -> RecurringSeries? {
+        func date(_ txn: Transaction) -> Date { txn.bookedAt ?? txn.authorizedAt ?? txn.createdAt }
+        let days = cluster.map { calendar.component(.day, from: date($0)) }
+        guard let usualDay = median(days) else { return nil }
+
+        var byMonth: [DateComponents: Transaction] = [:]
+        for txn in cluster {
+            let month = calendar.dateComponents([.year, .month], from: date(txn))
+            let distance = abs(calendar.component(.day, from: date(txn)) - usualDay)
+            if let current = byMonth[month],
+               abs(calendar.component(.day, from: date(current)) - usualDay) <= distance { continue }
+            byMonth[month] = txn
+        }
+        let picked = byMonth.values.sorted { date($0) < date($1) }
+        guard picked.count >= tolerance.minimumOccurrences + 1, picked.count < cluster.count,
+              let first = picked.first.map(date), let last = picked.last.map(date),
+              let span = calendar.dateComponents([.month], from: first, to: last).month,
+              span + 1 <= picked.count,
+              picked.allSatisfy({ abs(calendar.component(.day, from: date($0)) - usualDay) <= 3 }) else { return nil }
+        let amounts = picked.map { abs($0.amount.amount) }
+        guard let typical = medianDecimal(amounts),
+              amounts.allSatisfy({ abs($0 - typical) <= max(Decimal(string: "0.50")!, typical * Decimal(string: "0.02")!) }),
+              let part = makeSeries(id: id, transactions: picked, calendar: calendar, now: now),
+              part.cadence == .monthly, part.confidence >= 0.75 else { return nil }
+        return part
+    }
+
     private func amountClusters(_ txns: [Transaction]) -> [[Transaction]] {
         let sorted = txns.sorted { abs($0.amount.amount) < abs($1.amount.amount) }
         var clusters: [[Transaction]] = []
