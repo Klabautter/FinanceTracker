@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.3.1</title>
-      <pubDate>Fri, 30 Oct 2026 20:53:20 +0000</pubDate>
-      <sparkle:version>7</sparkle:version>
-      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+      <title>Version 0.4.0</title>
+      <pubDate>Sun, 01 Nov 2026 11:33:08 +0000</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[Fixes the layout of hidden recurring suggestions.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.3.1/FinanceTracker-0.3.1.zip"
-                 sparkle:edSignature="AtAPglLpyW9T3+wBmBh+tU5wUMKtE7L2zZYopcmRjnGgzr6h9Eyd5Jj0DqLNznIe2B0+iIiFW2WcB8SnqhohBQ==" length="15102820" type="application/octet-stream"/>
+      <description><![CDATA[Adds a total balance across all accounts, with a per-account split and how long it lasts at your typical spending.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.4.0/FinanceTracker-0.4.0.zip"
+                 sparkle:edSignature="TSum1cOhZk/o+nR5bdduXSjS+0pcvkGUVBXjUnBM2S5SPV5Jtg+XD+RQ5Mmz9VBBRC7Vf9naM5XC8zm9y44uDA==" length="15343555" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
