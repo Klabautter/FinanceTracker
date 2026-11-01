@@ -124,6 +124,13 @@ struct PreparedImport: Sendable, Equatable {
     /// Stand nach der letzten Buchung der Datei (Saldo-Spalte), in der
     /// Währung des Zielkontos.
     var reportedBalance: ReportedBalance?
+    /// Der Stand aus der Datei ist neuer als der gespeicherte. Dann lässt er
+    /// sich auch übernehmen, wenn alle Buchungen schon vorhanden sind.
+    var reportedBalanceIsNew = false
+
+    var hasChanges: Bool {
+        !transactions.isEmpty || !updates.isEmpty || reportedBalanceIsNew
+    }
 
     var fileReplayNotice: String? {
         isExactFileReplay ? ImportDedupNotices.fileReplayDetail : nil
@@ -658,6 +665,19 @@ struct ImportPipeline: Sendable {
             mutations.append(ImportMutation(transactionID: draft.id, kind: .inserted, previousSnapshot: nil))
         }
 
+        // Ein PDF-Auszug nennt den Stand oft nur im Kopf („Kontostand am …");
+        // sonst die Saldo-Spalte der letzten Buchung.
+        let targetAccount = try await accountRepository?.account(id: accountID)
+        let reportedBalance = targetAccount.flatMap { account in
+            (PDFStatementConverter.isPDF(file.data)
+                ? StatementBalanceExtractor.closingBalance(
+                    in: PDFStatementConverter.textLines(from: file.data),
+                    currency: account.currency
+                )
+                : nil)
+                ?? ImportedBalanceExtractor.latestBalance(in: importedTransactions, currency: account.currency)
+        }
+
         return PreparedImport(
             targetAccountID: accountID,
             providerIdentifier: provider.identifier,
@@ -688,17 +708,10 @@ struct ImportPipeline: Sendable {
             crossSourceHints: crossSourceHints,
             crossSourceDuplicates: crossSourceDuplicates,
             unknownTypes: parseResult.unknownTypes,
-            reportedBalance: try await accountRepository?.account(id: accountID).flatMap { account in
-                // Ein PDF-Auszug nennt den Stand oft nur im Kopf („Kontostand
-                // am …"); sonst die Saldo-Spalte der letzten Buchung.
-                (PDFStatementConverter.isPDF(file.data)
-                    ? StatementBalanceExtractor.closingBalance(
-                        in: PDFStatementConverter.textLines(from: file.data),
-                        currency: account.currency
-                    )
-                    : nil)
-                    ?? ImportedBalanceExtractor.latestBalance(in: importedTransactions, currency: account.currency)
-            }
+            reportedBalance: reportedBalance,
+            reportedBalanceIsNew: reportedBalance.map { balance in
+                targetAccount?.reportedBalance.map { balance.asOf > $0.asOf } ?? true
+            } ?? false
         )
     }
 
@@ -823,6 +836,13 @@ struct ImportPipeline: Sendable {
 
     @discardableResult
     func commit(_ prepared: PreparedImport) async throws -> ImportResult {
+        // Nur der Stand ist neu: kein leerer Eintrag im Importverlauf.
+        if prepared.transactions.isEmpty, prepared.updates.isEmpty {
+            if prepared.reportedBalanceIsNew, let balance = prepared.reportedBalance, let accountRepository {
+                try await accountRepository.saveReportedBalance(balance, accountID: prepared.targetAccountID)
+            }
+            return prepared.importResultPreview
+        }
         if !prepared.newMerchants.isEmpty, let merchantRepository {
             try await merchantRepository.upsert(prepared.newMerchants)
         }

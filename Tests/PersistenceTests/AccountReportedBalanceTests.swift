@@ -98,4 +98,52 @@ struct AccountReportedBalanceTests {
         #expect(summary.balance == Money(amount: 450, currency: .eur))
         #expect(model.liquidity?.total == Money(amount: 450, currency: .eur))
     }
+
+    @Test("Erneuter Import einer schon importierten Datei holt den Stand nach, ohne leeren Verlaufseintrag")
+    @MainActor
+    func reimportBackfillsBalance() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .csvImport)
+        try await dependencies.accountRepository.upsert([account])
+        let file = ImportFile(fileName: "giro.csv", data: Data("""
+        Datum;Beschreibung;Betrag;Saldo
+        01.10.2026;REWE;-20,00;980,00
+        02.10.2026;Miete;-500,00;480,00
+        """.utf8))
+        let provider = GenericCSVProvider(fallbackCurrency: .eur)
+
+        // Import wie vor 0.4.0: ohne Konten-Repository, also ohne Stand.
+        let oldPipeline = ImportPipeline(
+            providers: [provider],
+            transactionRepository: dependencies.transactionRepository,
+            importBatchRepository: dependencies.importBatchRepository,
+            fallbackCurrency: .eur
+        )
+        _ = try await oldPipeline.run(file, into: account.id)
+        #expect(try await dependencies.accountRepository.account(id: account.id)?.reportedBalance == nil)
+        let batchesBefore = try await dependencies.importBatchRepository.batches().count
+
+        let pipeline = ImportPipeline(
+            providers: [provider],
+            transactionRepository: dependencies.transactionRepository,
+            importBatchRepository: dependencies.importBatchRepository,
+            accountRepository: dependencies.accountRepository,
+            fallbackCurrency: .eur
+        )
+        let prepared = try await pipeline.prepare(file, into: account.id)
+        #expect(prepared.transactions.isEmpty)
+        #expect(prepared.reportedBalanceIsNew)
+        #expect(prepared.hasChanges)
+        _ = try await pipeline.commit(prepared)
+
+        let stored = try await dependencies.accountRepository.account(id: account.id)
+        #expect(stored?.reportedBalance?.amount == Money(amount: 480, currency: .eur))
+        #expect(try await dependencies.importBatchRepository.batches().count == batchesBefore)
+
+        // Ein weiteres Mal: nichts Neues mehr, auch kein neuer Stand.
+        let again = try await pipeline.prepare(file, into: account.id)
+        #expect(!again.reportedBalanceIsNew)
+        #expect(!again.hasChanges)
+    }
 }

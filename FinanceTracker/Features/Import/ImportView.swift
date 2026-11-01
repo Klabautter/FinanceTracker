@@ -273,6 +273,21 @@ struct ImportView: View {
                 .accessibilityLabel(ImportDedupNotices.fileAlreadyImported)
             }
 
+            if let balance = prepared.reportedBalance {
+                Label {
+                    let amount = PrivacyAwareMoney.string(balance.amount, privacy: privacyState)
+                    let day = AppDateFormatter.day(balance.asOf)
+                    Text(prepared.reportedBalanceIsNew
+                        ? String(localized: "Kontostand laut Datei: \(amount), Stand \(day)")
+                        : String(localized: "Kontostand laut Datei: \(amount), Stand \(day). Ein gleich alter oder neuerer Stand ist schon gespeichert."))
+                } icon: {
+                    Image(systemName: "banknote")
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("import-reported-balance")
+            }
+
             // Rückfrage zu unbekannten Arten vor der Bestätigung, damit sie
             // auch bei langen Dateien nicht unter der Vorschau verschwindet.
             if !prepared.unknownTypes.isEmpty {
@@ -288,13 +303,17 @@ struct ImportView: View {
                 Button {
                     Task { await model.confirmImport() }
                 } label: {
-                    Label(
-                        "\(prepared.transactions.count + prepared.updates.count) Änderungen übernehmen",
-                        systemImage: "checkmark.circle.fill"
-                    )
+                    if prepared.transactions.isEmpty, prepared.updates.isEmpty, prepared.reportedBalanceIsNew {
+                        Label("Kontostand übernehmen", systemImage: "checkmark.circle.fill")
+                    } else {
+                        Label(
+                            "\(prepared.transactions.count + prepared.updates.count) Änderungen übernehmen",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(prepared.transactions.isEmpty && prepared.updates.isEmpty)
+                .disabled(!prepared.hasChanges)
                 .accessibilityLabel(
                     "Import bestätigen: \(prepared.transactions.count) neue Transaktionen und \(prepared.updates.count) Aktualisierungen"
                 )

@@ -14790,6 +14790,54 @@
         }
       }
     },
+    "Kontostand laut Datei: %@, Stand %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontostand laut Datei: %@, Stand %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance in file: %@, as of %@"
+          }
+        }
+      }
+    },
+    "Kontostand laut Datei: %@, Stand %@. Ein gleich alter oder neuerer Stand ist schon gespeichert." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontostand laut Datei: %@, Stand %@. Ein gleich alter oder neuerer Stand ist schon gespeichert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance in file: %@, as of %@. A balance of the same date or newer is already saved."
+          }
+        }
+      }
+    },
+    "Kontostand übernehmen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontostand übernehmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Balance"
+          }
+        }
+      }
+    },
     "Kontotyp" : {
       "localizations" : {
         "de" : {
