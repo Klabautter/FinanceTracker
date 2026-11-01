@@ -157,7 +157,7 @@ struct LoadBudgetProgresses: Sendable {
         } else {
             resolvedFX = nil
         }
-        let converter = resolvedFX.map { CurrencyConverter(eurPerUnit: $0.eurPerUnit) } ?? CurrencyConverter()
+        let converter = resolvedFX.map { $0.converter } ?? CurrencyConverter()
         let contributionCalculator = BudgetContributionCalculator(converter: converter)
         let rolloverCalculator = BudgetRolloverCalculator()
 

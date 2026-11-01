@@ -18,15 +18,23 @@ struct ECBFXRateProvider: FXRateProvider, Sendable {
     private let transport: any HTTPTransport
     private let cacheURL: URL?
     private let now: @Sendable () -> Date
+    /// Tageskurse für Buchungen. Nur die App schaltet sie ein (`live()`),
+    /// Tests und Previews laden keine Historie.
+    private let history: ECBFXHistory?
 
     init(
         transport: any HTTPTransport = URLSessionTransport(),
         cacheURL: URL? = Self.defaultCacheURL(),
+        historyCacheURL: URL? = ECBFXHistory.defaultCacheURL(),
+        loadsHistory: Bool = false,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.transport = transport
         self.cacheURL = cacheURL
         self.now = now
+        self.history = loadsHistory
+            ? ECBFXHistory(transport: transport, cacheURL: historyCacheURL, now: now)
+            : nil
     }
 
     static func defaultCacheURL() -> URL? {
@@ -39,11 +47,17 @@ struct ECBFXRateProvider: FXRateProvider, Sendable {
     }
 
     func snapshot() async -> FXRateSnapshot {
-        await resolve(forceRefresh: false)
+        await withHistory(resolve(forceRefresh: false), forceRefresh: false)
     }
 
     func refresh() async -> FXRateSnapshot {
-        await resolve(forceRefresh: true)
+        await withHistory(resolve(forceRefresh: true), forceRefresh: true)
+    }
+
+    private func withHistory(_ snapshot: FXRateSnapshot, forceRefresh: Bool) async -> FXRateSnapshot {
+        var snapshot = snapshot
+        snapshot.daily = await history?.rates(forceRefresh: forceRefresh)
+        return snapshot
     }
 
     private func resolve(forceRefresh: Bool) async -> FXRateSnapshot {

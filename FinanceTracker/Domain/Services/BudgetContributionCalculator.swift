@@ -104,7 +104,7 @@ struct BudgetContributionCalculator: Sendable {
         /// Kurs in die Budget-Währung; `nil` meldet die Währung als
         /// ausgeschlossen (nur für sonst passende Transaktionen).
         func rateToBudgetCurrency(_ txn: Transaction) -> Decimal? {
-            guard let rate = converter.rate(from: txn.amount.currency, to: budget.currency) else {
+            guard let rate = converter.rate(for: txn, to: budget.currency) else {
                 excludedCurrencies.insert(txn.amount.currency)
                 return nil
             }

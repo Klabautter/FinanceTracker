@@ -106,8 +106,9 @@ struct AnalyticsCalculator: Sendable {
                 converted.append(txn)
                 continue
             }
-            guard let rate = converter.rate(from: txn.amount.currency, to: baseCurrency),
-                  let baseAmount = converter.convert(txn.amount, to: baseCurrency) else {
+            // Kurs des Buchungstags bzw. exakter Gegenwert der Buchung.
+            guard let rate = converter.rate(for: txn, to: baseCurrency),
+                  let baseAmount = converter.convert(txn, to: baseCurrency) else {
                 excludedCount += 1
                 excludedCurrencies.insert(txn.amount.currency)
                 continue

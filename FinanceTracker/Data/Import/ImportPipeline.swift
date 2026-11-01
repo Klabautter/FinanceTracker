@@ -130,6 +130,13 @@ struct PreparedImport: Sendable, Equatable {
     /// sich auch übernehmen, wenn alle Buchungen schon vorhanden sind.
     var reportedBalanceIsNew = false
 
+    /// Währung, in der (fast) alle neuen Buchungen der Datei stehen, wenn
+    /// sie nicht die des Kontos ist. Sie zählen dann nicht im Kontostand.
+    var foreignFileCurrency: CurrencyCode?
+    /// Das Zielkonto hat noch keine Buchungen: Seine Währung lässt sich
+    /// noch an die Datei anpassen.
+    var targetAccountIsEmpty = false
+
     var hasChanges: Bool {
         !transactions.isEmpty || !updates.isEmpty || reportedBalanceIsNew
     }
@@ -670,6 +677,22 @@ struct ImportPipeline: Sendable {
         // Ein PDF-Auszug nennt den Stand oft nur im Kopf („Kontostand am …");
         // sonst die Saldo-Spalte der letzten Buchung.
         let targetAccount = try await accountRepository?.account(id: accountID)
+        // Passt die Datei nicht zur Kontowährung, sagt die Vorschau es
+        // (z. B. ein Dollar-Export auf ein Euro-Konto).
+        var foreignFileCurrency: CurrencyCode?
+        if let targetAccount, !batch.isEmpty {
+            let counts = Dictionary(grouping: batch, by: \.amount.currency).mapValues(\.count)
+            if let (currency, count) = counts.max(by: { $0.value < $1.value }),
+               currency != targetAccount.currency, count * 5 >= batch.count * 4 {
+                foreignFileCurrency = currency
+            }
+        }
+        var emptinessQuery = TransactionQuery()
+        emptinessQuery.accountIDs = [accountID]
+        var targetAccountIsEmpty = false
+        if foreignFileCurrency != nil {
+            targetAccountIsEmpty = try await transactionRepository.transactions(matching: emptinessQuery).isEmpty
+        }
         let reportedBalance = targetAccount.flatMap { account in
             (PDFStatementConverter.isPDF(file.data)
                 ? StatementBalanceExtractor.closingBalance(
@@ -713,7 +736,9 @@ struct ImportPipeline: Sendable {
             reportedBalance: reportedBalance,
             reportedBalanceIsNew: reportedBalance.map { balance in
                 targetAccount?.reportedBalance.map { balance.asOf > $0.asOf } ?? true
-            } ?? false
+            } ?? false,
+            foreignFileCurrency: foreignFileCurrency,
+            targetAccountIsEmpty: targetAccountIsEmpty
         )
     }
 

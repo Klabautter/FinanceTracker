@@ -225,7 +225,7 @@ final class DashboardModel {
                     let progresses = newBudgetProgresses
                     let calculationCalendar = calendar
                     let forecastCurrencyConverter = newFXSnapshot.map {
-                        CurrencyConverter(eurPerUnit: $0.eurPerUnit)
+                        $0.converter
                     } ?? CurrencyConverter()
                     let planning = await Task.detached(priority: .userInitiated) {
                         // Dieselbe explizit-vor-heuristisch Semantik wie im

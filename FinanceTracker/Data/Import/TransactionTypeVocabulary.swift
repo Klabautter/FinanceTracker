@@ -125,6 +125,14 @@ enum TransactionTypeVocabulary {
         return nil
     }
 
+    /// Nur eine Bezeichnung, die als Ganzes eine bekannte Art ist („Swap",
+    /// „Top-up", „Refund"). Für Dateien ohne Spalte für die Art, deren
+    /// Beschreibung dann die Art trägt; „Swap Shop Berlin" zählt nicht.
+    static func exactMeaning(of rawText: String?) -> TransactionTypeMeaning? {
+        guard let key = normalizedKey(rawText) else { return nil }
+        return entries.first { $0.phrases.contains(key) }?.meaning
+    }
+
     /// Schlüssel, unter dem die Vorschau Entscheidungen zu unbekannten Arten
     /// speichert („card_top-up" und „Card Top Up" sind dieselbe Art).
     static func normalizedKey(_ rawType: String?) -> String? {

@@ -266,6 +266,28 @@ final class ImportModel {
 
     /// Übernimmt auch die Zeilen, die schon aus einer anderen Quelle auf dem
     /// Konto liegen (die Vorschau hatte sie übersprungen).
+    /// Stellt ein noch leeres Zielkonto auf die Währung der Datei um und
+    /// bereitet die Vorschau neu vor (z. B. Dollar-Export auf ein neu
+    /// angelegtes Euro-Konto).
+    func switchTargetAccountCurrency(to currency: CurrencyCode) async {
+        guard let last = lastPreparation, let accountID = selectedAccountID,
+              preparedImport?.targetAccountIsEmpty == true,
+              var account = accounts.first(where: { $0.id == accountID }) else { return }
+        do {
+            account.currency = currency
+            try await dependencies.accountRepository.upsert([account])
+            dependencies.changeTracker.markChanged()
+            await loadAccounts()
+            selectedAccountID = accountID
+            let provider = (last.provider as? GenericCSVProvider)?.with(fallbackCurrency: currency) ?? last.provider
+            try await runPreparation(last.file, providerDisplayName: last.providerDisplayName, provider: provider)
+        } catch let error as ImportError {
+            phase = .failed(error.userFacingMessage)
+        } catch {
+            phase = .failed(String(localized: "Die Kontowährung konnte nicht umgestellt werden."))
+        }
+    }
+
     func includeCrossSourceDuplicates() async {
         guard let last = lastPreparation else { return }
         do {

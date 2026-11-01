@@ -87,7 +87,7 @@ struct LoadDashboard: Sendable {
             fxSnapshot = snapshot
             calculator = AnalyticsCalculator(
                 baseCurrency: baseCurrency,
-                converter: CurrencyConverter(eurPerUnit: snapshot.eurPerUnit)
+                converter: snapshot.converter
             )
         } else {
             fxSnapshot = nil

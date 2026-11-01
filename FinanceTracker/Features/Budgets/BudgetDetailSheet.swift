@@ -342,7 +342,7 @@ struct BudgetDetailSheet: View {
                 let snapshot = await dependencies.fxRateProvider.snapshot()
                 fxIsLoading = false
                 fxSnapshot = snapshot
-                converter = CurrencyConverter(eurPerUnit: snapshot.eurPerUnit)
+                converter = snapshot.converter
             } else {
                 fxSnapshot = nil
                 converter = CurrencyConverter()

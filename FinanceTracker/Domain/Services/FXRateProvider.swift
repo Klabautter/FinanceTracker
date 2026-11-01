@@ -29,6 +29,13 @@ struct FXRateSnapshot: Sendable, Equatable {
     let isStale: Bool
     /// A network refresh failed and these rates were retained as a best-effort estimate.
     let refreshFailed: Bool
+    /// Historische Tageskurse für Buchungen; `nil`, wenn (noch) keine da sind.
+    var daily: DailyFXRates?
+
+    /// Umrechner mit aktuellen Kursen für Stände und Tageskursen für Buchungen.
+    var converter: CurrencyConverter {
+        CurrencyConverter(eurPerUnit: eurPerUnit, daily: daily)
+    }
 
     init(
         eurPerUnit: [CurrencyCode: Decimal],
@@ -36,7 +43,8 @@ struct FXRateSnapshot: Sendable, Equatable {
         fetchedAt: Date? = nil,
         source: Source,
         isStale: Bool = false,
-        refreshFailed: Bool = false
+        refreshFailed: Bool = false,
+        daily: DailyFXRates? = nil
     ) {
         self.eurPerUnit = eurPerUnit
         self.quoteDate = quoteDate
@@ -44,6 +52,7 @@ struct FXRateSnapshot: Sendable, Equatable {
         self.source = source
         self.isStale = isStale
         self.refreshFailed = refreshFailed
+        self.daily = daily
     }
 }
 
@@ -63,6 +72,6 @@ extension FXRateProvider {
     func refresh() async -> FXRateSnapshot { await snapshot() }
 
     func converter() async -> CurrencyConverter {
-        CurrencyConverter(eurPerUnit: await snapshot().eurPerUnit)
+        await snapshot().converter
     }
 }

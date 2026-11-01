@@ -224,6 +224,10 @@ struct GenericCSVProvider: ImportProvider {
         self.typeMeanings = typeMeanings
     }
 
+    func with(fallbackCurrency: CurrencyCode) -> GenericCSVProvider {
+        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings)
+    }
+
     func with(typeMeanings: [String: TransactionTypeMeaning]) -> GenericCSVProvider {
         GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings)
     }
@@ -332,6 +336,14 @@ struct GenericCSVProvider: ImportProvider {
                     unknownTypes[typeKey] = (known?.label ?? rawType ?? typeKey, (known?.count ?? 0) + 1)
                 }
             }
+            // Ohne Spalte für die Art: Ist die Beschreibung als Ganzes eine
+            // bekannte Art („Swap", „Top-up"), gilt sie, sofern das
+            // Vorzeichen passt.
+            if mapping.typeColumn == nil,
+               let meaning = TransactionTypeVocabulary.exactMeaning(of: rawDescription ?? rawMerchant),
+               !amountsAreSigned || meaning.agrees(withSignOf: money) {
+                kind = meaning.kind
+            }
 
             let originalCurrency = clean(value(mapping.originalCurrencyColumn)).map(CurrencyCode.init)
             let cashbackCurrency = clean(value(mapping.cashbackCurrencyColumn)).map(CurrencyCode.init)
@@ -434,10 +446,15 @@ struct GenericCSVProvider: ImportProvider {
             default:
                 return .failure(AmountIssue(reason: String(localized: "Soll und Haben sind beide gefüllt")))
             }
+            // Zeichen oder Code im Feld („-12,30 $") oder in der Überschrift.
+            let statedCurrency = [debitRaw, creditRaw].compactMap { $0 }.lazy
+                .compactMap(CSVMoneyParser.statedCurrency(in:)).first
+                ?? CSVMoneyParser.statedCurrency(in: debitColumn + " " + creditColumn)
             guard let money = CSVMoneyParser.parseMoney(
                 NSDecimalNumber(decimal: signed).stringValue,
                 currencyRaw: currencyRaw,
-                fallback: fallbackCurrency
+                fallback: fallbackCurrency,
+                headerCurrency: statedCurrency
             ) else {
                 return .failure(AmountIssue(reason: String(localized: "Betrag konnte nicht erkannt werden")))
             }
@@ -448,6 +465,7 @@ struct GenericCSVProvider: ImportProvider {
             document.value(mapping.amountColumn, in: record),
             currencyRaw: currencyRaw,
             fallback: fallbackCurrency,
+            headerCurrency: CSVMoneyParser.statedCurrency(in: mapping.amountColumn),
             decimalSeparator: decimalSeparator
         ) else {
             return .failure(AmountIssue(reason: String(localized: "Betrag konnte nicht erkannt werden")))

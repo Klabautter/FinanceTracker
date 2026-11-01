@@ -6622,6 +6622,22 @@
         }
       }
     },
+    "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags oder zum genauen Gegenwert aus der Datei, Kontostände zum aktuellen Kurs. Ohne Tageskurs gilt der aktuelle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags oder zum genauen Gegenwert aus der Datei, Kontostände zum aktuellen Kurs. Ohne Tageskurs gilt der aktuelle."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreign-currency transactions count at the ECB rate of their booking day or at the exact amount from the file, balances at the current rate. Without a daily rate, the current one is used."
+          }
+        }
+      }
+    },
     "Buchungen sind manuell und Cashflow-neutral, es wird kein Geld versendet." : {
       "localizations" : {
         "de" : {
@@ -8895,6 +8911,38 @@
         }
       }
     },
+    "Die Buchungen dieser Datei sind in %@, das Konto „%@“ führt %@. Sie zählen nicht in seinem Stand; Summen rechnen sie zum Tageskurs um. Passt die Datei zu einem anderen Konto?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Buchungen dieser Datei sind in %@, das Konto „%@“ führt %@. Sie zählen nicht in seinem Stand; Summen rechnen sie zum Tageskurs um. Passt die Datei zu einem anderen Konto?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transactions in this file are in %1$@, the account “%2$@” uses %3$@. They don’t count toward its balance; totals convert them at the daily rate. Does the file belong to another account?"
+          }
+        }
+      }
+    },
+    "Die Buchungen dieser Datei sind in %@, das Konto „%@“ führt %@. Stell das Konto vor dem Import auf %@ um, sonst zählen sie nicht in seinem Stand." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Buchungen dieser Datei sind in %@, das Konto „%@“ führt %@. Stell das Konto vor dem Import auf %@ um, sonst zählen sie nicht in seinem Stand."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transactions in this file are in %1$@, the account “%2$@” uses %3$@. Switch the account to %4$@ before importing, otherwise they don’t count toward its balance."
+          }
+        }
+      }
+    },
     "Die Datei entspricht nicht dem Format von %@." : {
       "localizations" : {
         "de" : {
@@ -9115,6 +9163,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Accounts couldn't be loaded."
+          }
+        }
+      }
+    },
+    "Die Kontowährung konnte nicht umgestellt werden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Kontowährung konnte nicht umgestellt werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account currency could not be changed."
           }
         }
       }
@@ -11456,22 +11520,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Foreign currencies converted at the reference rate"
-          }
-        }
-      }
-    },
-    "Fremdwährungsbuchungen nutzen diesen Referenzkurs. Historische Beträge sind Näherungen, keine Kurse vom Buchungstag." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fremdwährungsbuchungen nutzen diesen Referenzkurs. Historische Beträge sind Näherungen, keine Kurse vom Buchungstag."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Foreign currency transactions use this reference rate. Historical amounts are approximations, not rates from the transaction date."
           }
         }
       }
@@ -14594,6 +14642,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Create Account and Continue"
+          }
+        }
+      }
+    },
+    "Konto auf %@ umstellen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konto auf %@ umstellen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch Account to %@"
           }
         }
       }

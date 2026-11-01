@@ -111,7 +111,7 @@ enum FXRateStatusPresentation {
     static let warningAge: TimeInterval = 30 * 24 * 60 * 60
 
     static var explanation: String {
-        String(localized: "Fremdwährungsbuchungen nutzen diesen Referenzkurs. Historische Beträge sind Näherungen, keine Kurse vom Buchungstag.")
+        String(localized: "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags oder zum genauen Gegenwert aus der Datei, Kontostände zum aktuellen Kurs. Ohne Tageskurs gilt der aktuelle.")
     }
 
     static func quoteDate(for snapshot: FXRateSnapshot) -> Date? {

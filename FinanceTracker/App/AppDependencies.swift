@@ -68,7 +68,7 @@ struct AppDependencies: @unchecked Sendable {
         changeTracker: DataChangeTracker,
         baseCurrency: CurrencyCode,
         notificationScheduler: NotificationScheduler,
-        fxRateProvider: any FXRateProvider = ECBFXRateProvider(),
+        fxRateProvider: any FXRateProvider = ECBFXRateProvider(loadsHistory: false),
         backupRestoreService: BackupRestoreService? = nil,
         preferences: any AppPreferences = UserDefaultsAppPreferences(),
         userDefaults: UserDefaults = .standard,
@@ -124,6 +124,8 @@ struct AppDependencies: @unchecked Sendable {
         return make(
             container: store.container,
             baseCurrency: .eur,
+            // Als Host der Unit-Tests keine Kurs-Historie aus dem Netz laden.
+            fxRateProvider: ECBFXRateProvider(loadsHistory: AppDataDirectory.unitTestRoot() == nil),
             userDefaults: userDefaults,
             categoryAdvisor: MerchantCategoryAdvisorFactory.systemAdvisor()
         )
@@ -173,7 +175,8 @@ struct AppDependencies: @unchecked Sendable {
             changeTracker: DataChangeTracker(),
             baseCurrency: baseCurrency,
             notificationScheduler: notificationScheduler,
-            fxRateProvider: fxRateProvider ?? ECBFXRateProvider(),
+            // Tageskurs-Historie nur in der App (`live()`), nicht in Tests.
+            fxRateProvider: fxRateProvider ?? ECBFXRateProvider(loadsHistory: false),
             backupRestoreService: BackupRestoreService(modelContainer: container),
             preferences: preferences ?? UserDefaultsAppPreferences(),
             userDefaults: userDefaults,

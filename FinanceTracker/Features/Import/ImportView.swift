@@ -273,6 +273,24 @@ struct ImportView: View {
                 .accessibilityLabel(ImportDedupNotices.fileAlreadyImported)
             }
 
+            if let fileCurrency = prepared.foreignFileCurrency,
+               let account = model.accounts.first(where: { $0.id == prepared.targetAccountID }) {
+                VStack(alignment: .leading, spacing: AppSpacing.s) {
+                    InlineNotice(
+                        message: prepared.targetAccountIsEmpty
+                            ? String(localized: "Die Buchungen dieser Datei sind in \(fileCurrency.rawValue), das Konto „\(account.name)“ führt \(account.currency.rawValue). Stell das Konto vor dem Import auf \(fileCurrency.rawValue) um, sonst zählen sie nicht in seinem Stand.")
+                            : String(localized: "Die Buchungen dieser Datei sind in \(fileCurrency.rawValue), das Konto „\(account.name)“ führt \(account.currency.rawValue). Sie zählen nicht in seinem Stand; Summen rechnen sie zum Tageskurs um. Passt die Datei zu einem anderen Konto?"),
+                        tone: .warning
+                    )
+                    if prepared.targetAccountIsEmpty {
+                        Button("Konto auf \(fileCurrency.rawValue) umstellen") {
+                            Task { await model.switchTargetAccountCurrency(to: fileCurrency) }
+                        }
+                        .accessibilityIdentifier("import-switch-account-currency")
+                    }
+                }
+            }
+
             if let balance = prepared.reportedBalance {
                 Label {
                     let amount = PrivacyAwareMoney.string(balance.amount, privacy: privacyState)

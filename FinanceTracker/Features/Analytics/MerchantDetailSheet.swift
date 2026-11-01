@@ -70,7 +70,7 @@ final class MerchantDetailModel {
             if matchingSpending.contains(where: { $0.amount.currency != baseCurrency }) {
                 let snapshot = await dependencies.fxRateProvider.snapshot()
                 fxSnapshot = snapshot
-                converter = CurrencyConverter(eurPerUnit: snapshot.eurPerUnit)
+                converter = snapshot.converter
             } else {
                 converter = CurrencyConverter()
             }
@@ -79,7 +79,7 @@ final class MerchantDetailModel {
             var excluded: Set<CurrencyCode> = []
             var included: [Transaction] = []
             for transaction in matchingSpending {
-                guard let baseAmount = converter.convert(transaction.amount, to: baseCurrency) else {
+                guard let baseAmount = converter.convert(transaction, to: baseCurrency) else {
                     excluded.insert(transaction.amount.currency)
                     continue
                 }

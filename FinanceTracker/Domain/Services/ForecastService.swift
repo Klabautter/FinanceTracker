@@ -130,20 +130,14 @@ struct ForecastService: Sendable {
             guard !policy.isExcluded(txn) else { continue }
             switch policy.contribution(for: txn) {
             case .income(let delta):
-                if let converted = currencyConverter.convert(
-                    Money(amount: delta, currency: txn.amount.currency),
-                    to: baseCurrency
-                ) {
-                    realizedIncome += converted.amount
+                if let rate = currencyConverter.rate(for: txn, to: baseCurrency) {
+                    realizedIncome += delta * rate
                 } else {
                     excludedCurrencies.insert(txn.amount.currency)
                 }
             case .spending(let delta):
-                if let converted = currencyConverter.convert(
-                    Money(amount: delta, currency: txn.amount.currency),
-                    to: baseCurrency
-                ) {
-                    realizedSpending += converted.amount
+                if let rate = currencyConverter.rate(for: txn, to: baseCurrency) {
+                    realizedSpending += delta * rate
                 } else {
                     excludedCurrencies.insert(txn.amount.currency)
                 }

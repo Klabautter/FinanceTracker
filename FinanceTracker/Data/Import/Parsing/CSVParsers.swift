@@ -203,19 +203,51 @@ enum CSVMoneyParser {
         return fraction.isEmpty ? integerDigits : integerDigits + "." + fraction
     }
 
+    /// Währung in dieser Reihenfolge: eigene Währungsspalte, Zeichen oder
+    /// Code im Betrag („-$30.61", „30,61 USD"), Angabe in der Spaltenüberschrift
+    /// („Amount (USD)", `headerCurrency`), sonst `fallback` (Kontowährung).
+    /// Ein Dollar-Betrag wird so nie still als Euro gespeichert (#19).
     static func parseMoney(
         _ amountRaw: String?,
         currencyRaw: String?,
         fallback: CurrencyCode,
+        headerCurrency: CurrencyCode? = nil,
         decimalSeparator: Character? = nil
     ) -> Money? {
         guard let amount = parse(amountRaw, decimalSeparator: decimalSeparator) else { return nil }
-        let currency = currencyRaw.flatMap { raw -> CurrencyCode? in
+        let column = currencyRaw.flatMap { raw -> CurrencyCode? in
             let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             guard (3...3).contains(cleaned.count), cleaned.allSatisfy({ $0.isLetter }) else { return nil }
             return CurrencyCode(cleaned)
-        } ?? fallback
+        }
+        let currency = column ?? amountRaw.flatMap(statedCurrency(in:)) ?? headerCurrency ?? fallback
         return Money(amount: amount, currency: currency)
+    }
+
+    private static let knownCodes: Set<String> = Set(CurrencyConverter.referenceEURRates.keys.map(\.rawValue)).union(["EUR"])
+    private static let codeRegex = try! NSRegularExpression(pattern: #"(?<![A-Za-z])([A-Z]{3})(?![A-Za-z])"#)
+
+    /// Eindeutig genannte Währung in einem Text: Zeichen (€, £, $, „US$",
+    /// „CA$" …) oder bekannter ISO-Code. Mehrere verschiedene: `nil`.
+    static func statedCurrency(in text: String) -> CurrencyCode? {
+        var found = Set<String>()
+        let prefixed: [(String, String)] = [("US$", "USD"), ("CA$", "CAD"), ("C$", "CAD"), ("AU$", "AUD"), ("A$", "AUD"),
+                                            ("NZ$", "NZD"), ("HK$", "HKD"), ("S$", "SGD"), ("R$", "BRL")]
+        var rest = text
+        for (symbol, code) in prefixed where rest.contains(symbol) {
+            found.insert(code)
+            rest = rest.replacingOccurrences(of: symbol, with: " ")
+        }
+        if rest.contains("€") { found.insert("EUR") }
+        if rest.contains("£") { found.insert("GBP") }
+        if rest.contains("$") { found.insert("USD") }
+        let range = NSRange(rest.startIndex..., in: rest)
+        for match in codeRegex.matches(in: rest, range: range) {
+            if let codeRange = Range(match.range(at: 1), in: rest), knownCodes.contains(String(rest[codeRange])) {
+                found.insert(String(rest[codeRange]))
+            }
+        }
+        return found.count == 1 ? found.first.map(CurrencyCode.init) : nil
     }
 }
 

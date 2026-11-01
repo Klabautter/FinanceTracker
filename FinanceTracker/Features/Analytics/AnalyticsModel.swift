@@ -310,7 +310,7 @@ final class AnalyticsModel {
             fxSnapshot = resolvedFX
             let calculator = AnalyticsCalculator(
                 baseCurrency: dependencies.baseCurrency,
-                converter: resolvedFX.map { CurrencyConverter(eurPerUnit: $0.eurPerUnit) } ?? CurrencyConverter()
+                converter: resolvedFX.map { $0.converter } ?? CurrencyConverter()
             )
             let calculationCalendar = calendar
             let monthsBack = range.monthsBack
