@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.4.1</title>
-      <pubDate>Sun, 01 Nov 2026 12:03:09 +0000</pubDate>
-      <sparkle:version>9</sparkle:version>
-      <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
+      <title>Version 0.4.2</title>
+      <pubDate>Sun, 01 Nov 2026 17:58:16 +0000</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[PDF statements now also set the account balance when it is only stated in the header.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.4.1/FinanceTracker-0.4.1.zip"
-                 sparkle:edSignature="saaDPtN+3GQ8KWiUHelLLUwOjI3H/V4RD1pzSi8diQrfEnCS1M6ZbtThr5Q3Kt5MlA6VtghUfMcLS8+KqX02Aw==" length="15364577" type="application/octet-stream"/>
+      <description><![CDATA[Account balances are now picked up from more statements, and you can take just the balance from a file.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.4.2/FinanceTracker-0.4.2.zip"
+                 sparkle:edSignature="fu6V0i9DE92fY7fsQyIZZp7AZ0H8Dy7v8fOY+odbRrK/qARBNtRGKN6BgwADCHfqH/qBNMNQUu0TpJOGkjrfBg==" length="15404003" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
