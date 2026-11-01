@@ -35,6 +35,23 @@ enum PDFStatementConverter {
         return try csvText(fromPages: pages)
     }
 
+    /// Textzeilen aller Seiten in Lesereihenfolge (für Angaben außerhalb
+    /// der Umsatztabelle, z. B. den Kontostand im Kopf). Leer, wenn das PDF
+    /// keinen Text hat.
+    static func textLines(from data: Data) -> [String] {
+        guard let document = PDFDocument(data: data), !document.isLocked else { return [] }
+        var pages: [[Word]] = []
+        for index in 0..<document.pageCount {
+            guard let page = document.page(at: index) else { continue }
+            pages.append(words(on: page))
+        }
+        return textLines(fromPages: pages)
+    }
+
+    static func textLines(fromPages pages: [[Word]]) -> [String] {
+        pages.flatMap { lines(of: $0).map { $0.map(\.text).joined(separator: " ") } }
+    }
+
     // MARK: - Wörter mit Position
 
     struct Word: Equatable {

@@ -688,8 +688,16 @@ struct ImportPipeline: Sendable {
             crossSourceHints: crossSourceHints,
             crossSourceDuplicates: crossSourceDuplicates,
             unknownTypes: parseResult.unknownTypes,
-            reportedBalance: try await accountRepository?.account(id: accountID).flatMap {
-                ImportedBalanceExtractor.latestBalance(in: importedTransactions, currency: $0.currency)
+            reportedBalance: try await accountRepository?.account(id: accountID).flatMap { account in
+                // Ein PDF-Auszug nennt den Stand oft nur im Kopf („Kontostand
+                // am …"); sonst die Saldo-Spalte der letzten Buchung.
+                (PDFStatementConverter.isPDF(file.data)
+                    ? StatementBalanceExtractor.closingBalance(
+                        in: PDFStatementConverter.textLines(from: file.data),
+                        currency: account.currency
+                    )
+                    : nil)
+                    ?? ImportedBalanceExtractor.latestBalance(in: importedTransactions, currency: account.currency)
             }
         )
     }

@@ -148,6 +148,48 @@ struct PDFStatementImportTests {
         #expect(result.transactions[3].suggestedCategoryID == nil)
     }
 
+    /// Monatsauszug eines Tagesgeld-/Verrechnungskontos: Der Stand steht nur
+    /// im Kopf, die Tabelle hat keine Saldo-Spalte.
+    private static var savingsStatement: Data {
+        makePDF(pages: [[
+            Text(string: "Kontoauszug", x: 74, top: 80),
+            Text(string: "Kontostand am 01.09.2026", x: 74, top: 110),
+            Text(string: "1.000,00 EUR", x: 300, top: 110),
+            Text(string: "Kontostand am 30.09.2026", x: 74, top: 125),
+            Text(string: "1.004,20 EUR", x: 300, top: 125),
+            Text(string: "Buchung", x: 74, top: 170),
+            Text(string: "Wertstellung", x: 140, top: 170),
+            Text(string: "Beschreibung", x: 220, top: 170),
+            Text(string: "Betrag", x: 480, top: 170),
+            Text(string: "01.09.2026", x: 74, top: 190),
+            Text(string: "31.08.2026", x: 140, top: 190),
+            Text(string: "Erhaltene Zinsen", x: 220, top: 190),
+            Text(string: "+4,20 EUR", x: 480, top: 190)
+        ]])
+    }
+
+    @Test("Kontostand aus dem Kopf eines PDF-Auszugs wird beim Import übernommen")
+    func importsHeaderBalance() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        let account = Account(name: "Tagesgeld", type: .savings, currency: .eur, source: .csvImport)
+        try await dependencies.accountRepository.upsert([account])
+        let pipeline = ImportPipeline(
+            providers: dependencies.importProviders,
+            transactionRepository: dependencies.transactionRepository,
+            accountRepository: dependencies.accountRepository,
+            fallbackCurrency: .eur
+        )
+        let prepared = try await pipeline.prepare(ImportFile(fileName: "auszug.pdf", data: Self.savingsStatement), into: account.id)
+        #expect(prepared.transactions.map(\.amount.amount) == [Decimal(string: "4.20")!])
+        #expect(prepared.transactions.first?.kind == .income)
+        #expect(prepared.reportedBalance?.amount == Money(amount: Decimal(string: "1004.20")!, currency: .eur))
+
+        _ = try await pipeline.commit(prepared)
+        let stored = try #require(try await dependencies.accountRepository.account(id: account.id))
+        #expect(stored.reportedBalance?.amount.amount == Decimal(string: "1004.20")!)
+    }
+
     @Test("PDF ohne Umsatztabelle wird mit verständlicher Meldung abgelehnt")
     func rejectsPDFWithoutTable() {
         let data = Self.makePDF(pages: [[Text(string: "Nur ein Brief ohne Tabelle", x: 74, top: 100)]])

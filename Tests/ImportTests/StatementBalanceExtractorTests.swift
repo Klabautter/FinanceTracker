@@ -1,0 +1,65 @@
+import Foundation
+import Testing
+
+@testable import FinanceTracker
+
+@Suite("Kontostand aus Kopfzeilen eines Auszugs")
+struct StatementBalanceExtractorTests {
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        return calendar
+    }()
+
+    private func endOfDay(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day + 1))!.addingTimeInterval(-1)
+    }
+
+    @Test("Anfangs- und Endstand: der jüngste zählt, zum Ende des Tages")
+    func openingAndClosing() throws {
+        let balance = try #require(StatementBalanceExtractor.closingBalance(in: [
+            "Kontoauszug",
+            "Zeitraum 01.09.2026 - 30.09.2026",
+            "Kontostand am 01.09.2026 2.410,53 EUR",
+            "Kontostand am 30.09.2026 2.415,65 EUR",
+            "01.09.2026 31.08.2026 Erhaltene Zinsen +5,12 EUR"
+        ], currency: .eur, calendar: calendar))
+        #expect(balance.amount == Money(amount: Decimal(string: "2415.65")!, currency: .eur))
+        #expect(balance.asOf == endOfDay(2026, 9, 30))
+        #expect(balance.source == .file)
+    }
+
+    @Test("Weitere Schreibweisen: Neuer Saldo, nachgestelltes Minus, Englisch")
+    func variants() {
+        #expect(StatementBalanceExtractor.closingBalance(
+            in: ["Alter Saldo per 31.08.26 100,00", "Neuer Saldo per 30.09.26 1.234,56-"],
+            currency: .eur, calendar: calendar
+        )?.amount.amount == Decimal(string: "-1234.56")!)
+        #expect(StatementBalanceExtractor.closingBalance(
+            in: ["Opening balance on 01/09/2026 £900.00", "Closing balance on 30/09/2026 £1,250.40"],
+            currency: .gbp, calendar: calendar
+        )?.amount.amount == Decimal(string: "1250.40")!)
+        #expect(StatementBalanceExtractor.closingBalance(
+            in: ["Ending balance as of 2026-09-30: 3,000.00 USD"],
+            currency: .usd, calendar: calendar
+        )?.amount.amount == 3000)
+    }
+
+    @Test("Buchungszeilen, verfügbarer Betrag und andere Währung zählen nicht")
+    func ignoredLines() {
+        #expect(StatementBalanceExtractor.closingBalance(in: [
+            "15.09.2026 Saldo Kreditkarte -120,00",
+            "Verfügbarer Saldo am 30.09.2026 5.000,00 EUR",
+            "Kontostand am 30.09.2026 1.000,00 USD",
+            "Kontostand 1.000,00 EUR"
+        ], currency: .eur, calendar: calendar) == nil)
+    }
+
+    @Test("Verschiedene Beträge für denselben Tag ergeben keinen Stand")
+    func ambiguous() {
+        #expect(StatementBalanceExtractor.closingBalance(in: [
+            "Kontostand am 30.09.2026 1.000,00 EUR",
+            "Saldo am 30.09.2026 1.200,00 EUR"
+        ], currency: .eur, calendar: calendar) == nil)
+    }
+}
