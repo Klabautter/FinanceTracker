@@ -325,9 +325,13 @@ final class ImportModel {
             )
         }.value
 
+        // Nur Duplikate und nichts Neues: direkt zum Ergebnis. Bringt die
+        // Datei einen neueren Kontostand mit, bleibt die Vorschau, damit er
+        // sich übernehmen lässt.
         if prepared.transactions.isEmpty
             && prepared.updates.isEmpty
-            && prepared.duplicateCount > 0 {
+            && prepared.duplicateCount > 0
+            && !prepared.reportedBalanceIsNew {
             phase = .completed(
                 ImportResult(
                     providerIdentifier: provider.identifier,

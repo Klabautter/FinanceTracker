@@ -481,7 +481,9 @@ struct RecurringMultiCurrencyTests {
             expense(merchant: "SPOTIFY AB", displayName: "Spotify", amount: 10.99, date: date(2026, 7, 4))
         ]
 
-        let series = detector.detect(transactions: eurTxns + usdTxns)
+        // Fester Stichtag: Mit der echten Uhr fällt die EUR-Serie Monate
+        // später als veraltet heraus.
+        let series = detector.detect(transactions: eurTxns + usdTxns, calendar: calendar, now: date(2026, 8, 20))
 
         #expect(series.count == 2)
         #expect(Set(series.map { $0.currency }).count == 2)

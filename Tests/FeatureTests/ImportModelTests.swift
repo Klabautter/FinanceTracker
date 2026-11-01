@@ -185,6 +185,42 @@ struct ImportModelTests {
         #expect(try await dependencies.transactionRepository.count() == 2)
     }
 
+    @Test("Alles-Duplikate mit neuem Kontostand: Vorschau bleibt, Stand lässt sich übernehmen")
+    func allDuplicatesWithNewBalanceStaysInReview() async throws {
+        let (dependencies, model) = try await makeModelWithAccount()
+        let accountID = try #require(model.selectedAccountID)
+        let csv = """
+        Datum;Beschreibung;Betrag;Saldo
+        01.10.2026;REWE;-20,00;980,00
+        02.10.2026;Miete;-500,00;480,00
+        """
+        // Import wie vor 0.4.0: Buchungen da, Stand nicht gespeichert.
+        _ = try await ImportPipeline(
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
+            transactionRepository: dependencies.transactionRepository,
+            importBatchRepository: dependencies.importBatchRepository,
+            fallbackCurrency: .eur
+        ).run(ImportFile(fileName: "giro.csv", data: Data(csv.utf8)), into: accountID)
+
+        await model.prepareFile(at: try writeTempCSV("balance-again", csv))
+        guard case .reviewing = model.phase else {
+            Issue.record("Expected reviewing, got \(model.phase)")
+            return
+        }
+        #expect(model.preparedImport?.reportedBalanceIsNew == true)
+        #expect(model.preparedImport?.transactions.isEmpty == true)
+
+        await model.confirmImport()
+        guard case .completed(let result) = model.phase else {
+            Issue.record("Expected completed, got \(model.phase)")
+            return
+        }
+        #expect(result.savedBalance?.amount == Money(amount: 480, currency: .eur))
+        #expect(try await dependencies.accountRepository.account(id: accountID)?.reportedBalance?.amount
+            == Money(amount: 480, currency: .eur))
+        #expect(try await dependencies.transactionRepository.count() == 2)
+    }
+
     @Test("Review zeigt das vorbereitete Importziel und fixiert die Auswahl")
     func preparedTargetAccountIsBoundToPreview() async throws {
         let (dependencies, model) = try await makeModelWithAccount()
