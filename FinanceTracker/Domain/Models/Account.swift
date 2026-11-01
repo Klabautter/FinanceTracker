@@ -59,6 +59,9 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
     /// Kein Umsatz, zählt nie als Einnahme oder Ausgabe.
     var openingBalance: Decimal?
     var openingBalanceDate: Date?
+    /// Zuletzt von Bank oder Datei gemeldeter Stand. Wird nicht über
+    /// `upsert` geschrieben, sondern nur beim Abruf oder Import.
+    var reportedBalance: ReportedBalance?
 
     init(
         id: UUID = UUID(),
@@ -73,7 +76,8 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         source: AccountSource,
         isActive: Bool = true,
         openingBalance: Decimal? = nil,
-        openingBalanceDate: Date? = nil
+        openingBalanceDate: Date? = nil,
+        reportedBalance: ReportedBalance? = nil
     ) {
         self.id = id
         self.connectionID = connectionID
@@ -88,5 +92,19 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         self.isActive = isActive
         self.openingBalance = openingBalance
         self.openingBalanceDate = openingBalanceDate
+        self.reportedBalance = reportedBalance
     }
+}
+
+/// Kontostand, wie die Bank oder ein Kontoauszug ihn zu einem Zeitpunkt
+/// gemeldet hat. Buchungen nach `asOf` verändern ihn noch.
+struct ReportedBalance: Hashable, Codable, Sendable {
+    enum Source: String, Codable, Sendable {
+        case bank
+        case file
+    }
+
+    let amount: Money
+    let asOf: Date
+    let source: Source
 }

@@ -11412,6 +11412,22 @@
         }
       }
     },
+    "Fremdwährungen zum Referenzkurs umgerechnet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fremdwährungen zum Referenzkurs umgerechnet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreign currencies converted at the reference rate"
+          }
+        }
+      }
+    },
     "Fremdwährungsbuchungen nutzen diesen Referenzkurs. Historische Beträge sind Näherungen, keine Kurse vom Buchungstag." : {
       "localizations" : {
         "de" : {
@@ -11920,6 +11936,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Entire Period"
+          }
+        }
+      }
+    },
+    "Gesamtstand" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesamtstand"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total balance"
+          }
+        }
+      }
+    },
+    "Gesamtstand %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesamtstand %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total balance %@"
           }
         }
       }
@@ -13733,18 +13781,18 @@
         }
       }
     },
-    "Kein Kontostand: Für den echten Stand im Konto einen Anfangsbestand festlegen." : {
+    "Kein Kontostand: Die Bank oder ein Kontoauszug mit Saldo liefert ihn, sonst im Konto einen Anfangsbestand festlegen." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kein Kontostand: Für den echten Stand im Konto einen Anfangsbestand festlegen."
+            "value" : "Kein Kontostand: Die Bank oder ein Kontoauszug mit Saldo liefert ihn, sonst im Konto einen Anfangsbestand festlegen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not a balance: set an opening balance in the account to see its actual balance."
+            "value" : "No balance yet: bank sync or a statement with a balance column provides it; otherwise set an opening balance for the account."
           }
         }
       }
@@ -15318,6 +15366,38 @@
         }
       }
     },
+    "Liquide Mittel aller Konten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquide Mittel aller Konten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cash across all accounts"
+          }
+        }
+      }
+    },
+    "Liquide Mittel aller Konten, ohne Depotbestände" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquide Mittel aller Konten, ohne Depotbestände"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cash across all accounts, excluding securities"
+          }
+        }
+      }
+    },
     "Lokal" : {
       "localizations" : {
         "de" : {
@@ -15682,22 +15762,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "At least one payday-cycle budget is calculated per calendar month because there isn’t enough salary history."
-          }
-        }
-      }
-    },
-    "Mit Anfangsbestand zeigt ein Konto seinen Stand, sonst die Summe seiner Transaktionen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mit Anfangsbestand zeigt ein Konto seinen Stand, sonst die Summe seiner Transaktionen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "With an opening balance an account shows its balance, otherwise the sum of its transactions"
           }
         }
       }
@@ -17527,6 +17591,54 @@
         }
       }
     },
+    "Ohne Einnahmen reicht das weniger als einen Monat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Einnahmen reicht das weniger als einen Monat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without income, this lasts less than a month"
+          }
+        }
+      }
+    },
+    "Ohne Einnahmen reicht das über 3 Jahre" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Einnahmen reicht das über 3 Jahre"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without income, this lasts more than 3 years"
+          }
+        }
+      }
+    },
+    "Ohne Einnahmen reicht das ≈ %@ Monate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Einnahmen reicht das ≈ %@ Monate"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without income, this lasts ≈ %@ months"
+          }
+        }
+      }
+    },
     "Ohne Kategorie" : {
       "localizations" : {
         "de" : {
@@ -17559,6 +17671,22 @@
         }
       }
     },
+    "Ohne Kurs, nicht enthalten: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Kurs, nicht enthalten: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No exchange rate, not included: %@"
+          }
+        }
+      }
+    },
     "Ohne Kurs: %@" : {
       "localizations" : {
         "de" : {
@@ -17587,6 +17715,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Without a connection: its transactions still count in Overview, Analytics and Budgets"
+          }
+        }
+      }
+    },
+    "Ohne bekannten Stand: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne bekannten Stand: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No known balance: %@"
           }
         }
       }
@@ -18534,6 +18678,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Order"
+          }
+        }
+      }
+    },
+    "Reisekasse USD" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reisekasse USD"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel Fund USD"
           }
         }
       }
@@ -19975,6 +20135,22 @@
         }
       }
     },
+    "Stand %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stand %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As of %@"
+          }
+        }
+      }
+    },
     "Stand = Anfangsbestand plus Buchungen ab dem Stichtag. Fremdwährungen werden getrennt ausgewiesen." : {
       "localizations" : {
         "de" : {
@@ -20003,6 +20179,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Balance On"
+          }
+        }
+      }
+    },
+    "Stand heute %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stand heute %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As of today %@"
+          }
+        }
+      }
+    },
+    "Stand laut Bank, Kontoauszug oder Anfangsbestand, sonst die Summe der Transaktionen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stand laut Bank, Kontoauszug oder Anfangsbestand, sonst die Summe der Transaktionen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance from the bank, a statement or the opening balance, otherwise the sum of transactions"
           }
         }
       }
@@ -24759,6 +24967,54 @@
         }
       }
     },
+    "aus Anfangsbestand" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aus Anfangsbestand"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "from opening balance"
+          }
+        }
+      }
+    },
+    "bei Ø %@ Ausgaben im letzten Monat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bei Ø %@ Ausgaben im letzten Monat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "at %@ spending last month"
+          }
+        }
+      }
+    },
+    "bei Ø %@ Ausgaben pro Monat (letzte %lld Monate)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bei Ø %@ Ausgaben pro Monat (letzte %lld Monate)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "at an average of %@ spending per month (last %lld months)"
+          }
+        }
+      }
+    },
     "gestiegen um %@ Prozent" : {
       "localizations" : {
         "de" : {
@@ -25251,6 +25507,22 @@
         }
       }
     },
+    "Ältester Stand vom %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältester Stand vom %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oldest balance from %@"
+          }
+        }
+      }
+    },
     "Änderung konnte nicht gespeichert werden." : {
       "localizations" : {
         "de" : {
@@ -25375,6 +25647,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opens the review list for categorizing and confirming."
+          }
+        }
+      }
+    },
+    "Ø pro Monat netto %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ø pro Monat netto %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Net per month on average %@"
           }
         }
       }
@@ -25840,6 +26128,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "→ %@ · your rule"
+          }
+        }
+      }
+    },
+    "≈ %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "≈ %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "≈ %@"
           }
         }
       }

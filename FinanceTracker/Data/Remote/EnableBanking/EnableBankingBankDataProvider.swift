@@ -284,7 +284,42 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
             }
         } while continuationKey != nil
 
-        return RemoteBankAccountData(account: account, transactions: transactions)
+        return RemoteBankAccountData(
+            account: account,
+            transactions: transactions,
+            balance: await fetchBalance(accountID: accountID, currency: account.currency)
+        )
+    }
+
+    /// Kontostand im selben, vom Nutzer gestarteten Abruf. Nicht fatal: Ohne
+    /// Stand bleiben die Umsätze trotzdem vollständig.
+    private func fetchBalance(accountID: String, currency: CurrencyCode) async -> Money? {
+        do {
+            let data = try await api.send(
+                path: "/accounts/\(accountID)/balances",
+                method: .get,
+                bearerToken: try await jwt()
+            )
+            let response = try JSONDecoder().decode(EnableBankingBalancesResponse.self, from: data)
+            return Self.preferredBalance(response.balances, currency: currency)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Gebuchte Stände vor verfügbaren: „verfügbar" enthält bei manchen
+    /// Banken den Dispo- oder Kreditrahmen und wäre kein Guthaben. Nur in
+    /// Kontowährung; unlesbare Beträge ergeben `nil` statt 0 (#17).
+    static func preferredBalance(_ balances: [EnableBankingBalance], currency: CurrencyCode) -> Money? {
+        let preference = ["ITBD", "CLBD", "XPCD", "OPBD", "ITAV", "CLAV"]
+        let candidates = balances.filter { CurrencyCode($0.balanceAmount.currency) == currency }
+        let chosen = preference.lazy.compactMap { type in
+            candidates.first { ($0.balanceType ?? "").uppercased() == type }
+        }.first ?? candidates.first
+        guard let chosen, let amount = Decimal(string: chosen.balanceAmount.amount, locale: Locale(identifier: "en_US_POSIX")) else {
+            return nil
+        }
+        return Money(amount: amount, currency: currency)
     }
 
     private func fetchAccountDetails(accountID: String) async throws -> RemoteBankAccount {

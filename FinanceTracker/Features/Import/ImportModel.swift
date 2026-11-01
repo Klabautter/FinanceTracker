@@ -62,6 +62,7 @@ final class ImportModel {
             importBatchRepository: dependencies.importBatchRepository,
             merchantRepository: dependencies.merchantRepository,
             categoryRepository: dependencies.categoryRepository,
+            accountRepository: dependencies.accountRepository,
             fallbackCurrency: dependencies.baseCurrency
         )
     }
@@ -308,6 +309,7 @@ final class ImportModel {
             importBatchRepository: dependencies.importBatchRepository,
             merchantRepository: dependencies.merchantRepository,
             categoryRepository: dependencies.categoryRepository,
+            accountRepository: dependencies.accountRepository,
             fallbackCurrency: dependencies.baseCurrency
         )
 

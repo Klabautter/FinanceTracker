@@ -56,7 +56,13 @@ enum DemoDataFactory {
             currency: .eur,
             maskedIdentifier: "•••• 4821",
             ibanLast4: "4821",
-            source: .demo
+            source: .demo,
+            // Stand laut Bankabruf von heute.
+            reportedBalance: ReportedBalance(
+                amount: Money(amount: Decimal(string: "3842.17")!, currency: .eur),
+                asOf: now.addingTimeInterval(-2 * 3600),
+                source: .bank
+            )
         )
         let visaCard = Account(
             id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!,
@@ -64,7 +70,14 @@ enum DemoDataFactory {
             type: .creditCard,
             currency: .eur,
             maskedIdentifier: "•••• 1207",
-            source: .demo
+            source: .demo,
+            // Älterer Kontoauszug mit Saldo: offene Kartenschuld, Hinweis
+            // „Ältester Stand vom …".
+            reportedBalance: ReportedBalance(
+                amount: Money(amount: Decimal(string: "-412.30")!, currency: .eur),
+                asOf: calendar.date(byAdding: .day, value: -12, to: calendar.startOfDay(for: now))!,
+                source: .file
+            )
         )
         let mastercard = Account(
             id: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!,
@@ -85,7 +98,23 @@ enum DemoDataFactory {
             openingBalance: 150,
             openingBalanceDate: calendar.date(byAdding: .day, value: -20, to: calendar.startOfDay(for: now))
         )
-        let accounts = [giroAccount, visaCard, mastercard, wallet]
+        // Fremdwährung mit Bankstand und ohne Buchungen: wird zum
+        // Referenzkurs in den Gesamtstand umgerechnet. Die Mastercard hat
+        // keinen Stand und erscheint als „Ohne bekannten Stand".
+        let travelSavings = Account(
+            id: UUID(uuidString: "10000000-0000-0000-0000-000000000006")!,
+            name: String(localized: "Reisekasse USD"),
+            type: .savings,
+            currency: .usd,
+            maskedIdentifier: "•••• 5530",
+            source: .demo,
+            reportedBalance: ReportedBalance(
+                amount: Money(amount: 1250, currency: .usd),
+                asOf: now.addingTimeInterval(-26 * 3600),
+                source: .bank
+            )
+        )
+        let accounts = [giroAccount, visaCard, mastercard, wallet, travelSavings]
 
         func merchant(_ name: String, aliases: [String] = []) -> Merchant {
             Merchant(displayName: name, aliases: aliases)
@@ -355,6 +384,20 @@ enum DemoDataFactory {
                 )
             }
         }
+
+        // Feste Buchung von heute, vorgemerkt: Der laufende Monat hat auch
+        // am Monatsersten Ausgaben, und es gibt immer einen vorgemerkten
+        // Umsatz (die zufälligen hängen vom Datum ab).
+        append(
+            account: giroAccount,
+            rawMerchant: "REWE \(rng.int(in: 1000...9999)) FILIALE",
+            displayName: "REWE",
+            categoryID: Category.groceries.id,
+            amount: -Decimal(string: "23.40")!,
+            day: calendar.startOfDay(for: now),
+            paymentMethod: .cardPresent,
+            status: .pending
+        )
 
         // Bewusst prüfwürdige Buchungen für Review Queue & Fremdwährungshinweis
         let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: calendar.startOfDay(for: now))!

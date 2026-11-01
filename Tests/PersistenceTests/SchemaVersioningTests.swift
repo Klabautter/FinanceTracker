@@ -26,8 +26,10 @@ struct SchemaVersioningTests {
         #expect(FinanceTrackerSchemaV12.versionIdentifier == Schema.Version(12, 0, 0))
         // V13 = optionaler Anfangsbestand auf SDAccountEntity.
         #expect(FinanceTrackerSchemaV13.versionIdentifier == Schema.Version(13, 0, 0))
-        #expect(FinanceTrackerMigrationPlan.schemas.count == 13)
-        #expect(FinanceTrackerMigrationPlan.stages.count == 12)
+        // V14 = zuletzt gemeldeter Kontostand (Sidecar).
+        #expect(FinanceTrackerSchemaV14.versionIdentifier == Schema.Version(14, 0, 0))
+        #expect(FinanceTrackerMigrationPlan.schemas.count == 14)
+        #expect(FinanceTrackerMigrationPlan.stages.count == 13)
     }
 
     @Test("V2 umfasst alle Entitäten inklusive User-Metadaten")

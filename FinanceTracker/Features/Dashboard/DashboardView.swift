@@ -13,6 +13,7 @@ struct DashboardView: View {
     var onShowTransactionsInMonth: ((DateInterval) -> Void)?
     var onShowBudgets: (() -> Void)?
     var onShowRecurring: (() -> Void)?
+    var onShowAccounts: (() -> Void)?
     @State private var model: DashboardModel
     @Environment(PrivacyPresentationState.self) private var privacyState
 
@@ -45,13 +46,15 @@ struct DashboardView: View {
         onShowAllTransactions: (() -> Void)? = nil,
         onShowTransactionsInMonth: ((DateInterval) -> Void)? = nil,
         onShowBudgets: (() -> Void)? = nil,
-        onShowRecurring: (() -> Void)? = nil
+        onShowRecurring: (() -> Void)? = nil,
+        onShowAccounts: (() -> Void)? = nil
     ) {
         self.dependencies = dependencies
         self.onShowAllTransactions = onShowAllTransactions
         self.onShowTransactionsInMonth = onShowTransactionsInMonth
         self.onShowBudgets = onShowBudgets
         self.onShowRecurring = onShowRecurring
+        self.onShowAccounts = onShowAccounts
         _model = State(initialValue: model ?? DashboardModel(dependencies: dependencies))
     }
 
@@ -81,7 +84,8 @@ struct DashboardView: View {
                         onOpenReviewQueue: $3,
                         onOpenTransaction: $4,
                         onShowBudgets: onShowBudgets,
-                        onShowRecurring: onShowRecurring
+                        onShowRecurring: onShowRecurring,
+                        onShowAccounts: onShowAccounts
                     )
                 }
                 .accessibilityIdentifier("screen-ready-dashboard")

@@ -43,6 +43,11 @@ protocol TransactionRepository: Sendable {
         matching rules: [CategoryRule],
         assignableCategoryIDs: Set<Category.ID>
     ) async throws -> Set<UUID>
+
+    /// Schlanke Bewegungszeilen für Kontostände. Anforderung (nicht nur
+    /// Extension), damit Aufrufe über `any TransactionRepository` den
+    /// schnellen Pfad des Live-Repositories erreichen.
+    func accountMovementRows() async throws -> [AccountMovementRow]
 }
 
 extension TransactionRepository {
@@ -191,6 +196,10 @@ protocol AccountRepository: Sendable {
 
     /// WP-UX: Demo-Seed-Konten (Source = demo) entfernen.
     func deleteAllDemoAccounts() async throws
+
+    /// Von Bank oder Datei gemeldeten Stand speichern; ein älterer ersetzt
+    /// keinen neueren.
+    func saveReportedBalance(_ balance: ReportedBalance, accountID: UUID) async throws
 }
 
 protocol CategoryRepository: Sendable {

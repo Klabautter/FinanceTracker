@@ -350,9 +350,10 @@ struct FixkostenTests {
         #expect(nextMonthly >= now)
         #expect(nextYearly >= now)
         #expect(calendar.component(.day, from: nextYearly) == calendar.component(.day, from: yearly.nextExpectedDate!))
-        for entry in model.upcomingWithin30Days where entry.commitment.id == monthly.id {
-            #expect(entry.scheduledDate == nextMonthly)
-        }
+        // Am Monatsersten liegen zwei Monatstermine im 30-Tage-Fenster; der
+        // früheste ist der nächste Termin.
+        let monthlyEntries = model.upcomingWithin30Days.filter { $0.commitment.id == monthly.id }
+        #expect(monthlyEntries.map(\.scheduledDate).min() == nextMonthly)
         #expect(model.nextExpectedDates[unplanned.id] == nil)
         #expect(!model.upcomingWithin30Days.contains { $0.commitment.id == unplanned.id })
     }

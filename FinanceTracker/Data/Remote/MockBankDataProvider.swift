@@ -20,6 +20,7 @@ final class MockBankDataProvider: BankDataProvider, @unchecked Sendable {
     private(set) var fetchAccountDataCallCount = 0
 
     var stubbedTransactions: [RemoteBankTransaction] = []
+    var stubbedBalance: Money?
 
     func setAuthorization(_ state: BankAuthorizationState) { stubbedAuthorization = state }
 
@@ -56,7 +57,7 @@ final class MockBankDataProvider: BankDataProvider, @unchecked Sendable {
                 maskedIBAN: nil,
                 currency: .eur
             )
-        return RemoteBankAccountData(account: account, transactions: stubbedTransactions)
+        return RemoteBankAccountData(account: account, transactions: stubbedTransactions, balance: stubbedBalance)
     }
 
     static func demoInstitution() -> BankInstitution {

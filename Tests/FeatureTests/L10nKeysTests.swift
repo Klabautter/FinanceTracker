@@ -27,7 +27,7 @@ struct L10nKeysTests {
 
     @Test("Sidebar-Gruppen vorhanden (de-Basis)")
     func sidebarGroupsPresent() {
-        #expect(AppSection.sidebarGroups.map(\.title) == ["Alltag", "Planung", "Organisation", "Daten"])
+        #expect(AppSection.sidebarGroups.map(\.title) == ["Alltag", "Planung", "Organisation"])
     }
 
     @Test("Währungsangebot enthält EUR/USD/GBP und mehr")

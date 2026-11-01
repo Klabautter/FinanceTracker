@@ -52,6 +52,9 @@ struct RemoteBankTransaction: Sendable, Hashable {
 struct RemoteBankAccountData: Sendable, Hashable {
     let account: RemoteBankAccount
     let transactions: [RemoteBankTransaction]
+    /// Gebuchter Kontostand laut Bank zum Abrufzeitpunkt; `nil`, wenn der
+    /// Provider ihn nicht liefert.
+    var balance: Money? = nil
 }
 
 enum BankProviderError: Error, Equatable {

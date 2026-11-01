@@ -63,6 +63,9 @@ final class DashboardModel {
     /// Snapshot: gleiche Kurse überall (#28).
     private(set) var fxSnapshot: FXRateSnapshot?
     private(set) var fxIsLoading = false
+    /// Gesamtstand der liquiden Mittel (nur laufender Monat).
+    private(set) var liquidity: LiquidityOverview?
+    private(set) var runway: LiquidityRunway?
 
     init(
         dependencies: AppDependencies,
@@ -165,6 +168,10 @@ final class DashboardModel {
                 fxRateProvider: dependencies.fxRateProvider,
                 calendar: calendar
             )
+            async let balancesTask = LoadAccountBalances(
+                accountRepository: dependencies.accountRepository,
+                transactionRepository: dependencies.transactionRepository
+            ).execute(calendar: calendar)
             async let latestBatchTask = dependencies.importBatchRepository.latestBatch()
             async let transactionCountTask = dependencies.transactionRepository.count()
 
@@ -309,6 +316,20 @@ final class DashboardModel {
                 calendar: calendar
             )
             monthlyPoints = result.monthlyPoints
+            if isCurrentMonth, let balances = try? await balancesTask {
+                let calculator = LiquidityCalculator(
+                    baseCurrency: dependencies.baseCurrency,
+                    converter: await dependencies.fxRateProvider.converter()
+                )
+                let overview = calculator.overview(of: balances.active)
+                liquidity = overview.shares.isEmpty ? nil : overview
+                runway = liquidity.flatMap {
+                    calculator.runway(total: $0.total, monthlyPoints: result.monthlyPoints, now: today, calendar: calendar)
+                }
+            } else {
+                liquidity = nil
+                runway = nil
+            }
             recentTransactions = result.recentTransactions
             categoriesByID = Dictionary(
                 uniqueKeysWithValues: result.categories.map { ($0.id, $0) }

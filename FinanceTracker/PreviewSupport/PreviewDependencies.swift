@@ -24,6 +24,9 @@ enum PreviewDependencies {
             if let opening = account.openingBalance {
                 context.insert(SDAccountOpeningBalanceEntity(accountID: account.id, amount: opening, date: account.openingBalanceDate))
             }
+            if let reported = account.reportedBalance {
+                context.insert(SDAccountReportedBalanceEntity(accountID: account.id, balance: reported))
+            }
         }
         for category in data.categories {
             context.insert(SDCategoryEntity(from: category))

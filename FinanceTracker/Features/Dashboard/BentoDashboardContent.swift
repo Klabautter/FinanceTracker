@@ -18,6 +18,7 @@ struct BentoDashboardContent: View {
     var scrollsContent = true
     var onShowBudgets: (() -> Void)?
     var onShowRecurring: (() -> Void)?
+    var onShowAccounts: (() -> Void)?
 
     var body: some View {
         if scrollsContent {
@@ -59,6 +60,7 @@ struct BentoDashboardContent: View {
                     }
                     .frame(minWidth: 460, maxWidth: .infinity, alignment: .topLeading)
                     VStack(alignment: .leading, spacing: AppSpacing.l) {
+                        if let liquidity = model.liquidity { liquiditySection(liquidity) }
                         planningSection
                         if !model.budgetProgresses.isEmpty { budgetSection }
                         if !model.upcomingOccurrences.isEmpty { upcomingSection }
@@ -68,6 +70,7 @@ struct BentoDashboardContent: View {
                 .frame(minWidth: 800)
 
                 VStack(alignment: .leading, spacing: AppSpacing.l) {
+                    if let liquidity = model.liquidity { liquiditySection(liquidity) }
                     planningSection
                     if !model.budgetProgresses.isEmpty { budgetSection }
                     if !model.upcomingOccurrences.isEmpty { upcomingSection }
@@ -322,6 +325,43 @@ struct BentoDashboardContent: View {
     }
 
     // MARK: - Planung
+
+    // MARK: - Gesamtstand
+
+    private func liquiditySection(_ liquidity: LiquidityOverview) -> some View {
+        PageSection(String(localized: "Gesamtstand"), subtitle: String(localized: "Liquide Mittel aller Konten")) {
+            VStack(alignment: .leading, spacing: AppSpacing.s) {
+                Text(PrivacyAwareMoney.string(liquidity.total, privacy: privacyState))
+                    .font(AppTypography.largeMetric)
+                    .monospacedDigit()
+                    .foregroundStyle(liquidity.total.amount < 0 ? AppPalette.critical : Color.primary)
+                    .accessibilityIdentifier("dashboard-liquidity-total")
+                LiquidityShareBar(overview: liquidity, height: 6)
+                    .padding(.vertical, 2)
+                if let runway = model.runway {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let runwayText = LiquidityPresentation.runwayText(runway) {
+                            Text(runwayText)
+                                .font(.callout.weight(.medium))
+                        }
+                        Text(LiquidityPresentation.averageText(runway, privacy: privacyState))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(LiquidityPresentation.netText(runway, privacy: privacyState))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .combine)
+                }
+                LiquidityNotes(overview: liquidity)
+            }
+        } accessory: {
+            if let onShowAccounts {
+                SectionLinkButton(String(localized: "Konten"), action: onShowAccounts)
+            }
+        }
+    }
 
     @ViewBuilder
     private var planningSection: some View {

@@ -77,10 +77,9 @@ struct SidebarGroup: Hashable, Sendable {
 extension AppSection {
     static var sidebarGroups: [SidebarGroup] {
         [
-            SidebarGroup(title: String(localized: "Alltag", comment: "Sidebar-Gruppe: alltägliche Bereiche"), sections: [.overview, .transactions, .analytics]),
+            SidebarGroup(title: String(localized: "Alltag", comment: "Sidebar-Gruppe: alltägliche Bereiche"), sections: [.overview, .accounts, .transactions, .analytics]),
             SidebarGroup(title: String(localized: "Planung", comment: "Sidebar-Gruppe: Planung"), sections: [.budgets, .recurring]),
             SidebarGroup(title: String(localized: "Organisation", comment: "Sidebar-Gruppe: persönliche Ordnung"), sections: [.pockets, .categories]),
-            SidebarGroup(title: String(localized: "Daten", comment: "Sidebar-Gruppe: Konten und Verbindungen"), sections: [.accounts]),
         ]
     }
 

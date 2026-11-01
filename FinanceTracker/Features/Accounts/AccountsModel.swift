@@ -1,17 +1,5 @@
 import Foundation
 
-struct AccountSummary: Identifiable, Hashable, Sendable {
-    let account: Account
-    let netMovement: Money
-    /// Aktueller Stand (Anfangsbestand + Bewegungen ab Stichtag); nur bei
-    /// Konten mit erfasstem Anfangsbestand.
-    let balance: Money?
-    let foreignCurrencies: Set<CurrencyCode>
-    let transactionCount: Int
-
-    var id: UUID { account.id }
-}
-
 @MainActor
 @Observable
 final class AccountsModel {
@@ -26,6 +14,8 @@ final class AccountsModel {
     /// und lassen sich hier samt Buchungen löschen.
     private(set) var disconnectedAccounts: [AccountSummary] = []
     private(set) var connections: [Connection] = []
+    /// Gesamtstand über alle aktiven Konten mit bekanntem Stand.
+    private(set) var liquidity: LiquidityOverview?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
@@ -73,75 +63,24 @@ final class AccountsModel {
         }
 
         do {
-            async let accountsTask = dependencies.accountRepository.accounts()
+            async let balancesTask = LoadAccountBalances(
+                accountRepository: dependencies.accountRepository,
+                transactionRepository: dependencies.transactionRepository
+            ).execute()
             async let connectionsTask = dependencies.connectionRepository.connections()
-            // Pushdown (Roadmap #179): Nur die 4 für Bewegungen nötigen
-            // Felder laden statt 50k vollständiger Transaktionen.
-            async let movementsTask = dependencies.transactionRepository.accountMovementRows()
-
-            let fetchedAccounts = try await accountsTask
+            let balances = try await balancesTask
             let fetchedConnections = try await connectionsTask
-            let movements = try await movementsTask
-
             connections = await namedConnections(fetchedConnections).sorted { $0.updatedAt > $1.updatedAt }
-
             // Deaktivierte Konten (z. B. nach „Verbindung trennen" oder
             // Re-Connect-Dedup) stehen nicht zwischen den aktiven Konten,
             // sondern in einem eigenen Abschnitt „Getrennte Konten".
-            let visibleAccounts = fetchedAccounts.filter(\.isActive)
-            let inactiveAccounts = fetchedAccounts.filter { !$0.isActive }
-
-            var totalsByAccount: [UUID: (sum: Decimal, foreign: Set<CurrencyCode>, count: Int)] = [:]
-            var movementsByAccount: [UUID: [AccountBalanceCalculator.Movement]] = [:]
-            let accountsByID = Dictionary(uniqueKeysWithValues: fetchedAccounts.map { ($0.id, $0) })
-            for row in movements {
-                guard let status = TransactionStatus(rawValue: row.statusRaw),
-                      status != .reversed && status != .cancelled else { continue }
-                guard let amount = Decimal(string: row.amountValue),
-                      let account = accountsByID[row.accountID] else { continue }
-
-                let currency = CurrencyCode(row.currencyRaw)
-                var entry = totalsByAccount[row.accountID] ?? (Decimal(0), [], 0)
-                if currency == account.currency {
-                    entry.sum += amount
-                    if account.openingBalance != nil {
-                        movementsByAccount[row.accountID, default: []].append(.init(date: row.date, amount: amount))
-                    }
-                } else {
-                    entry.foreign.insert(currency)
-                }
-                entry.count += 1
-                totalsByAccount[row.accountID] = entry
-            }
-
-            accounts = visibleAccounts.map { account in
-                let entry = totalsByAccount[account.id]
-                let balance = AccountBalanceCalculator.balance(
-                    openingBalance: account.openingBalance,
-                    openingDate: account.openingBalanceDate,
-                    movements: movementsByAccount[account.id] ?? []
-                )
-                return AccountSummary(
-                    account: account,
-                    netMovement: Money(amount: entry?.sum ?? Decimal(0), currency: account.currency),
-                    balance: balance.map { Money(amount: $0, currency: account.currency) },
-                    foreignCurrencies: entry?.foreign ?? [],
-                    transactionCount: entry?.count ?? 0
-                )
-            }
-            .sorted { $0.account.name.localizedCaseInsensitiveCompare($1.account.name) == .orderedAscending }
-
-            disconnectedAccounts = inactiveAccounts.map { account in
-                let entry = totalsByAccount[account.id]
-                return AccountSummary(
-                    account: account,
-                    netMovement: Money(amount: entry?.sum ?? Decimal(0), currency: account.currency),
-                    balance: nil,
-                    foreignCurrencies: entry?.foreign ?? [],
-                    transactionCount: entry?.count ?? 0
-                )
-            }
-            .sorted { $0.transactionCount > $1.transactionCount }
+            accounts = balances.active
+            disconnectedAccounts = balances.inactive
+            let overview = LiquidityCalculator(
+                baseCurrency: dependencies.baseCurrency,
+                converter: await dependencies.fxRateProvider.converter()
+            ).overview(of: balances.active)
+            liquidity = overview.shares.isEmpty ? nil : overview
         } catch {
             errorMessage = String(localized: "Die Konten konnten nicht geladen werden.")
         }

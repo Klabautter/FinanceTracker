@@ -25,18 +25,17 @@ struct SidebarP0UXTests {
         }
     }
 
-    @Test("Sidebar gruppiert alle Sektionen nach Alltag, Planung, Organisation und Daten")
+    @Test("Sidebar gruppiert alle Sektionen nach Alltag, Planung und Organisation")
     func sidebarGroupsWithoutEingang() {
         let groups = AppSection.sidebarGroups
         let all = groups.flatMap(\.sections)
         #expect(Set(all).count == all.count, "Sektion doppelt vergeben")
         #expect(Set(all) == Set(AppSection.allCases), "Nicht alle Sektionen in der Sidebar")
-        #expect(groups.map(\.title) == ["Alltag", "Planung", "Organisation", "Daten"])
+        #expect(groups.map(\.title) == ["Alltag", "Planung", "Organisation"])
         #expect(groups.map(\.sections) == [
-            [.overview, .transactions, .analytics],
+            [.overview, .accounts, .transactions, .analytics],
             [.budgets, .recurring],
             [.pockets, .categories],
-            [.accounts],
         ])
         #expect(AppSection.allCases.count == 8, "Import/Prüfliste/Tags sind keine Sektionen mehr")
     }

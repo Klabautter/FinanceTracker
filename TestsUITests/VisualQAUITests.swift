@@ -143,14 +143,14 @@ final class VisualQAUITests: XCTestCase {
             )
             defer { app.terminate() }
 
-            // ⌘1…⌘5 folgen der Seitenleiste: Übersicht, Transaktionen,
-            // Analyse, Budgets, Wiederkehrend.
+            // ⌘1…⌘6 folgen der Seitenleiste: Übersicht, Konten,
+            // Transaktionen, Analyse, Budgets, Wiederkehrend.
             let screens = [
                 ("1", "screen-ready-dashboard", "Overview"),
-                ("2", "screen-ready-transactions", "Transactions"),
-                ("3", "screen-ready-analytics", "Analytics"),
-                ("4", "screen-ready-budgets", "Budgets"),
-                ("5", "screen-ready-recurring", "Recurring")
+                ("3", "screen-ready-transactions", "Transactions"),
+                ("4", "screen-ready-analytics", "Analytics"),
+                ("5", "screen-ready-budgets", "Budgets"),
+                ("6", "screen-ready-recurring", "Recurring")
             ]
             for (key, ready, name) in screens {
                 app.typeKey(key, modifierFlags: .command)
@@ -183,10 +183,11 @@ final class VisualQAUITests: XCTestCase {
 
             for (key, ready, name) in [
                 ("1", "screen-ready-dashboard", "overview"),
-                ("2", "screen-ready-transactions", "transactions"),
-                ("3", "screen-ready-analytics", "analytics"),
-                ("4", "screen-ready-budgets", "budgets"),
-                ("5", "screen-ready-recurring", "recurring")
+                ("2", "screen-ready-accounts", "accounts"),
+                ("3", "screen-ready-transactions", "transactions"),
+                ("4", "screen-ready-analytics", "analytics"),
+                ("5", "screen-ready-budgets", "budgets"),
+                ("6", "screen-ready-recurring", "recurring")
             ] {
                 app.typeKey(key, modifierFlags: .command)
                 XCTAssertTrue(app.descendants(matching: .any)[ready].firstMatch.waitForExistence(timeout: 20), "\(name) nicht bereit")
@@ -195,7 +196,7 @@ final class VisualQAUITests: XCTestCase {
             }
 
             // Vorschläge: offen, einer ausgeblendet, wieder angezeigt.
-            app.typeKey("5", modifierFlags: .command)
+            app.typeKey("6", modifierFlags: .command)
             let suggestionsTab = app.radioButtons["Vorschläge"].firstMatch
             XCTAssertTrue(suggestionsTab.waitForExistence(timeout: 10), "Tab Vorschläge fehlt")
             // Segmente reagieren im macOS-UI-Test zuverlässig nur auf einen

@@ -341,6 +341,17 @@ enum FinanceTrackerSchemaV13: VersionedSchema {
     }
 }
 
+/// V14: zuletzt gemeldeter Kontostand (Bank oder Datei) pro Konto, neue
+/// 1:1-Sidecar-Tabelle `SDAccountReportedBalanceEntity`. Rein additiv →
+/// lightweight.
+enum FinanceTrackerSchemaV14: VersionedSchema {
+    static let versionIdentifier = Schema.Version(14, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        FinanceTrackerSchemaV13.models + [SDAccountReportedBalanceEntity.self]
+    }
+}
+
 enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -356,7 +367,8 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             FinanceTrackerSchemaV10.self,
             FinanceTrackerSchemaV11.self,
             FinanceTrackerSchemaV12.self,
-            FinanceTrackerSchemaV13.self
+            FinanceTrackerSchemaV13.self,
+            FinanceTrackerSchemaV14.self
         ]
     }
 
@@ -409,6 +421,10 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: FinanceTrackerSchemaV12.self,
                 toVersion: FinanceTrackerSchemaV13.self
+            ),
+            .lightweight(
+                fromVersion: FinanceTrackerSchemaV13.self,
+                toVersion: FinanceTrackerSchemaV14.self
             )
         ]
     }

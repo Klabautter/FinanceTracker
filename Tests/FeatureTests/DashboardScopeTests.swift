@@ -77,6 +77,12 @@ final class RecordingTransactionRepository: TransactionRepository, @unchecked Se
     func deleteAllDemoTransactions() async throws {
         try await base.deleteAllDemoTransactions()
     }
+
+    /// Schlanker Pfad des Live-Repositories für Kontostände (Gesamtstand),
+    /// keine vollständige History.
+    func accountMovementRows() async throws -> [AccountMovementRow] {
+        try await base.accountMovementRows()
+    }
 }
 
 final class RecordingImportBatchRepository: ImportBatchRepository, @unchecked Sendable {

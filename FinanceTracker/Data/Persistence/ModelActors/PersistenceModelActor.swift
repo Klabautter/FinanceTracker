@@ -574,13 +574,39 @@ actor PersistenceModelActor {
         for row in try modelContext.fetch(descriptor) {
             byAccount[row.accountID] = row
         }
+        let reportedDescriptor = FetchDescriptor<SDAccountReportedBalanceEntity>(
+            predicate: #Predicate { ids.contains($0.accountID) }
+        )
+        var reportedByAccount: [UUID: SDAccountReportedBalanceEntity] = [:]
+        for row in try modelContext.fetch(reportedDescriptor) {
+            reportedByAccount[row.accountID] = row
+        }
         return try accounts.map { account in
-            guard let row = byAccount[account.id] else { return account }
             var updated = account
-            updated.openingBalance = try row.decimalAmount()
-            updated.openingBalanceDate = row.date
+            if let row = byAccount[account.id] {
+                updated.openingBalance = try row.decimalAmount()
+                updated.openingBalanceDate = row.date
+            }
+            if let row = reportedByAccount[account.id] {
+                updated.reportedBalance = try row.toDomain()
+            }
             return updated
         }
+    }
+
+    /// V14-Sidecar: gemeldeten Stand speichern. Ein älterer Stand ersetzt
+    /// keinen neueren (z. B. ein alter Kontoauszug nach dem Bankabruf).
+    func saveReportedBalance(_ balance: ReportedBalance, accountID: UUID) throws {
+        let descriptor = FetchDescriptor<SDAccountReportedBalanceEntity>(
+            predicate: #Predicate { $0.accountID == accountID }
+        )
+        if let existing = try modelContext.fetch(descriptor).first {
+            guard balance.asOf >= existing.asOf else { return }
+            existing.update(balance)
+        } else {
+            modelContext.insert(SDAccountReportedBalanceEntity(accountID: accountID, balance: balance))
+        }
+        try modelContext.save()
     }
 
     func loadCategory(id: UUID) throws -> Category? {
@@ -746,10 +772,14 @@ actor PersistenceModelActor {
             for row in try modelContext.fetch(FetchDescriptor<SDBudgetGoalEntity>()) { modelContext.delete(row) }
             for row in try modelContext.fetch(FetchDescriptor<SDSharedExpenseShareEntity>()) { modelContext.delete(row) }
             for row in try modelContext.fetch(FetchDescriptor<SDAccountOpeningBalanceEntity>()) { modelContext.delete(row) }
+            for row in try modelContext.fetch(FetchDescriptor<SDAccountReportedBalanceEntity>()) { modelContext.delete(row) }
             for row in backup.accounts {
                 modelContext.insert(SDAccountEntity(from: row))
                 if let opening = row.openingBalance {
                     modelContext.insert(SDAccountOpeningBalanceEntity(accountID: row.id, amount: opening, date: row.openingBalanceDate))
+                }
+                if let reported = row.reportedBalance {
+                    modelContext.insert(SDAccountReportedBalanceEntity(accountID: row.id, balance: reported))
                 }
             }
             for row in backup.categories { modelContext.insert(SDCategoryEntity(from: row)) }
@@ -1531,6 +1561,7 @@ actor PersistenceModelActor {
     func deleteAllAccounts() throws {
         try modelContext.delete(model: SDAccountEntity.self)
         try modelContext.delete(model: SDAccountOpeningBalanceEntity.self)
+        try modelContext.delete(model: SDAccountReportedBalanceEntity.self)
         if modelContext.hasChanges {
             try modelContext.save()
         }
@@ -1567,6 +1598,11 @@ actor PersistenceModelActor {
             ))
             try deleteTransactionRowsWithDependents(transactions)
             for row in try modelContext.fetch(FetchDescriptor<SDAccountOpeningBalanceEntity>(
+                predicate: #Predicate { $0.accountID == accountID }
+            )) {
+                modelContext.delete(row)
+            }
+            for row in try modelContext.fetch(FetchDescriptor<SDAccountReportedBalanceEntity>(
                 predicate: #Predicate { $0.accountID == accountID }
             )) {
                 modelContext.delete(row)
@@ -1663,6 +1699,12 @@ actor PersistenceModelActor {
                 predicate: #Predicate { deletedIDs.contains($0.accountID) }
             )
             for row in try modelContext.fetch(openings) {
+                modelContext.delete(row)
+            }
+            let reported = FetchDescriptor<SDAccountReportedBalanceEntity>(
+                predicate: #Predicate { deletedIDs.contains($0.accountID) }
+            )
+            for row in try modelContext.fetch(reported) {
                 modelContext.delete(row)
             }
         }

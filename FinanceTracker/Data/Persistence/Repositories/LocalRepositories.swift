@@ -328,6 +328,10 @@ final class LocalAccountRepository: AccountRepository {
     func deleteAllDemoAccounts() async throws {
         try await persistence.deleteAllDemoAccounts()
     }
+
+    func saveReportedBalance(_ balance: ReportedBalance, accountID: UUID) async throws {
+        try await persistence.saveReportedBalance(balance, accountID: accountID)
+    }
 }
 
 final class LocalCategoryRepository: CategoryRepository {

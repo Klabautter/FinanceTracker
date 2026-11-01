@@ -224,8 +224,10 @@ struct BankSyncService: Sendable {
                     calendar.date(byAdding: .day, value: -7, to: $0)
                 }
                 let data: RemoteBankAccountData
+                let fetchedAt: Date
                 do {
                     data = try await backgroundProvider.fetchAccountData(accountID: remoteAccountID, dateFrom: overlapStart)
+                    fetchedAt = Date()
                 } catch {
                     Self.logger.error("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) Abruf fehlgeschlagen: \(Self.describe(error), privacy: .public)")
                     throw error
@@ -303,6 +305,13 @@ struct BankSyncService: Sendable {
                 )
 
                 try await backgroundService.classifyEarlierTransfers(accountID: account.id, ownerNames: ownerNames)
+                if let balance = data.balance, balance.currency == account.currency {
+                    // Nicht fatal: Die Umsätze sind schon gespeichert.
+                    try? await backgroundDependencies.accountRepository.saveReportedBalance(
+                        ReportedBalance(amount: balance, asOf: fetchedAt, source: .bank),
+                        accountID: account.id
+                    )
+                }
 
                 imported += result.importedCount
                 updated += result.updatedCount

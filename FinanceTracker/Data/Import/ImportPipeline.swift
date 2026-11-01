@@ -121,6 +121,9 @@ struct PreparedImport: Sendable, Equatable {
     /// Buchungsarten, deren Bedeutung die App nicht kennt (nach Vorzeichen
     /// importiert); die Vorschau lässt sie zuordnen.
     var unknownTypes: [UnknownTransactionType] = []
+    /// Stand nach der letzten Buchung der Datei (Saldo-Spalte), in der
+    /// Währung des Zielkontos.
+    var reportedBalance: ReportedBalance?
 
     var fileReplayNotice: String? {
         isExactFileReplay ? ImportDedupNotices.fileReplayDetail : nil
@@ -148,6 +151,7 @@ struct ImportPipeline: Sendable {
     private let importBatchRepository: (any ImportBatchRepository)?
     private let merchantRepository: (any MerchantRepository)?
     private let categoryRepository: (any CategoryRepository)?
+    private let accountRepository: (any AccountRepository)?
     private let fallbackCurrency: CurrencyCode
 
     init(
@@ -157,6 +161,7 @@ struct ImportPipeline: Sendable {
         importBatchRepository: (any ImportBatchRepository)? = nil,
         merchantRepository: (any MerchantRepository)? = nil,
         categoryRepository: (any CategoryRepository)? = nil,
+        accountRepository: (any AccountRepository)? = nil,
         fallbackCurrency: CurrencyCode
     ) {
         self.providers = providers
@@ -165,6 +170,7 @@ struct ImportPipeline: Sendable {
         self.importBatchRepository = importBatchRepository
         self.merchantRepository = merchantRepository
         self.categoryRepository = categoryRepository
+        self.accountRepository = accountRepository
         self.fallbackCurrency = fallbackCurrency
     }
 
@@ -681,7 +687,10 @@ struct ImportPipeline: Sendable {
             isExactFileReplay: isExactFileReplay,
             crossSourceHints: crossSourceHints,
             crossSourceDuplicates: crossSourceDuplicates,
-            unknownTypes: parseResult.unknownTypes
+            unknownTypes: parseResult.unknownTypes,
+            reportedBalance: try await accountRepository?.account(id: accountID).flatMap {
+                ImportedBalanceExtractor.latestBalance(in: importedTransactions, currency: $0.currency)
+            }
         )
     }
 
@@ -827,6 +836,11 @@ struct ImportPipeline: Sendable {
         // Ist mit dieser Datei die Gegenseite einer Umbuchung angekommen,
         // werden beide Seiten verknüpft und zählen nicht mehr doppelt.
         try await LinkOwnTransfers(transactionRepository: transactionRepository).run()
+        if let balance = prepared.reportedBalance, let accountRepository {
+            // Nicht fatal: Die Buchungen sind schon gespeichert. Ein älterer
+            // Auszug ersetzt keinen neueren Stand.
+            try? await accountRepository.saveReportedBalance(balance, accountID: prepared.targetAccountID)
+        }
 
         return ImportResult(
             providerIdentifier: prepared.providerIdentifier,

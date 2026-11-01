@@ -78,7 +78,7 @@ struct AccountsView: View {
             }
         }
         .workspaceNavigationTitle(String(localized: "Konten"))
-        .workspaceHeading(String(localized: "Konten"), subtitle: String(localized: "Deine Konten und Bankverbindungen an einem Ort"), eyebrow: String(localized: "Daten"))
+        .workspaceHeading(String(localized: "Konten"), subtitle: String(localized: "Deine Konten und Bankverbindungen an einem Ort"), eyebrow: String(localized: "Alltag"))
         .workspaceCanvas()
         .task(id: model.dataRevision) {
             await model.load()
@@ -212,6 +212,9 @@ struct AccountsView: View {
                 if let errorMessage = model.errorMessage {
                     InlineNotice(message: errorMessage, tone: .warning)
                 }
+                if let liquidity = model.liquidity {
+                    liquidityHero(liquidity)
+                }
                 if !model.connections.isEmpty {
                     PageSection(String(localized: "Bankverbindungen")) {
                         VStack(spacing: 0) {
@@ -226,7 +229,7 @@ struct AccountsView: View {
                     }
                 }
                 if !model.accounts.isEmpty {
-                    PageSection(String(localized: "Deine Konten"), subtitle: String(localized: "Mit Anfangsbestand zeigt ein Konto seinen Stand, sonst die Summe seiner Transaktionen")) {
+                    PageSection(String(localized: "Deine Konten"), subtitle: String(localized: "Stand laut Bank, Kontoauszug oder Anfangsbestand, sonst die Summe der Transaktionen")) {
                         VStack(spacing: 0) {
                             ForEach(model.accounts) { summary in
                                 row(for: summary)
@@ -253,6 +256,26 @@ struct AccountsView: View {
         }
         .workspaceCanvas()
         .refreshable { await model.load() }
+    }
+
+    private func liquidityHero(_ liquidity: LiquidityOverview) -> some View {
+        PageSection(String(localized: "Gesamtstand"), subtitle: String(localized: "Liquide Mittel aller Konten, ohne Depotbestände")) {
+            VStack(alignment: .leading, spacing: AppSpacing.m) {
+                Text(PrivacyAwareMoney.string(liquidity.total, privacy: privacyState))
+                    .font(AppTypography.heroMetric)
+                    .monospacedDigit()
+                    .foregroundStyle(liquidity.total.amount < 0 ? AppPalette.critical : Color.primary)
+                    .accessibilityLabel(String(localized: "Gesamtstand \(PrivacyAwareMoney.accessibilityLabel(liquidity.total, privacy: privacyState, signed: true))"))
+                    .accessibilityIdentifier("accounts-liquidity-total")
+                LiquidityShareBar(overview: liquidity)
+                VStack(spacing: AppSpacing.s) {
+                    ForEach(Array(liquidity.shares.enumerated()), id: \.element.id) { index, share in
+                        LiquidityLegendRow(share: share, index: index)
+                    }
+                }
+                LiquidityNotes(overview: liquidity)
+            }
+        }
     }
 
     private func connectionRow(_ connection: Connection) -> some View {
@@ -414,7 +437,7 @@ struct AccountsView: View {
                 if let balance = summary.balance {
                     MoneyText(money: balance, signed: true, tintsNegative: true)
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Stand")
+                    Text(LiquidityPresentation.asOfText(summary) ?? String(localized: "Stand"))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 } else {
@@ -423,7 +446,7 @@ struct AccountsView: View {
                     Text("Summe der Transaktionen")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
-                        .help(String(localized: "Kein Kontostand: Für den echten Stand im Konto einen Anfangsbestand festlegen."))
+                        .help(String(localized: "Kein Kontostand: Die Bank oder ein Kontoauszug mit Saldo liefert ihn, sonst im Konto einen Anfangsbestand festlegen."))
                 }
             }
             Image(systemName: "chevron.right")

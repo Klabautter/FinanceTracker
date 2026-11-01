@@ -45,4 +45,16 @@ struct DemoDataCoverageTests {
         #expect(collections.contains { $0.startDate > now })
         #expect(collections.contains { $0.endDateExclusive <= now })
     }
+
+    @Test("Kontostände: Bank heute, älterer Auszug, Anfangsbestand, Fremdwährung, ohne Stand")
+    func balanceStates() {
+        let accounts = data.accounts
+        let now = Date()
+        #expect(accounts.contains { $0.reportedBalance?.source == .bank && now.timeIntervalSince($0.reportedBalance!.asOf) < 86_400 })
+        #expect(accounts.contains { $0.reportedBalance?.source == .file && now.timeIntervalSince($0.reportedBalance!.asOf) > 3 * 86_400 })
+        #expect(accounts.contains { $0.openingBalance != nil })
+        #expect(accounts.contains { $0.reportedBalance != nil && $0.currency != .eur })
+        #expect(accounts.contains { $0.reportedBalance == nil && $0.openingBalance == nil })
+        #expect(accounts.contains { ($0.reportedBalance?.amount.amount ?? 0) < 0 })
+    }
 }

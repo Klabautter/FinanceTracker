@@ -163,7 +163,8 @@ struct MacRootView: View {
                     pendingRoute = .transactionsMonth(interval)
                 },
                 onShowBudgets: { navigationState.select(.budgets) },
-                onShowRecurring: { navigationState.select(.recurring) }
+                onShowRecurring: { navigationState.select(.recurring) },
+                onShowAccounts: { navigationState.select(.accounts) }
             )
         case .transactions:
             TransactionsView(
