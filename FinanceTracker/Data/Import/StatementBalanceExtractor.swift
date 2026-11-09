@@ -4,10 +4,15 @@ import Foundation
 /// „Kontostand am 30.09.2026  2.415,65 EUR", „Neuer Saldo per 30.09.2026"
 /// oder „Closing balance on 30/09/2026  1,234.56".
 ///
-/// Viele Auszüge nennen den Stand nur dort und nicht je Buchung. Gilt nur
-/// mit Datum in derselben Zeile, hinter dem Stichwort; der Stand mit dem
+/// Viele Auszüge nennen den Stand nur dort und nicht je Buchung. Gilt mit
+/// Datum in derselben Zeile, hinter dem Stichwort; der Stand mit dem
 /// jüngsten Datum zählt. Stehen Stichwort, Betrag und Datum untereinander,
 /// setzt der PDF-Import sie vorher zu einer Zeile zusammen.
+///
+/// Ein Endstand ohne Datum („Neuer Saldo 1.234,56", „Closing balance
+/// £1,250.40") gilt zum Ende des Auszugszeitraums, wenn der Auszug genau
+/// einen Zeitraum nennt („Zeitraum 01.09.2026 - 30.09.2026") und nur einen
+/// solchen Betrag; ein datierter Stand hat Vorrang.
 ///
 /// Der Stand behält die Währung, die der Auszug nennt (ohne Angabe die des
 /// Kontos). Eine andere Währung als die des Kontos rechnet die Kontenliste
@@ -21,6 +26,13 @@ enum StatementBalanceExtractor {
         "CLOSING BALANCE", "ENDING BALANCE", "ACCOUNT BALANCE", "BALANCE ON", "BALANCE AS OF", "BALANCE AT"
     ]
     private static let excluded = ["VERFUGBAR", "VERFUEGBAR", "AVAILABLE", "DISPO", "KREDITRAHMEN", "LIMIT"]
+    /// Ohne Datum zählt nur ein ausdrücklicher Endstand.
+    private static let closingKeywords = [
+        "ENDSALDO", "SCHLUSSSALDO", "NEUER SALDO", "NEUER KONTOSTAND", "ENDSTAND",
+        "CLOSING BALANCE", "ENDING BALANCE", "NEW BALANCE"
+    ]
+    /// Verbindung zweier Daten zu einem Zeitraum.
+    private static let rangeConnectors: Set<String> = ["-", "–", "—", "BIS", "BIS ZUM", "TO", "UNTIL", "THROUGH", "AU", "A"]
 
     private static let datePatterns: [(regex: NSRegularExpression, order: (day: Int, month: Int, year: Int))] = [
         (try! NSRegularExpression(pattern: #"\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})\b"#), (1, 2, 3)),
@@ -60,6 +72,11 @@ enum StatementBalanceExtractor {
                   let amount = lastAmount(in: rest) else { continue }
             candidates.append((day, Money(amount: amount, currency: lineCurrency)))
         }
+        if candidates.isEmpty,
+           let periodEnd = statementPeriodEnd(in: lines, calendar: calendar),
+           let amount = undatedClosingAmount(in: lines, currency: currency, calendar: calendar) {
+            candidates.append((periodEnd, amount))
+        }
         guard let latest = candidates.map(\.day).max() else { return nil }
         let amounts = Set(candidates.filter { $0.day == latest }.map(\.amount))
         guard amounts.count == 1, let amount = amounts.first,
@@ -72,21 +89,64 @@ enum StatementBalanceExtractor {
         )
     }
 
+    /// Ende des Auszugszeitraums: eine Zeile mit genau zwei Daten, die ein
+    /// Bis-Wort oder Strich verbindet, und ohne Betrag. Nennt der Auszug
+    /// verschiedene Zeiträume, ist das Ende unklar.
+    private static func statementPeriodEnd(in lines: [String], calendar: Calendar) -> Date? {
+        var ends = Set<Date>()
+        for line in lines {
+            let found = dates(in: line, calendar: calendar)
+            guard found.count == 2 else { continue }
+            let between = (line as NSString).substring(
+                with: NSRange(location: found[0].range.location + found[0].range.length,
+                              length: found[1].range.location - found[0].range.location - found[0].range.length)
+            )
+            guard rangeConnectors.contains(normalized(between).trimmingCharacters(in: .whitespacesAndNewlines)) else { continue }
+            var rest = line as NSString
+            for match in found.reversed() { rest = rest.replacingCharacters(in: match.range, with: " ") as NSString }
+            guard lastAmount(in: rest as String) == nil else { continue }
+            ends.insert(max(found[0].day, found[1].day))
+        }
+        return ends.count == 1 ? ends.first : nil
+    }
+
+    /// Der eine Endstand ohne Datum; bei mehreren Beträgen keiner (#17).
+    private static func undatedClosingAmount(in lines: [String], currency: CurrencyCode, calendar: Calendar) -> Money? {
+        var amounts = Set<Money>()
+        for line in lines {
+            let text = normalized(line)
+            guard !excluded.contains(where: text.contains),
+                  closingKeywords.contains(where: text.contains),
+                  dates(in: line, calendar: calendar).isEmpty,
+                  let lineCurrency = statedCurrency(in: line, default: currency),
+                  let amount = lastAmount(in: line) else { continue }
+            amounts.insert(Money(amount: amount, currency: lineCurrency))
+        }
+        return amounts.count == 1 ? amounts.first : nil
+    }
+
     private static func normalized(_ text: String) -> String {
         text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "de_DE")).uppercased()
     }
 
     private static func date(in line: String, calendar: Calendar) -> (Date, NSRange)? {
+        // Das erste Datum der Zeile zählt.
+        dates(in: line, calendar: calendar).first.map { ($0.day, $0.range) }
+    }
+
+    /// Alle gültigen Daten einer Zeile in Lesereihenfolge.
+    private static func dates(in line: String, calendar: Calendar) -> [(day: Date, range: NSRange)] {
         let range = NSRange(line.startIndex..., in: line)
         var found: [(day: Int, month: Int, year: Int, range: NSRange)] = []
         for pattern in datePatterns {
-            guard let match = pattern.regex.firstMatch(in: line, range: range) else { continue }
-            func value(_ group: Int) -> Int? {
-                Range(match.range(at: group), in: line).flatMap { Int(line[$0]) }
+            for match in pattern.regex.matches(in: line, range: range) {
+                func value(_ group: Int) -> Int? {
+                    Range(match.range(at: group), in: line).flatMap { Int(line[$0]) }
+                }
+                guard let day = value(pattern.order.day), let month = value(pattern.order.month),
+                      let year = value(pattern.order.year) else { continue }
+                found.append((day, month, year, match.range))
             }
-            guard let day = value(pattern.order.day), let month = value(pattern.order.month),
-                  let year = value(pattern.order.year) else { continue }
-            found.append((day, month, year, match.range))
         }
         for match in monthNameDate.matches(in: line, range: range) {
             guard let dayRange = Range(match.range(at: 1), in: line),
@@ -97,7 +157,7 @@ enum StatementBalanceExtractor {
             guard let month = monthNames[String(normalized(String(line[nameRange])).prefix(3))] else { continue }
             found.append((day, month, year, match.range))
         }
-        // Das erste Datum der Zeile zählt.
+        var result: [(day: Date, range: NSRange)] = []
         for candidate in found.sorted(by: { $0.range.location < $1.range.location }) {
             let year = candidate.year < 100 ? candidate.year + 2000 : candidate.year
             var components = DateComponents()
@@ -107,9 +167,9 @@ enum StatementBalanceExtractor {
             guard let date = calendar.date(from: components),
                   calendar.component(.day, from: date) == candidate.day,
                   calendar.component(.month, from: date) == candidate.month else { continue }
-            return (calendar.startOfDay(for: date), candidate.range)
+            result.append((calendar.startOfDay(for: date), candidate.range))
         }
-        return nil
+        return result
     }
 
     private static func lastAmount(in text: String) -> Decimal? {

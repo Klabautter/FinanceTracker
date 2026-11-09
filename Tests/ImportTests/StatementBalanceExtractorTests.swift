@@ -54,6 +54,50 @@ struct StatementBalanceExtractorTests {
         ], currency: .eur, calendar: calendar) == nil)
     }
 
+    @Test("Endstand ohne Datum gilt zum Ende des Auszugszeitraums")
+    func undatedClosingBalanceUsesPeriodEnd() throws {
+        let balance = try #require(StatementBalanceExtractor.closingBalance(in: [
+            "Kreditkartenabrechnung",
+            "Abrechnungszeitraum 01.09.2026 - 30.09.2026",
+            "01.09.2026 Alter Saldo 980,00 EUR",
+            "15.09.2026 REWE -43,27 EUR",
+            "Neuer Saldo 1.234,56 EUR"
+        ], currency: .eur, calendar: calendar))
+        #expect(balance.amount == Money(amount: Decimal(string: "1234.56")!, currency: .eur))
+        #expect(balance.asOf == endOfDay(2026, 9, 30))
+
+        let english = try #require(StatementBalanceExtractor.closingBalance(in: [
+            "Statement period 01/09/2026 to 30/09/2026",
+            "Closing balance £1,250.40"
+        ], currency: .gbp, calendar: calendar))
+        #expect(english.amount.amount == Decimal(string: "1250.40")!)
+        #expect(english.asOf == endOfDay(2026, 9, 30))
+    }
+
+    @Test("Endstand ohne Datum: ohne eindeutigen Zeitraum oder bei mehreren Beträgen kein Stand")
+    func undatedClosingBalanceNeedsUnambiguousPeriod() {
+        // Kein Zeitraum.
+        #expect(StatementBalanceExtractor.closingBalance(
+            in: ["Neuer Saldo 1.234,56 EUR"], currency: .eur, calendar: calendar
+        ) == nil)
+        // Zwei verschiedene Zeiträume.
+        #expect(StatementBalanceExtractor.closingBalance(in: [
+            "Zeitraum 01.08.2026 - 31.08.2026", "Zeitraum 01.09.2026 - 30.09.2026", "Endsaldo 500,00 EUR"
+        ], currency: .eur, calendar: calendar) == nil)
+        // Zwei verschiedene Endstände ohne Datum.
+        #expect(StatementBalanceExtractor.closingBalance(in: [
+            "Zeitraum 01.09.2026 - 30.09.2026", "Endsaldo 500,00 EUR", "Endsaldo 600,00 EUR"
+        ], currency: .eur, calendar: calendar) == nil)
+        // Ein Stand mit Datum hat Vorrang vor einem ohne.
+        #expect(StatementBalanceExtractor.closingBalance(in: [
+            "Zeitraum 01.09.2026 - 30.09.2026", "Kontostand am 30.09.2026 700,00 EUR", "Endsaldo 500,00 EUR"
+        ], currency: .eur, calendar: calendar)?.amount.amount == 700)
+        // Ein Anfangsstand ohne Datum ist kein Endstand.
+        #expect(StatementBalanceExtractor.closingBalance(in: [
+            "Zeitraum 01.09.2026 - 30.09.2026", "Alter Saldo 500,00 EUR"
+        ], currency: .eur, calendar: calendar) == nil)
+    }
+
     @Test("Stand in anderer Währung behält seine Währung")
     func keepsStatedCurrency() {
         let balance = StatementBalanceExtractor.closingBalance(
