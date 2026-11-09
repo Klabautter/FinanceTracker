@@ -153,6 +153,11 @@ extension RecurringOccurrenceResolver {
     ///     dient als Schedule-Seed, damit wöchentliche/monatliche Termine am
     ///     realen Rhythmus hängen (nicht an einem arbiträren Intervallstart).
     ///   - explicitOccurrences: alle manuellen Zuordnungen des Commitments.
+    ///     Eine zugeordnete Buchung bezahlt nur ein Vorkommen dieses
+    ///     Zeitraums, wenn sie selbst im Zeitraum liegt oder näher als einen
+    ///     halben Turnus an einem seiner Termine (vorzeitige Zahlung über die
+    ///     Zeitraumgrenze). Zuordnungen aus früheren Zyklen gehören zu deren
+    ///     Terminen und markieren keinen aktuellen oder künftigen als bezahlt.
     func resolveOccurrences(
         commitment: RecurringCommitment,
         explicitOccurrences: [RecurringOccurrence],
@@ -198,14 +203,21 @@ extension RecurringOccurrenceResolver {
         usedTransactionIDs.formUnion(explicitTxnIDs)
 
         // Zuordnung: jede explizite Transaktion auf das zeitlich nächste
-        // FREIE geplante Vorkommen im Zeitraum. Die Nutzer-Entscheidung ist
-        // authoritative, kein Toleranz-Limit (anders als bei der Heuristik).
+        // FREIE geplante Vorkommen im Zeitraum. Liegt die Buchung im
+        // Zeitraum, ist die Nutzer-Entscheidung authoritative, ohne
+        // Toleranz-Limit (anders als bei der Heuristik). Eine Buchung
+        // außerhalb des Zeitraums gehört zu einem Termin außerhalb, es sei
+        // denn, ein Termin des Zeitraums liegt ihr näher als ein halber
+        // Turnus: Bei genau einem Turnus Abstand ist sie die Zahlung des
+        // Vortermins, nicht die des nächsten.
+        let explicitStepWindow = Self.cadenceStepDays(for: commitment.cadence)
         var assignedExplicit: [RecurringOccurrenceKey: UUID] = [:]
         for transactionID in explicitTxnIDs.sorted(by: {
             (transactionsByID[$0]?.displayDate ?? .distantPast)
                 < (transactionsByID[$1]?.displayDate ?? .distantPast)
         }) {
             guard let txn = transactionsByID[transactionID] else { continue }
+            let isInPeriod = period.containsHalfOpen(txn.displayDate)
             let candidates = scheduledDates
                 .filter { date in
                     assignedExplicit[RecurringOccurrenceKey(
@@ -214,6 +226,7 @@ extension RecurringOccurrenceResolver {
                         calendar: calendar
                     )] == nil
                 }
+                .filter { isInPeriod || abs($0.distance(to: txn.displayDate)) < explicitStepWindow / 2 }
                 .sorted { abs($0.distance(to: txn.displayDate)) < abs($1.distance(to: txn.displayDate)) }
             if let nearest = candidates.first {
                 assignedExplicit[RecurringOccurrenceKey(

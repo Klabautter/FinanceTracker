@@ -213,6 +213,78 @@ struct RecurringOccurrenceGranularityTests {
         #expect(resolution.openAmount == 50)
     }
 
+    @Test("Explizite Zuordnung aus einem früheren Monat bezahlt den aktuellen Termin nicht")
+    func explicitAssignmentFromEarlierMonthDoesNotPayCurrentOccurrence() {
+        let c = commitment(cadence: .monthly, amount: 50, nextExpected: date(2026, 11, 15))
+        let period = monthInterval(year: 2026, month: 11)
+
+        // Der Nutzer hat die Zahlungen von Januar und Oktober zugeordnet; die
+        // Historie enthält sie, der November ist noch nicht bezahlt.
+        let january = payment(on: date(2026, 1, 15), amount: 50)
+        let october = payment(on: date(2026, 10, 15), amount: 50)
+        let explicit = [january, october].map {
+            RecurringOccurrence(commitmentID: c.id, transactionID: $0.id)
+        }
+
+        let resolution = RecurringOccurrenceResolver().resolveOccurrences(
+            commitment: c,
+            explicitOccurrences: explicit,
+            allTransactions: [january, october],
+            period: period,
+            calendar: calendar
+        )
+
+        #expect(resolution.scheduled.count == 1)
+        #expect(resolution.paidCount == 0)
+        #expect(resolution.openAmount == 50)
+    }
+
+    @Test("Anstehend: frühere explizite Zahlungen lassen künftige Termine offen")
+    func explicitHistoryKeepsUpcomingOccurrencesOpen() {
+        let c = commitment(cadence: .monthly, amount: 50, nextExpected: nil)
+        let now = date(2026, 11, 9)
+        // Drei zugeordnete Zahlungen; die letzte liegt 20 Tage zurück und
+        // damit vor dem Rückschaufenster der Vorschau.
+        let history = [
+            payment(on: date(2026, 8, 20), amount: 50),
+            payment(on: date(2026, 9, 20), amount: 50),
+            payment(on: date(2026, 10, 20), amount: 50)
+        ]
+        let explicit = history.map { RecurringOccurrence(commitmentID: c.id, transactionID: $0.id) }
+
+        let open = RecurringOccurrenceResolver().openOccurrences(
+            commitment: c,
+            explicitOccurrences: explicit,
+            allTransactions: history,
+            now: now,
+            end: date(2027, 2, 1),
+            calendar: calendar,
+            latestPaymentDate: date(2026, 10, 20)
+        )
+
+        #expect(open.map(\.scheduledDate) == [
+            date(2026, 11, 20), date(2026, 12, 20), date(2027, 1, 20)
+        ])
+    }
+
+    @Test("Explizite vorzeitige Zahlung kurz vor Zeitraumbeginn bezahlt den nahen Termin")
+    func explicitEarlyPaymentAcrossPeriodBoundaryPays() {
+        let c = commitment(cadence: .monthly, amount: 50, nextExpected: date(2026, 11, 1))
+        let period = monthInterval(year: 2026, month: 11)
+        let early = payment(on: date(2026, 10, 30), amount: 50)
+
+        let resolution = RecurringOccurrenceResolver().resolveOccurrences(
+            commitment: c,
+            explicitOccurrences: [RecurringOccurrence(commitmentID: c.id, transactionID: early.id)],
+            allTransactions: [early],
+            period: period,
+            calendar: calendar
+        )
+
+        #expect(resolution.paidCount == 1)
+        #expect(resolution.scheduled.first?.matchOrigin == .explicitUserAssignment)
+    }
+
     @Test("Fremdwährung bleibt in der Resolution in Commitment-Währung (§61)")
     func foreignCurrencySeparated() {
         let c = commitment(
