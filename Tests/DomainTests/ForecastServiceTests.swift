@@ -497,6 +497,54 @@ struct ForecastServiceTests {
         #expect(snapshot.expectedFixedCosts == 60)
     }
 
+    @Test("Offene Fixkosten über dem Budget-Rest zählen mit dem ungedeckten Teil")
+    func fixedCostAboveRemainingBudgetCountsUncoveredPart() {
+        let categoryID = UUID()
+        let rent = commitment(name: "Miete", amount: 900, categoryID: categoryID, nextExpected: date(3, 20))
+        // Budget „Wohnen" 950 €, davon 900 € schon ausgegeben: Rest 50 €.
+        let budget = Budget(name: "Wohnen", amount: 950, categoryIDs: [categoryID])
+
+        let snapshot = service.forecast(
+            period: period,
+            transactions: [],
+            budgets: [budget],
+            budgetProgresses: [BudgetProgress(budget: budget, spent: 900, currency: .eur, period: period)],
+            commitments: [rent],
+            baseCurrency: .eur,
+            calendar: calendar,
+            now: now
+        )
+
+        // 50 € deckt der Budget-Rest, 850 € der offenen Miete nicht.
+        #expect(snapshot.remainingBudgetReservation == 50)
+        #expect(snapshot.expectedFixedCosts == 850)
+        #expect(snapshot.availableAmount == -900)
+    }
+
+    @Test("Mehrere offene Fixkosten teilen sich denselben Budget-Rest")
+    func fixedCostsShareOneRemainingBudget() {
+        let categoryID = UUID()
+        let budget = Budget(name: "Abos", amount: 30, categoryIDs: [categoryID])
+        let first = commitment(name: "Netflix", amount: 14, categoryID: categoryID, nextExpected: date(3, 20))
+        let second = commitment(name: "Spotify", amount: 20, categoryID: categoryID, nextExpected: date(3, 22))
+
+        let snapshot = service.forecast(
+            period: period,
+            transactions: [],
+            budgets: [budget],
+            budgetProgresses: [BudgetProgress(budget: budget, spent: 0, currency: .eur, period: period)],
+            commitments: [first, second],
+            baseCurrency: .eur,
+            calendar: calendar,
+            now: now
+        )
+
+        // 34 € offen, 30 € reserviert das Budget, 4 € bleiben ungedeckt.
+        #expect(snapshot.remainingBudgetReservation == 30)
+        #expect(snapshot.expectedFixedCosts == 4)
+        #expect(snapshot.availableAmount == -34)
+    }
+
     @Test("Fremdwährungs-Commitments sind ausgeschlossen und gemeldet")
     func foreignRecurringExcluded() {
         let usdAbo = commitment(

@@ -185,6 +185,13 @@ struct ForecastService: Sendable {
 
         var realizedFixed: Decimal = 0
         var openFixedNotInBudget: Decimal = 0
+        // Was der Budget-Rest an offenen Fixkosten noch decken kann. Budgets
+        // mit überlappendem Scope reservieren denselben Umschlag, deshalb
+        // zählt je Gruppe nur der größte Rest (wie bei der Reservation).
+        let reservationGroups = reservationComponents(convertedReservations)
+        var coverageLeft = reservationGroups.map { group in
+            group.map { convertedReservations[$0].amount }.max() ?? 0
+        }
 
         for commitment in activeExpenseCommitments {
             let dueCount = scheduledOccurrenceCount(
@@ -205,24 +212,31 @@ struct ForecastService: Sendable {
                 latestPaymentDate: latestOccurrences[commitment.id]
             )
             let paidCount = resolution.paidCount
-            let coveredByBudget = commitment.categoryID.map { categoryID in
-                reservingProgresses.contains { progress in
-                    convertedReservations.contains { $0.progress.id == progress.id && $0.amount > 0 }
-                        && progress.budget.accountIDs.isEmpty
-                        && (progress.budget.categoryIDs.contains(categoryID)
-                            || (progress.budget.isSalaryCycle && progress.budget.categoryIDs.isEmpty))
-                }
-            } ?? false
-
             let paidAmount = min(Decimal(paidCount), Decimal(dueCount)) * commitment.expectedAmount
             let openAmount = max(0, Decimal(dueCount - min(dueCount, paidCount))) * commitment.expectedAmount
 
-            realizedFixed += paidAmount
-            if !coveredByBudget {
-                openFixedNotInBudget += openAmount
-            }
             // Offen + Budget-abgedeckt → durch remainingBudgetReservation
-            // abgedeckt (#124: keine Doppelzählung).
+            // abgedeckt (#124: keine Doppelzählung), aber nur bis zur Höhe
+            // des Rests: Was darüber liegt, bleibt eine offene Fixkost.
+            var uncoveredOpen = openAmount
+            if let categoryID = commitment.categoryID {
+                for (groupIndex, group) in reservationGroups.enumerated() where uncoveredOpen > 0 {
+                    let covers = group.contains { index in
+                        let budget = convertedReservations[index].progress.budget
+                        return convertedReservations[index].amount > 0
+                            && budget.accountIDs.isEmpty
+                            && (budget.categoryIDs.contains(categoryID)
+                                || (budget.isSalaryCycle && budget.categoryIDs.isEmpty))
+                    }
+                    guard covers, coverageLeft[groupIndex] > 0 else { continue }
+                    let covered = min(coverageLeft[groupIndex], uncoveredOpen)
+                    coverageLeft[groupIndex] -= covered
+                    uncoveredOpen -= covered
+                }
+            }
+
+            realizedFixed += paidAmount
+            openFixedNotInBudget += uncoveredOpen
         }
 
         // 3) Budget-Reservation (#123): nur der REST, nie das volle Limit.
@@ -312,10 +326,20 @@ struct ForecastService: Sendable {
     private func nonOverlappingReservationTotal(
         _ reservations: [(progress: BudgetProgress, amount: Decimal)]
     ) -> Decimal {
-        var remainingIndices = Set(reservations.indices)
-        var total: Decimal = 0
+        reservationComponents(reservations).reduce(Decimal(0)) { total, component in
+            total + (component.map { reservations[$0].amount }.max() ?? 0)
+        }
+    }
 
-        while let seed = remainingIndices.first {
+    /// Zusammenhängende Gruppen von Budgets mit überlappendem Scope
+    /// (Indizes in `reservations`, stabil sortiert).
+    private func reservationComponents(
+        _ reservations: [(progress: BudgetProgress, amount: Decimal)]
+    ) -> [[Int]] {
+        var remainingIndices = Set(reservations.indices)
+        var components: [[Int]] = []
+
+        for seed in reservations.indices where remainingIndices.contains(seed) {
             remainingIndices.remove(seed)
             var component = [seed]
             var frontier = [seed]
@@ -330,10 +354,9 @@ struct ForecastService: Sendable {
                     frontier.append(index)
                 }
             }
-
-            total += component.map { reservations[$0].amount }.max() ?? 0
+            components.append(component.sorted())
         }
-        return total
+        return components
     }
 
     private func scopesOverlap(_ lhs: Budget, _ rhs: Budget) -> Bool {
