@@ -19,6 +19,8 @@ struct AccountsView: View {
         /// Bestehende Bankverbindung neu freigeben: verlängern oder ältere
         /// Umsätze nachladen.
         case renewal(Connection, BankConnectModel.RenewalPurpose)
+        /// Kontostand für ein Konto ohne Stand direkt aus der Liste festlegen.
+        case setBalance(Account)
 
         var id: String {
             switch self {
@@ -26,6 +28,7 @@ struct AccountsView: View {
             case .account(let account): "account-\(account.id.uuidString)"
             case .editor(let account): "editor-\(account?.id.uuidString ?? "new")"
             case .renewal(let connection, let purpose): "renewal-\(purpose)-\(connection.id.uuidString)"
+            case .setBalance(let account): "set-balance-\(account.id.uuidString)"
             }
         }
     }
@@ -136,6 +139,10 @@ struct AccountsView: View {
                     transactionCount: account.flatMap { edited in model.accounts.first { $0.id == edited.id }?.transactionCount } ?? 0,
                     onSaved: { Task { await model.load() } }
                 )
+            case .setBalance(let account):
+                AccountBalanceSheet(account: account) { balance, date in
+                    await model.setBalance(balance, for: account, on: date)
+                }
             case .account(let account):
                 AccountDetailSheet(
                     account: account,
@@ -391,20 +398,34 @@ struct AccountsView: View {
     }
 
     private func row(for summary: AccountSummary) -> some View {
-        Button {
-            activeSheet = .account(summary.account)
-        } label: {
-            accountRowContent(summary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+        HStack(spacing: AppSpacing.s) {
+            Button {
+                activeSheet = .account(summary.account)
+            } label: {
+                accountRowContent(summary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(RowHighlightButtonStyle())
+            .accessibilityIdentifier("account-detail-" + summary.account.id.uuidString)
+            .accessibilityLabel(
+                summary.balance.map { balance in
+                    String(localized: "Konto \(summary.account.name), \(summary.account.presentationIdentifier), aktueller Stand: \(PrivacyAwareMoney.accessibilityLabel(balance, privacy: privacyState, signed: true)), \(summary.transactionCount) Transaktionen, Detail öffnen")
+                } ?? String(localized: "Konto \(summary.account.name), \(summary.account.presentationIdentifier), Netto der erfassten Buchungen, kein aktueller Kontostand: \(PrivacyAwareMoney.accessibilityLabel(summary.netMovement, privacy: privacyState, signed: true)), \(summary.transactionCount) Transaktionen, Detail öffnen")
+            )
+            // Ohne Stand lässt er sich hier direkt festlegen, ohne den Weg
+            // über „Bearbeiten“ im Detail. Eigener Button neben der Zeile:
+            // Buttons im Zeilen-Label blockieren auf macOS den Zeilen-Klick.
+            if summary.balance == nil {
+                Button("Stand festlegen") {
+                    activeSheet = .setBalance(summary.account)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityLabel("Kontostand für \(summary.account.name) festlegen")
+                .accessibilityIdentifier("account-set-balance-" + summary.account.id.uuidString)
+            }
         }
-        .buttonStyle(RowHighlightButtonStyle())
-        .accessibilityIdentifier("account-detail-" + summary.account.id.uuidString)
-        .accessibilityLabel(
-            summary.balance.map { balance in
-                String(localized: "Konto \(summary.account.name), \(summary.account.presentationIdentifier), aktueller Stand: \(PrivacyAwareMoney.accessibilityLabel(balance, privacy: privacyState, signed: true)), \(summary.transactionCount) Transaktionen, Detail öffnen")
-            } ?? String(localized: "Konto \(summary.account.name), \(summary.account.presentationIdentifier), Netto der erfassten Buchungen, kein aktueller Kontostand: \(PrivacyAwareMoney.accessibilityLabel(summary.netMovement, privacy: privacyState, signed: true)), \(summary.transactionCount) Transaktionen, Detail öffnen")
-        )
     }
 
     private func accountRowContent(_ summary: AccountSummary) -> some View {
@@ -467,5 +488,59 @@ struct AccountsView: View {
         case .cash: CategoryColorToken.green.color
         default: CategoryColorToken.gray.color
         }
+    }
+}
+
+/// „Stand festlegen“: der Kontostand am Ende eines Tages, wie ihn Bank
+/// oder Geldbeutel zeigen. Buchungen dieses Tages sind darin enthalten.
+private struct AccountBalanceSheet: View {
+    let account: Account
+    let onSave: @MainActor (Decimal, Date) async -> Void
+
+    @State private var balance: Decimal?
+    @State private var date = Date()
+    @State private var isSaving = false
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        AdaptiveSheet(
+            title: String(localized: "Stand festlegen"),
+            subtitle: account.name
+        ) {
+            Form {
+                Section {
+                    DecimalInputField(
+                        title: String(localized: "Kontostand in \(account.currency.rawValue) (z. B. 120)"),
+                        value: $balance
+                    )
+                    .accessibilityIdentifier("account-balance-input")
+                    DatePicker("Stand am Ende von", selection: $date, in: ...Date(), displayedComponents: .date)
+                        .accessibilityLabel("Tag des Kontostands")
+                } footer: {
+                    Text("Der Stand gilt am Ende des gewählten Tages, Buchungen dieses Tages sind enthalten. Spätere Buchungen verändern ihn. Er zählt nicht als Einnahme und verändert keine Auswertung.")
+                }
+            }
+            .financeFormStyle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Speichern") {
+                        guard let balance else { return }
+                        isSaving = true
+                        Task {
+                            await onSave(balance, date)
+                            dismiss()
+                        }
+                    }
+                    .disabled(balance == nil || isSaving)
+                    .accessibilityIdentifier("account-balance-save")
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(width: 440, height: 300)
+        #endif
     }
 }

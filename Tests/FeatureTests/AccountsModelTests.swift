@@ -136,6 +136,47 @@ struct AccountsModelTests {
         #expect(bothDetail.balance == 960)
     }
 
+    @Test("Stand festlegen: der genannte Stand erscheint in der Liste, Buchungen des Tages eingerechnet")
+    func setBalanceShowsEnteredBalance() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        let calendar = Calendar.current
+        let today = calendar.date(from: DateComponents(year: 2026, month: 11, day: 9, hour: 15))!
+        let cash = Account(name: "Geldbeutel", type: .cash, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([cash])
+        func booking(_ amount: Decimal, hoursAgo: Double) -> Transaction {
+            Transaction(accountID: cash.id, source: .manual, kind: .purchase,
+                amount: Money(amount: amount, currency: .eur),
+                bookedAt: today.addingTimeInterval(-hoursAgo * 3600))
+        }
+        try await dependencies.transactionRepository.upsert([
+            booking(-12, hoursAgo: 3),      // heute
+            booking(-8, hoursAgo: 6),       // heute
+            booking(-50, hoursAgo: 40)      // vorgestern, steckt im Stand
+        ])
+        let model = AccountsModel(dependencies: dependencies)
+        await model.load()
+        #expect(model.accounts.first?.balance == nil)
+
+        // Im Geldbeutel sind heute Abend 80 €.
+        await model.setBalance(80, for: cash, on: today)
+
+        let summary = try #require(model.accounts.first)
+        #expect(summary.balance?.amount == 80)
+        #expect(summary.balanceBasis == .openingBalance)
+        let stored = try #require(await dependencies.accountRepository.account(id: cash.id))
+        #expect(stored.openingBalance == 100)
+        #expect(stored.openingBalanceDate == calendar.startOfDay(for: today))
+
+        // Eine spätere Buchung verändert den Stand weiter.
+        try await dependencies.transactionRepository.upsert([
+            Transaction(accountID: cash.id, source: .manual, kind: .purchase,
+                amount: Money(amount: -5, currency: .eur), bookedAt: today.addingTimeInterval(86_400))
+        ])
+        await model.load()
+        #expect(model.accounts.first?.balance?.amount == 75)
+    }
+
     @Test("Kontokennung bevorzugt maskierte Bankdaten und unterscheidet gleichnamige Konten")
     func accountIdentifiers() {
         var account = Account(name: "Max Mustermann", type: .checking, currency: .eur,

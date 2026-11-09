@@ -187,6 +187,21 @@ final class AccountsModel {
         }
     }
 
+    /// „Stand festlegen" aus der Kontenliste: Der genannte Stand gilt am
+    /// Ende des Tages `date`; gespeichert wird der passende Anfangsbestand.
+    func setBalance(_ balance: Decimal, for account: Account, on date: Date = Date()) async {
+        do {
+            try await SetAccountBalance(
+                accountRepository: dependencies.accountRepository,
+                transactionRepository: dependencies.transactionRepository
+            )(balance, for: account, on: date)
+            dependencies.changeTracker.markChanged()
+            await load()
+        } catch {
+            errorMessage = String(localized: "Der Kontostand konnte nicht gespeichert werden.")
+        }
+    }
+
     func consentWarning(for connection: Connection, now: Date = Date()) -> String? {
         switch healthEvaluator.health(for: connection, now: now) {
         case .expired:
