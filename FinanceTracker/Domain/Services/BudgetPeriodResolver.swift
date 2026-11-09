@@ -162,6 +162,12 @@ struct BudgetPeriodResolver: Sendable {
     /// - Eine einzige Zahlung genügt (§45): start = Zahlung, end =
     ///   prognostizierter Folgetermin, kein „insufficient history".
     ///
+    /// - Ist das Gehalt überfällig (referenceDate ≥ prognostizierter Termin,
+    ///   noch keine reale Folgezahlung), bleibt der Zyklus offen und reicht
+    ///   bis zum Ende des Referenztags. Geht das Gehalt ein, schließt die
+    ///   reale Zahlung ihn; die Tage dazwischen gehören so vorher wie nachher
+    ///   zu diesem Zyklus und nie zu keinem.
+    ///
     /// - Keine Zahlung ≤ referenceDate oder kein planbarer Folgetermin →
     ///   `insufficientSalaryHistory`.
     /// - Income-Commitment fehlt → `missingSalaryCommitment`.
@@ -200,6 +206,13 @@ struct BudgetPeriodResolver: Sendable {
         ) else {
             throw BudgetPeriodResolverError.insufficientSalaryHistory(incomeID: incomeID)
         }
-        return DateInterval(start: start, end: projectedEnd)
+        guard date >= projectedEnd else {
+            return DateInterval(start: start, end: projectedEnd)
+        }
+        // Gehalt überfällig: Der Zyklus läuft weiter, bis es eingeht.
+        let startOfReferenceDay = calendar.startOfDay(for: date)
+        let openEnd = calendar.date(byAdding: .day, value: 1, to: startOfReferenceDay)
+            ?? startOfReferenceDay.addingTimeInterval(86_400)
+        return DateInterval(start: start, end: openEnd)
     }
 }

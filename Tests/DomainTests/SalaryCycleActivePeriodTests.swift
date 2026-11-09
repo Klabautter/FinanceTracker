@@ -127,6 +127,29 @@ struct SalaryCycleActivePeriodTests {
         #expect(interval.end == date(2026, 8, 28))
     }
 
+    @Test("Gehalt überfällig: der Zyklus bleibt offen und enthält die Referenz")
+    func overdueSalaryKeepsCycleOpen() throws {
+        // Prognose 28.08., Gehalt bis 30.08. nicht eingegangen.
+        let interval = try interval(
+            containing: date(2026, 8, 30),
+            payments: [date(2026, 6, 28), date(2026, 7, 28)]
+        )
+        #expect(interval.start == date(2026, 7, 28))
+        #expect(interval.containsHalfOpen(date(2026, 8, 30)))
+        // Der ganze heutige Tag gehört dazu, auch eine Buchung am Abend.
+        #expect(interval.containsHalfOpen(date(2026, 8, 30, 23)))
+    }
+
+    @Test("Gehalt überfällig, dann eingegangen: dieselben Tage bleiben im alten Zyklus")
+    func lateSalaryClosesCycleAtActualDate() throws {
+        let interval = try interval(
+            containing: date(2026, 8, 30),
+            payments: [date(2026, 7, 28), date(2026, 8, 31)]
+        )
+        #expect(interval.start == date(2026, 7, 28))
+        #expect(interval.end == date(2026, 8, 31))
+    }
+
     @Test("Keine Zahlung vor der Referenz → insufficientSalaryHistory")
     func noPaymentBeforeReferenceThrows() {
         let commitment = income()

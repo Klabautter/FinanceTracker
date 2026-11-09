@@ -171,4 +171,68 @@ struct SalaryCycleTests {
         #expect(dashboardProgress.period == budgetProgress.period)
         #expect(dashboardProgress.spent == budgetProgress.spent)
     }
+
+    @Test("Gehalt überfällig: Ausgaben nach dem prognostizierten Termin zählen im offenen Zyklus")
+    func overdueSalaryKeepsSpendingInOpenCycle() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        // Gehalt am 15.05. und 15.06.; das Juli-Gehalt ist am 17.07. noch offen.
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 17, hour: 12)))
+        let model = BudgetsModel(dependencies: dependencies, calendar: calendar, now: { now })
+        let commitment = RecurringCommitment(
+            name: "Gehalt Acme GmbH",
+            merchantKey: "GEHALT ACME GMBH",
+            direction: .income,
+            cadence: .monthly,
+            amountPolicy: .fixed,
+            expectedAmount: 2850,
+            currency: .eur,
+            status: .active
+        )
+        try await dependencies.recurringCommitmentRepository.upsert([commitment])
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .demo)
+        try await dependencies.accountRepository.upsert([account])
+        let categoryID = UUID()
+
+        func booking(day: Int, month: Int, amount: Decimal, kind: TransactionKind, name: String, categoryID: UUID? = nil) -> Transaction {
+            Transaction(
+                accountID: account.id,
+                source: .demo,
+                externalID: UUID().uuidString,
+                status: .booked,
+                kind: kind,
+                amount: Money(amount: amount, currency: .eur),
+                bookedAt: calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: 9))!,
+                rawDescription: name,
+                rawMerchantName: name,
+                merchantDisplayName: name,
+                categoryID: categoryID
+            )
+        }
+        try await dependencies.transactionRepository.upsert([
+            booking(day: 15, month: 5, amount: 2850, kind: .income, name: "GEHALT ACME GMBH"),
+            booking(day: 15, month: 6, amount: 2850, kind: .income, name: "GEHALT ACME GMBH"),
+            booking(day: 20, month: 6, amount: -100, kind: .purchase, name: "Markt", categoryID: categoryID),
+            // Nach dem prognostizierten Gehaltstermin (15.07.), Gehalt fehlt noch.
+            booking(day: 16, month: 7, amount: -40, kind: .purchase, name: "Markt", categoryID: categoryID),
+            booking(day: 17, month: 7, amount: -10, kind: .purchase, name: "Markt", categoryID: categoryID)
+        ])
+        try await dependencies.budgetRepository.upsert([
+            Budget(
+                name: "Gehalt-zu-Gehalt",
+                amount: 1000,
+                periodPolicy: .salaryCycle(recurringIncomeID: commitment.id),
+                categoryIDs: [categoryID],
+                createdAt: calendar.date(from: DateComponents(year: 2026, month: 5, day: 1))!
+            )
+        ])
+
+        await model.load()
+
+        let progress = try #require(model.progresses.first)
+        #expect(progress.period.containsHalfOpen(now))
+        #expect(progress.spent == 150)
+    }
 }
