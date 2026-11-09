@@ -184,6 +184,17 @@ struct CategoriesView: View {
                 .padding(.bottom, AppSpacing.s)
             }
         }
+        .alert(
+            "Kategorie wird noch verwendet",
+            isPresented: Binding(
+                get: { model.deletionBlockedMessage != nil },
+                set: { if !$0 { model.dismissDeletionBlocked() } }
+            )
+        ) {
+            Button("OK", role: .cancel) { model.dismissDeletionBlocked() }
+        } message: {
+            Text(model.deletionBlockedMessage ?? "")
+        }
         .workspaceNavigationTitle(String(localized: "Kategorien"))
         .refreshable { await model.load() }
         .task(id: model.dataRevision) { await model.load() }

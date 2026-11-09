@@ -211,8 +211,10 @@ protocol CategoryRepository: Sendable {
     /// WP20/§145: Nutzungsanzahl pro Kategorie, Pushdown, kein Full-Domain-Load.
     func usageCounts() async throws -> [UUID: Int]
 
-    /// Löscht eine Kategorie und weist ihre Transaktionen neu zu
-    /// (nil = „Ohne Kategorie“). Roadmap #50.
+    /// Löscht eine Kategorie und hängt alle Verweise um: Buchungen,
+    /// Splitzeilen, Fixkosten und Budgets (nil = „Ohne Kategorie“ bzw. aus
+    /// dem Budget entfernt); Regeln mit ihr als Ziel entfallen. Roadmap #50.
+    /// Fachliche Vorprüfung: `DeleteCategory`.
     func delete(id: UUID, reassignTo newCategoryID: UUID?) async throws
 }
 

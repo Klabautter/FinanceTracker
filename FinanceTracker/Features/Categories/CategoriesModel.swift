@@ -27,6 +27,8 @@ final class CategoriesModel {
     private(set) var merchantNamesByID: [UUID: String] = [:]
     private(set) var isLoading = false
     private(set) var errorMessage: String?
+    /// Hinweis, warum eine Kategorie gerade nicht gelöscht werden kann.
+    private(set) var deletionBlockedMessage: String?
     private(set) var isApplyingRules = false
     private(set) var applyResultMessage: String?
 
@@ -142,16 +144,25 @@ final class CategoriesModel {
         }
 
         do {
-            try await dependencies.categoryRepository.delete(id: category.id, reassignTo: newCategoryID)
-            // Regeln, die auf die gelöschte Kategorie zielten, entfernen.
-            for rule in rules where rule.categoryID == category.id {
-                try await dependencies.ruleRepository.delete(id: rule.id)
-            }
+            // Räumt Buchungen, Splits, Fixkosten, Budgets und Regeln mit auf.
+            try await DeleteCategory(
+                categoryRepository: dependencies.categoryRepository,
+                budgetRepository: dependencies.budgetRepository
+            )(category.id, reassignTo: newCategoryID)
             dependencies.changeTracker.markChanged()
             await load()
+        } catch DeleteCategoryError.onlyCategoryOfBudgets(let budgetNames) {
+            let names = budgetNames.map { "„\($0)“" }.joined(separator: ", ")
+            deletionBlockedMessage = budgetNames.count == 1
+                ? String(localized: "„\(category.name)“ ist die einzige Kategorie des Budgets \(names). Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst das Budget.")
+                : String(localized: "„\(category.name)“ ist die einzige Kategorie der Budgets \(names). Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst die Budgets.")
         } catch {
             errorMessage = String(localized: "Kategorie konnte nicht gelöscht werden.")
         }
+    }
+
+    func dismissDeletionBlocked() {
+        deletionBlockedMessage = nil
     }
 
     func transactionCount(for category: Category) -> Int {

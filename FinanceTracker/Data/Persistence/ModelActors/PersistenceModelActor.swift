@@ -1995,14 +1995,53 @@ actor PersistenceModelActor {
         }
     }
 
-    /// Löscht eine Kategorie und weist ihre Transaktionen neu zu
-    /// (Roadmap #50: keine orphaned categoryIDs).
+    /// Löscht eine Kategorie und hängt in EINEM Schreibvorgang alles um, was
+    /// auf sie verweist (Roadmap #50: keine orphaned categoryIDs):
+    /// Buchungen, Splitzeilen und Fixkosten bekommen `newCategoryID`
+    /// (nil = „Ohne Kategorie"), in Budgets wird sie ersetzt bzw. entfernt,
+    /// Regeln mit ihr als Ziel entfallen. Ein Verweis ins Leere ließe jedes
+    /// spätere Backup an der Verweisprüfung der Wiederherstellung scheitern.
     func deleteCategory(id: UUID, reassignTo newCategoryID: UUID?) throws {
+        let now = Date()
         let txnDescriptor = FetchDescriptor<SDTransactionEntity>(
             predicate: #Predicate { $0.categoryID == id }
         )
         for txn in try modelContext.fetch(txnDescriptor) {
             txn.categoryID = newCategoryID
+        }
+
+        let splitDescriptor = FetchDescriptor<SDTransactionSplitLineEntity>(
+            predicate: #Predicate { $0.categoryID == id }
+        )
+        for line in try modelContext.fetch(splitDescriptor) {
+            line.categoryID = newCategoryID
+        }
+
+        let commitmentDescriptor = FetchDescriptor<SDRecurringCommitmentEntity>(
+            predicate: #Predicate { $0.categoryID == id }
+        )
+        for commitment in try modelContext.fetch(commitmentDescriptor) {
+            commitment.categoryID = newCategoryID
+            commitment.updatedAt = now
+        }
+
+        for budget in try modelContext.fetch(FetchDescriptor<SDBudget2Entity>()) {
+            // Unlesbare Kategorie-Listen bleiben unangetastet (kein Überschreiben).
+            guard var categoryIDs = JSONCoding.decodeUUIDs(budget.categoryIDsJSON),
+                  categoryIDs.contains(id) else { continue }
+            categoryIDs.removeAll { $0 == id }
+            if let newCategoryID, !categoryIDs.contains(newCategoryID) {
+                categoryIDs.append(newCategoryID)
+            }
+            budget.categoryIDsJSON = JSONCoding.encodeUUIDs(categoryIDs)
+            budget.updatedAt = now
+        }
+
+        let ruleDescriptor = FetchDescriptor<SDRuleEntity>(
+            predicate: #Predicate { $0.categoryID == id }
+        )
+        for rule in try modelContext.fetch(ruleDescriptor) {
+            modelContext.delete(rule)
         }
 
         let categoryDescriptor = FetchDescriptor<SDCategoryEntity>(
