@@ -349,7 +349,9 @@ struct BudgetsView: View {
             PlanningSummaryHero(
                 title: String(localized: "Verbraucht in allen Budgets"),
                 value: money(model.totalSpent),
-                caption: String(localized: "von \(money(model.totalLimit)) geplantem Limit"),
+                caption: model.totalCarriedOver > 0
+                    ? String(localized: "von \(money(model.totalLimit)) Limit, davon \(money(model.totalCarriedOver)) Übertrag")
+                    : String(localized: "von \(money(model.totalLimit)) geplantem Limit"),
                 systemImage: "chart.pie.fill",
                 progress: budgetUsageProgress,
                 metrics: budgetSummaryMetrics,

@@ -66,6 +66,29 @@ struct BudgetCurrencySafetyTests {
         #expect(model.foreignBudgetCurrencies == [.usd])
     }
 
+    @Test("Gesamtlimit im Kopf enthält den Übertrag wie die einzelnen Budgets")
+    func headerTotalIncludesRolloverCarry() async throws {
+        let dependencies = try makeDependencies()
+        let calendar = Calendar.current
+        let twoMonthsAgo = try #require(calendar.date(byAdding: .month, value: -2, to: Date()))
+        // Ansparendes Budget, seit zwei Monaten ohne Ausgaben: Rest wandert weiter.
+        try await dependencies.budgetRepository.upsert([
+            Budget(name: "Urlaub", amount: 100, currency: .eur, categoryIDs: [UUID()],
+                   rolloverPolicy: .accumulate, createdAt: twoMonthsAgo),
+            Budget(name: "Essen", amount: 300, currency: .eur, categoryIDs: [UUID()])
+        ])
+
+        let model = BudgetsModel(dependencies: dependencies)
+        await model.load()
+
+        let saving = try #require(model.progresses.first { $0.budget.name == "Urlaub" })
+        #expect(saving.carriedOver > 0)
+        #expect(model.totalCarriedOver == saving.carriedOver)
+        // Dieselbe Basis wie Zeilen, Status und Prognose: Limit plus Übertrag.
+        #expect(model.totalLimit == 400 + saving.carriedOver)
+        #expect(model.totalLimit == model.progresses.reduce(Decimal(0)) { $0 + $1.effectiveLimit })
+    }
+
     @Test("Nur EUR-Budgets: keine Fremdwährungs-Meldung")
     func baseOnlyNoForeignNote() async throws {
         let dependencies = try makeDependencies()

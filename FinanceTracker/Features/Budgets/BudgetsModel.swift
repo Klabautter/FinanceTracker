@@ -98,10 +98,19 @@ final class BudgetsModel {
             .sorted { $0.rawValue < $1.rawValue }
     }
 
+    /// Summe der wirksamen Limits (inkl. Übertrag), dieselbe Basis wie
+    /// Zeilen, Status und Prognose der einzelnen Budgets.
     var totalLimit: Decimal {
         progresses
             .filter { $0.currency == dependencies.baseCurrency }
-            .reduce(into: Decimal(0)) { $0 += $1.limit }
+            .reduce(into: Decimal(0)) { $0 += $1.effectiveLimit }
+    }
+
+    /// Übertrag aus Vorperioden, der im Gesamtlimit steckt.
+    var totalCarriedOver: Decimal {
+        progresses
+            .filter { $0.currency == dependencies.baseCurrency }
+            .reduce(into: Decimal(0)) { $0 += $1.effectiveLimit - $1.limit }
     }
 
     var totalSpent: Decimal {
