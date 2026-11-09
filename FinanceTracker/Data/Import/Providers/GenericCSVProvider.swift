@@ -282,11 +282,27 @@ struct GenericCSVProvider: ImportProvider {
                 return parsed < 0
             }
         var unknownTypes: [String: (label: String, count: Int)] = [:]
+        // Zeile und Position der zuletzt gelesenen Buchung, an die eine
+        // Detailzeile direkt darunter anschließen darf.
+        var lastBooking: (rowIndex: Int, transactionIndex: Int)?
 
         for (index, record) in document.records.enumerated() {
             let rowIndex = index + 1
             func value(_ column: String?) -> String? {
                 column.flatMap { $0.isEmpty ? nil : document.value($0, in: record) }
+            }
+
+            // Detailzeile ohne Datum und Betrag direkt unter einer Buchung
+            // (PDF-Auszüge setzen „Location: …" oder die Kartennummer in
+            // eine eigene Zeile): Sie gehört zur Buchung darüber und ist
+            // keine Fehlzeile (#18 zählt nur echte Ausfälle).
+            if let previous = lastBooking, previous.rowIndex == rowIndex - 1,
+               let detail = Self.detailText(in: record, document: document, mapping: mapping) {
+                var booking = transactions[previous.transactionIndex]
+                booking.rawDescription = [booking.rawDescription, detail].compactMap { $0 }.joined(separator: " ")
+                transactions[previous.transactionIndex] = booking
+                lastBooking = (rowIndex, previous.transactionIndex)
+                continue
             }
 
             let money: Money
@@ -350,6 +366,7 @@ struct GenericCSVProvider: ImportProvider {
             let merchantCategoryID = MerchantCategoryMapper.categoryID(for: clean(value(mapping.merchantCategoryColumn)))
             let externalID = clean(value(mapping.externalIDColumn))
 
+            lastBooking = (rowIndex, transactions.count)
             transactions.append(
                 ImportedTransaction(
                     externalID: externalID,
@@ -418,6 +435,21 @@ struct GenericCSVProvider: ImportProvider {
 
     private struct AmountIssue: Error {
         let reason: String
+    }
+
+    /// Text einer reinen Detailzeile: Datum, Betrag, Saldo und alle anderen
+    /// Felder leer, nur Beschreibung und/oder Händler gefüllt. Sonst `nil`.
+    static func detailText(in record: [String], document: CSVDocument, mapping: GenericCSVMapping) -> String? {
+        func normalized(_ header: String) -> String { header.trimmingCharacters(in: .whitespaces).lowercased() }
+        let textColumns = Set([mapping.descriptionColumn, mapping.merchantColumn].compactMap { $0 }.map(normalized))
+        var detail: [String] = []
+        for (column, header) in zip(record, document.headers) {
+            let text = column.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            guard textColumns.contains(normalized(header)) else { return nil }
+            detail.append(text)
+        }
+        return detail.isEmpty ? nil : detail.joined(separator: " ")
     }
 
     private func amount(

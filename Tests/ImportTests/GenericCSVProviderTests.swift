@@ -57,6 +57,22 @@ struct GenericCSVProviderTests {
         }
     }
 
+    @Test("Detailzeilen ohne Datum und Betrag gehören zur Buchung darüber, keine Fehlzeilen")
+    func detailLinesMergeIntoPreviousRow() async throws {
+        let file = ImportFile(fileName: "auszug.csv", data: try fixtureData("fixture_generic_detail_lines"))
+        let parsed = try await provider.parse(file)
+
+        #expect(parsed.transactions.count == 3)
+        #expect(parsed.transactions[0].rawDescription == "REWE Markt Berlin Location: Berlin Mitte")
+        #expect(parsed.transactions[0].merchantDisplayName == "REWE Markt Berlin")
+        // Mehrere Detailzeilen hintereinander hängen alle an derselben Buchung.
+        #expect(parsed.transactions[1].rawDescription == "Shell Tankstelle Location: Potsdam Card ending 4711")
+        #expect(parsed.transactions[2].rawDescription == "Gehalt")
+        // Eine Zeile mit Datum und unlesbarem Betrag bleibt eine Fehlzeile (#17).
+        #expect(parsed.issues.count == 1)
+        #expect(parsed.issues.first?.rowIndex == 7)
+    }
+
     // MARK: - Beliebige Bank- und Brokerexporte
 
     @Test("Kopfzeilen vor der Tabelle, Windows-1252 und getrennte Soll-/Haben-Spalten")
