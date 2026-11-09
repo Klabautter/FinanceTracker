@@ -81,10 +81,13 @@ struct BudgetPeriodResolver: Sendable {
             [.day], from: calendar.startOfDay(for: interval.start), to: calendar.startOfDay(for: interval.end)
         ).day ?? 1
         let reference = min(now, interval.end)
-        let elapsed = calendar.dateComponents(
+        let fullDaysBefore = calendar.dateComponents(
             [.day], from: calendar.startOfDay(for: interval.start), to: calendar.startOfDay(for: reference)
         ).day ?? 0
-        return (max(1, elapsed), max(1, total))
+        // Der laufende Tag zählt mit: Die Ausgaben bis jetzt enthalten ihn
+        // bereits, eine Hochrechnung über einen Tag weniger fiele zu hoch aus.
+        let totalDays = max(1, total)
+        return (min(max(1, fullDaysBefore + 1), totalDays), totalDays)
     }
 
     // MARK: - Policies

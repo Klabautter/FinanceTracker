@@ -136,7 +136,36 @@ struct BudgetPeriodResolverTests {
         )
         let progress = resolver.progress(in: interval, now: date(2026, 3, 15), calendar: calendar())
         #expect(progress.totalDays == 31)
-        #expect(progress.elapsedDays == 14) // Differenztage 1.3. → 15.3.
+        // Die Ausgaben bis einschließlich 15.03. verteilen sich auf 15 Tage.
+        #expect(progress.elapsedDays == 15)
+    }
+
+    @Test("Elapsed zählt den laufenden Tag mit: 1. Tag = 1, 2. Tag = 2, letzter Tag = alle")
+    func progressCountsToday() {
+        let interval = DateInterval(
+            start: date(2026, 3, 1, hour: 0),
+            end: date(2026, 4, 1, hour: 0)
+        )
+        let c = calendar()
+        #expect(resolver.progress(in: interval, now: date(2026, 3, 1), calendar: c).elapsedDays == 1)
+        #expect(resolver.progress(in: interval, now: date(2026, 3, 2), calendar: c).elapsedDays == 2)
+        #expect(resolver.progress(in: interval, now: date(2026, 3, 31), calendar: c).elapsedDays == 31)
+    }
+
+    @Test("Prognose: gleichmäßige Ausgaben bis heute ergeben genau das Monatsende")
+    func projectionUsesDaysIncludingToday() {
+        let interval = DateInterval(
+            start: date(2026, 3, 1, hour: 0),
+            end: date(2026, 4, 1, hour: 0)
+        )
+        // 10 € pro Tag, 15 Tage inklusive heute → 150 € ausgegeben.
+        let counts = resolver.progress(in: interval, now: date(2026, 3, 15), calendar: calendar())
+        let projected = BudgetProgress.projectedMonthEndSpent(
+            spent: 150,
+            elapsedDays: counts.elapsedDays,
+            totalDaysInMonth: counts.totalDays
+        )
+        #expect(projected == 310)
     }
 
     @Test("Elapsed klemmt am Intervallende (zukünftiges now)")
