@@ -532,7 +532,16 @@ final class TransactionsModel {
         redoStack.removeAll()
     }
 
-    private func persistAndResync(_ transaction: Transaction) async {
+    /// Schreibt eine GESPEICHERTE Buchungszeile und zieht die Liste nach.
+    ///
+    /// Die Liste hält annotation-aufgelöste Buchungen (Notiz, Tags,
+    /// manueller Typ …). So ein Listenobjekt darf nie zurückgeschrieben
+    /// werden, sonst wandern Nutzer-Metadaten in die Provider-Fakten und
+    /// „Typ zurücksetzen" findet den ursprünglichen Typ nicht mehr.
+    private func persistAndResync(
+        stored transaction: Transaction,
+        failureMessage: String = String(localized: "Änderung konnte nicht gespeichert werden.")
+    ) async {
         do {
             try await dependencies.transactionRepository.upsert([transaction])
             if let index = transactions.firstIndex(where: { $0.id == transaction.id }) {
@@ -541,23 +550,21 @@ final class TransactionsModel {
             }
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Änderung konnte nicht gespeichert werden.")
+            errorMessage = failureMessage
         }
     }
 
-    func restoreTransaction(_ transaction: Transaction) async {
-        do {
-            try await dependencies.transactionRepository.upsert([transaction])
-            if let index = transactions.firstIndex(where: { $0.id == transaction.id }) {
-                transactions[index] = transaction
-            }
-            markLocallyChanged()
-        } catch {
-            errorMessage = String(localized: "Rückgängig konnte nicht angewendet werden.")
-        }
+    /// Gespeicherte Zeilen zu Listenobjekten (siehe `persistAndResync`).
+    private func storedTransactions(for ids: Set<UUID>) async throws -> [UUID: Transaction] {
+        Dictionary(
+            try await dependencies.transactionRepository.transactions(ids: ids).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
-    /// Stellt Annotation (oder löscht sie) + Transaktionszeile wieder her.
+    /// Stellt die Annotation wieder her (oder löscht sie). Die Buchungszeile
+    /// selbst ändert eine Annotation nie; die Liste wird aus der
+    /// gespeicherten Zeile neu aufgelöst.
     func restore(annotation: TransactionAnnotation?, transaction: Transaction) async {
         do {
             if let annotation {
@@ -567,10 +574,10 @@ final class TransactionsModel {
                 try await dependencies.transactionAnnotationRepository.delete(transactionID: transaction.id)
                 manualKindOverrides[transaction.id] = nil
             }
-            try await dependencies.transactionRepository.upsert([transaction])
             if let index = transactions.firstIndex(where: { $0.id == transaction.id }) {
-                let resolved = try await resolveAnnotations(for: [transaction])
-                transactions[index] = resolved.first ?? transaction
+                let stored = try await dependencies.transactionRepository.transaction(id: transaction.id) ?? transaction
+                let resolved = try await resolveAnnotations(for: [stored])
+                transactions[index] = resolved.first ?? stored
             }
             markLocallyChanged()
         } catch {
@@ -625,28 +632,45 @@ final class TransactionsModel {
     ) async {
         guard let index = transactions.firstIndex(where: { $0.id == transaction.id }) else { return }
         merchantCategoryOffer = nil
-        let previousTransaction = transaction
         var updated = transaction
         updated.categoryID = categoryID
         updated.updatedAt = Date()
         transactions[index] = updated
+        // Gespeichert wird die Rohzeile mit neuer Kategorie, nicht das
+        // annotation-aufgelöste Listenobjekt (siehe `persistAndResync`).
+        let previousStored: Transaction
+        var stored: Transaction
         do {
-            try await dependencies.transactionRepository.upsert([updated])
+            guard let raw = try await dependencies.transactionRepository.transaction(id: transaction.id) else {
+                // Die Buchung existiert nicht mehr (z. B. anderswo gelöscht).
+                errorMessage = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
+                await refresh()
+                return
+            }
+            previousStored = raw
+            stored = raw
+            stored.categoryID = categoryID
+            stored.updatedAt = updated.updatedAt
+            try await dependencies.transactionRepository.upsert([stored])
             markLocallyChanged()
         } catch {
             errorMessage = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
             await refresh()
             return
         }
+        let newStored = stored
         pushUndo(
             name: String(localized: "Kategorie"),
             revert: { [weak self] in
                 guard let self else { return }
-                await self.restoreTransaction(previousTransaction)
+                await self.persistAndResync(
+                    stored: previousStored,
+                    failureMessage: String(localized: "Rückgängig konnte nicht angewendet werden.")
+                )
             },
             apply: { [weak self] in
                 guard let self else { return }
-                await self.persistAndResync(updated)
+                await self.persistAndResync(stored: newStored)
             }
         )
         if offersMerchantChange {
@@ -1157,19 +1181,25 @@ final class TransactionsModel {
 
     func bulkChangeCategory(_ categoryID: UUID?, for targetIDs: Set<Transaction.ID>) async {
         let targets = transactions.filter { targetIDs.contains($0.id) }
-        var updates: [Transaction] = []
-        for var txn in targets {
-            txn.categoryID = categoryID
-            txn.updatedAt = Date()
-            updates.append(txn)
-        }
-        guard !updates.isEmpty else { return }
+        guard !targets.isEmpty else { return }
         do {
+            // Rohzeilen ändern, nicht die annotation-aufgelösten
+            // Listenobjekte (siehe `persistAndResync`).
+            let storedByID = try await storedTransactions(for: Set(targets.map(\.id)))
+            let previous = targets.compactMap { storedByID[$0.id] }
+            let now = Date()
+            let updates = previous.map { stored -> Transaction in
+                var updated = stored
+                updated.categoryID = categoryID
+                updated.updatedAt = now
+                return updated
+            }
+            guard !updates.isEmpty else { return }
             try await dependencies.transactionRepository.upsert(updates)
-            for update in updates {
-                if let idx = transactions.firstIndex(where: { $0.id == update.id }) {
-                    transactions[idx] = update
-                }
+            let updatedIDs = Set(updates.map(\.id))
+            for index in transactions.indices where updatedIDs.contains(transactions[index].id) {
+                transactions[index].categoryID = categoryID
+                transactions[index].updatedAt = now
             }
             markLocallyChanged()
             // Auch Sammel-Aktionen sind ein Undo-Schritt, sonst
@@ -1178,11 +1208,16 @@ final class TransactionsModel {
                 name: String(localized: "Kategorie (\(updates.count))"),
                 revert: { [weak self] in
                     guard let self else { return }
-                    for previous in targets { await self.restoreTransaction(previous) }
+                    for stored in previous {
+                        await self.persistAndResync(
+                            stored: stored,
+                            failureMessage: String(localized: "Rückgängig konnte nicht angewendet werden.")
+                        )
+                    }
                 },
                 apply: { [weak self] in
                     guard let self else { return }
-                    for update in updates { await self.persistAndResync(update) }
+                    for update in updates { await self.persistAndResync(stored: update) }
                 }
             )
         } catch {
