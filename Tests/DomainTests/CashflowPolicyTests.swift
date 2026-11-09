@@ -21,6 +21,35 @@ struct CashflowPolicyTests {
         )
     }
 
+    @Test("Manuelle Typ-Auswahl bietet nur Typen, deren Beitrag zum Vorzeichen passt")
+    func manualKindOptionsMatchSign() {
+        let debit = Money(amount: -50, currency: .eur)
+        let credit = Money(amount: 50, currency: .eur)
+
+        #expect(policy.manualKindOptions(for: debit) == [.purchase, .transfer])
+        #expect(policy.manualKindOptions(for: credit) == [.income, .refund, .transfer])
+
+        // Kein Angebot erzeugt eine Ausgabe aus einem Zahlungseingang oder
+        // eine negative Einnahme aus einer Belastung.
+        for kind in policy.manualKindOptions(for: debit) {
+            switch policy.contribution(for: txn(kind: kind, amount: -50)) {
+            case .spending(let value): #expect(value > 0)
+            case .income: Issue.record("Belastung als Einnahme angeboten: \(kind)")
+            case .neutral: break
+            }
+        }
+        for kind in policy.manualKindOptions(for: credit) {
+            switch policy.contribution(for: txn(kind: kind, amount: 50)) {
+            case .spending(let value): #expect(value < 0, "Nur Erstattung mindert Ausgaben")
+            case .income(let value): #expect(value > 0)
+            case .neutral: break
+            }
+        }
+        // Zum Vergleich: die ausgeblendeten Kombinationen wären widersprüchlich.
+        #expect(policy.contribution(for: txn(kind: .purchase, amount: 50)) == .spending(50))
+        #expect(policy.contribution(for: txn(kind: .income, amount: -50)) == .income(-50))
+    }
+
     @Test("Transfer zählt weder als Ausgabe noch als Einnahme")
     func transferIsNeutral() {
         let transactions = [

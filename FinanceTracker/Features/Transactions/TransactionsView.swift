@@ -886,13 +886,11 @@ private struct MacTransactionsTable: View {
 
             Divider()
             Menu("Typ") {
-                Button("Ausgabe") { Task { await model.setManualKind(.purchase, on: txn) } }
-                Button("Einnahme") { Task { await model.setManualKind(.income, on: txn) } }
-                // Eine Erstattung ist ein Zahlungseingang, der Ausgaben mindert.
-                if !txn.amount.isNegative {
-                    Button("Erstattung") { Task { await model.setManualKind(.refund, on: txn) } }
+                // Nur Typen, die zum Vorzeichen passen (CashflowPolicy): Eine
+                // Erstattung ist ein Zahlungseingang, der Ausgaben mindert.
+                ForEach(CashflowPolicy.shared.manualKindOptions(for: txn.amount), id: \.self) { kind in
+                    Button(Self.manualKindTitle(kind)) { Task { await model.setManualKind(kind, on: txn) } }
                 }
-                Button("Transfer") { Task { await model.setManualKind(.transfer, on: txn) } }
                 Divider()
                 Button("Erkennung wiederherstellen") { Task { await model.setManualKind(nil, on: txn) } }
             }
@@ -909,6 +907,17 @@ private struct MacTransactionsTable: View {
 
     /// Bargeldabhebung: Ausgabe eines anderen Kontos als Transfer ins
     /// Bargeldkonto buchen (Gegenbuchung +Betrag).
+    /// Menü-Bezeichnungen der manuellen Typen (kürzer als `displayName`).
+    private static func manualKindTitle(_ kind: TransactionKind) -> String {
+        switch kind {
+        case .purchase: String(localized: "Ausgabe")
+        case .income: String(localized: "Einnahme")
+        case .refund: String(localized: "Erstattung")
+        case .transfer: String(localized: "Transfer")
+        case .fee, .cashback, .unknown: kind.displayName
+        }
+    }
+
     @ViewBuilder
     private func cashWithdrawalMenuItems(_ txn: Transaction) -> some View {
         let targets = model.cashAccounts.filter { $0.id != txn.accountID }

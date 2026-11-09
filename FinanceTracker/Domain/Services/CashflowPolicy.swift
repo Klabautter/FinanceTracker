@@ -37,6 +37,14 @@ struct CashflowPolicy: Sendable {
         }
     }
 
+    /// Typen, die der Nutzer einer Buchung von Hand geben kann, ohne dass
+    /// Vorzeichen und Typ sich widersprechen: Ein Zahlungseingang als
+    /// „Ausgabe" zählte seinen Betrag als Ausgabe, eine Belastung als
+    /// „Einnahme" als negative Einnahme. Transfer ist immer möglich.
+    func manualKindOptions(for amount: Money) -> [TransactionKind] {
+        amount.isNegative ? [.purchase, .transfer] : [.income, .refund, .transfer]
+    }
+
     func countsTowardBreakdowns(_ transaction: Transaction) -> Bool {
         switch transaction.kind {
         case .purchase, .fee:
