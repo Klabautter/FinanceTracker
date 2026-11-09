@@ -139,6 +139,45 @@ extension RecurringOccurrenceResolver {
         .filter { !$0.isPaid && $0.scheduledDate >= visibleFrom }
     }
 
+    /// Nächster offener Termin eines Zahlungsplans, wie ihn „Anstehend" in
+    /// den Fixkosten zeigt: aus der letzten realen Zahlung (Rückblick: der
+    /// laufende Monat und die fünf davor) fortgeschrieben statt aus der
+    /// gespeicherten Planung, die nach einer Zahlung niemand weiterschaltet.
+    /// Ohne kommenden Termin der zuletzt überfällige; `nil`, wenn der Plan
+    /// nicht aktiv oder nicht planbar ist.
+    func nextDueDate(
+        commitment: RecurringCommitment,
+        explicitOccurrences: [RecurringOccurrence],
+        allTransactions: [Transaction],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> Date? {
+        guard commitment.status == .active,
+              let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)),
+              let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart),
+              let lookbackStart = calendar.date(byAdding: .month, value: -5, to: monthStart),
+              let planningEnd = calendar.date(byAdding: .month, value: 13, to: now) else { return nil }
+        let latestPayment = resolve(
+            commitment: commitment,
+            explicitOccurrences: explicitOccurrences,
+            allTransactions: allTransactions,
+            period: DateInterval(start: lookbackStart, end: monthEnd),
+            calendar: calendar
+        ).latestOccurrence
+        guard commitment.nextExpectedDate != nil || latestPayment != nil else { return nil }
+        let open = openOccurrences(
+            commitment: commitment,
+            explicitOccurrences: explicitOccurrences,
+            allTransactions: allTransactions,
+            now: now,
+            end: planningEnd,
+            calendar: calendar,
+            latestPaymentDate: latestPayment
+        )
+        let today = calendar.startOfDay(for: now)
+        return (open.first { $0.scheduledDate >= today } ?? open.first)?.scheduledDate
+    }
+
     /// WP7 (§56-57): Occurrence-basierte Resolution eines Commitments.
     ///
     /// Heuristik-Regel: Kandidaten liegen in `period`; die Zuordnung aufs

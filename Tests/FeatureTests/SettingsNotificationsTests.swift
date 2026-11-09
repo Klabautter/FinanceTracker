@@ -108,6 +108,48 @@ struct SettingsNotificationsTests {
         #expect(model.notificationMessage == nil)
     }
 
+    @Test("Fixkosten-Hinweis folgt dem nächsten Termin aus der letzten Zahlung, nicht der veralteten Planung")
+    func commitmentNoticeUsesNextDueDateFromPayments() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        let calendar = Calendar.current
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 13, hour: 9))!
+        let lastPayment = calendar.date(from: DateComponents(year: 2026, month: 10, day: 15, hour: 12))!
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([account])
+        // Die gespeicherte Planung zeigt noch auf den bezahlten Oktober-Termin;
+        // nichts schaltet sie weiter. Fällig ist der 15.11., in zwei Tagen.
+        try await dependencies.recurringCommitmentRepository.upsert([
+            RecurringCommitment(
+                name: "Netflix",
+                merchantKey: "NETFLIX",
+                direction: .expense,
+                cadence: .monthly,
+                amountPolicy: .fixed,
+                expectedAmount: 13,
+                currency: .eur,
+                nextExpectedDate: lastPayment,
+                status: .active
+            )
+        ])
+        try await dependencies.transactionRepository.upsert([
+            Transaction(accountID: account.id, source: .manual, status: .booked, kind: .purchase,
+                        amount: Money(amount: -13, currency: .eur), bookedAt: lastPayment,
+                        rawDescription: "Netflix", rawMerchantName: "Netflix", merchantDisplayName: "Netflix")
+        ])
+        let defaults = isolatedDefaults()
+        defaults.set(true, forKey: SettingsModel.notificationsEnabledKey)
+        let service = MockNotificationService(granted: true)
+        let model = SettingsModel(dependencies: dependencies, defaults: defaults, notificationService: service)
+
+        await model.refreshLocalNotifications(now: now)
+
+        let batches = await service.scheduledBatches
+        let due = try #require(batches.last?.first { $0.kind == .commitmentDueSoon })
+        #expect(due.body == "„Netflix“ ist in 2 Tagen fällig.")
+        #expect(model.notificationMessage == nil)
+    }
+
     @Test("Budgetstart am 31. beginnt im Februar am letzten Tag")
     func clampedPeriodStart() {
         let calendar = Calendar(identifier: .gregorian)

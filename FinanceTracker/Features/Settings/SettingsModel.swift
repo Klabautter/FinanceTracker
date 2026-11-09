@@ -235,6 +235,7 @@ final class SettingsModel {
             async let budgetResultTask = loader.execute(now: now, calendar: calendar, baseCurrency: baseCurrency)
             async let connectionsTask = dependencies.connectionRepository.connections()
             let (budgetResult, connections) = try await (budgetResultTask, connectionsTask)
+            let commitments = try await commitmentsWithNextDueDates(budgetResult.commitments, now: now, calendar: calendar)
             guard notificationsEnabled else { return }
             let syncIssues = connections
                 .filter {
@@ -247,7 +248,7 @@ final class SettingsModel {
 
             let pending = dependencies.notificationScheduler.makeNotifications(
                 budgetProgresses: budgetResult.progresses,
-                commitments: budgetResult.commitments,
+                commitments: commitments,
                 syncIssues: syncIssues,
                 now: now,
                 calendar: calendar
@@ -256,6 +257,44 @@ final class SettingsModel {
             await notificationService.schedule(pending)
         } catch {
             notificationMessage = String(localized: "Hinweise konnten nicht aktualisiert werden.")
+        }
+    }
+
+    /// Fixkosten mit dem Termin, den auch „Anstehend" zeigt: aus der letzten
+    /// Zahlung fortgeschrieben. Die gespeicherte Planung bliebe sonst auf dem
+    /// längst bezahlten Termin stehen und der Hinweis käme nie wieder.
+    private func commitmentsWithNextDueDates(
+        _ commitments: [RecurringCommitment],
+        now: Date,
+        calendar: Calendar
+    ) async throws -> [RecurringCommitment] {
+        let active = commitments.filter { $0.status == .active }
+        guard !active.isEmpty,
+              let historyStart = calendar.date(byAdding: .month, value: -6, to: now),
+              let historyEnd = calendar.date(byAdding: .month, value: 1, to: now) else { return commitments }
+        var query = TransactionQuery()
+        query.dateInterval = DateInterval(start: historyStart, end: historyEnd)
+        let rows = try await dependencies.transactionRepository.transactions(matching: query)
+        let annotations = try await dependencies.transactionAnnotationRepository.annotations(
+            transactionIDs: Set(rows.map(\.id))
+        )
+        let history = EffectiveTransactionResolver().applying(annotations: annotations, to: rows)
+        let occurrencesByCommitment = Dictionary(
+            grouping: try await dependencies.recurringCommitmentRepository.allOccurrences(),
+            by: \.commitmentID
+        )
+        let resolver = RecurringOccurrenceResolver()
+        return commitments.map { commitment in
+            guard commitment.status == .active else { return commitment }
+            var planned = commitment
+            planned.nextExpectedDate = resolver.nextDueDate(
+                commitment: commitment,
+                explicitOccurrences: occurrencesByCommitment[commitment.id] ?? [],
+                allTransactions: history,
+                now: now,
+                calendar: calendar
+            )
+            return planned
         }
     }
 
