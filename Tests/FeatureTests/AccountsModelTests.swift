@@ -93,6 +93,49 @@ struct AccountsModelTests {
         #expect(loaded.note == "Privat")
     }
 
+    @Test("Kontodetail zeigt denselben Stand wie die Kontenliste: gemeldeter Stand vor Anfangsbestand")
+    func accountDetailUsesReportedBalance() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        let reportedAt = Date(timeIntervalSince1970: 1_780_000_000)
+        // Bankkonto mit gemeldetem Stand und zusätzlich einem (älteren)
+        // Anfangsbestand; ein zweites nur mit gemeldetem Stand.
+        let both = Account(name: "Giro", type: .checking, currency: .eur, source: .openBanking,
+            openingBalance: 500, openingBalanceDate: reportedAt.addingTimeInterval(-30 * 86_400))
+        let reportedOnly = Account(name: "Tagesgeld", type: .savings, currency: .eur, source: .openBanking)
+        try await dependencies.accountRepository.upsert([both, reportedOnly])
+        for account in [both, reportedOnly] {
+            try await dependencies.accountRepository.saveReportedBalance(
+                ReportedBalance(amount: Money(amount: 1000, currency: .eur), asOf: reportedAt, source: .bank),
+                accountID: account.id
+            )
+        }
+        func booking(_ account: Account, _ amount: Decimal, offsetDays: Double) -> Transaction {
+            Transaction(accountID: account.id, source: .openBanking, kind: .purchase,
+                amount: Money(amount: amount, currency: .eur),
+                bookedAt: reportedAt.addingTimeInterval(offsetDays * 86_400))
+        }
+        try await dependencies.transactionRepository.upsert([
+            booking(both, -70, offsetDays: -10),      // steckt im gemeldeten Stand
+            booking(both, -40, offsetDays: 1),        // danach gebucht
+            booking(reportedOnly, 25, offsetDays: 2)
+        ])
+
+        let list = AccountsModel(dependencies: dependencies)
+        await list.load()
+
+        for account in [both, reportedOnly] {
+            let detail = AccountDetailModel(account: account, dependencies: dependencies)
+            await detail.load()
+            let listed = try #require(list.accounts.first { $0.id == account.id })
+            #expect(detail.errorMessage == nil)
+            #expect(detail.balance == listed.balance?.amount)
+        }
+        let bothDetail = AccountDetailModel(account: both, dependencies: dependencies)
+        await bothDetail.load()
+        #expect(bothDetail.balance == 960)
+    }
+
     @Test("Kontokennung bevorzugt maskierte Bankdaten und unterscheidet gleichnamige Konten")
     func accountIdentifiers() {
         var account = Account(name: "Max Mustermann", type: .checking, currency: .eur,

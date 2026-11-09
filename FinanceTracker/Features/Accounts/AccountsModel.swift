@@ -265,8 +265,10 @@ final class AccountDetailModel {
     private let dependencies: AppDependencies
     private(set) var transactions: [Transaction] = []
     private(set) var netMovement: Decimal = 0
-    /// Aktueller Stand, nur bei erfasstem Anfangsbestand.
-    private(set) var balance: Decimal?
+    /// Aktueller Stand wie in der Kontenliste: gemeldeter Stand (Bank oder
+    /// Kontoauszug) vor Anfangsbestand; ohne beides `nil`.
+    private(set) var balanceResult: AccountBalanceCalculator.Result?
+    var balance: Decimal? { balanceResult?.amount }
     private(set) var transactionCount = 0
     private(set) var foreignCurrencies: Set<CurrencyCode> = []
     private(set) var isLoading = true
@@ -300,10 +302,10 @@ final class AccountDetailModel {
             transactionCount = active.count
             let ownCurrency = active.filter { $0.amount.currency == account.currency }
             netMovement = ownCurrency.reduce(Decimal(0)) { $0 + $1.amount.amount }
-            balance = AccountBalanceCalculator.balance(
-                openingBalance: account.openingBalance,
-                openingDate: account.openingBalanceDate,
-                movements: ownCurrency.map { .init(date: $0.displayDate, amount: $0.amount.amount) }
+            balanceResult = AccountBalanceCalculator.balance(
+                for: account,
+                movements: ownCurrency.map { .init(date: $0.displayDate, amount: $0.amount.amount) },
+                converter: await dependencies.fxRateProvider.converter()
             )
             foreignCurrencies = Set(active.map(\.amount.currency)).subtracting([account.currency])
             categoriesByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })

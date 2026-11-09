@@ -111,17 +111,38 @@ struct AccountDetailSheet: View {
             }
 
             Section {
-                if let balance = model.balance, let opening = model.account.openingBalance {
+                if let result = model.balanceResult {
                     LabeledContent(
                         "Aktueller Stand",
-                        value: PrivacyAwareMoney.signed(Money(amount: balance, currency: model.account.currency), privacy: privacyState)
+                        value: PrivacyAwareMoney.signed(Money(amount: result.amount, currency: model.account.currency), privacy: privacyState)
                     )
                     .fontWeight(.semibold)
-                    LabeledContent(
-                        "Anfangsbestand",
-                        value: PrivacyAwareMoney.string(Money(amount: opening, currency: model.account.currency), privacy: privacyState)
-                            + (model.account.openingBalanceDate.map { " " + String(localized: "am \(AppDateFormatter.day($0))") } ?? "")
-                    )
+                    switch result.basis {
+                    case .reported(let source):
+                        // Derselbe Stand wie in der Kontenliste: Der von Bank
+                        // oder Kontoauszug gemeldete Stand hat Vorrang.
+                        if let asOf = LiquidityPresentation.asOfText(
+                            basis: result.basis,
+                            reportedAt: result.reportedAt,
+                            convertedFrom: result.convertedFrom,
+                            privacy: privacyState
+                        ) {
+                            LabeledContent(
+                                source == .bank
+                                    ? String(localized: "Von der Bank gemeldet")
+                                    : String(localized: "Laut Kontoauszug"),
+                                value: asOf
+                            )
+                        }
+                    case .openingBalance:
+                        if let opening = model.account.openingBalance {
+                            LabeledContent(
+                                "Anfangsbestand",
+                                value: PrivacyAwareMoney.string(Money(amount: opening, currency: model.account.currency), privacy: privacyState)
+                                    + (model.account.openingBalanceDate.map { " " + String(localized: "am \(AppDateFormatter.day($0))") } ?? "")
+                            )
+                        }
+                    }
                 }
                 LabeledContent(
                     "Summe der Transaktionen",
@@ -137,9 +158,14 @@ struct AccountDetailSheet: View {
             } header: {
                 Text("Erfasste Transaktionen")
             } footer: {
-                model.balance == nil
-                    ? Text("Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest. Fremdwährungen werden getrennt ausgewiesen.")
-                    : Text("Stand = Anfangsbestand plus Buchungen ab dem Stichtag. Fremdwährungen werden getrennt ausgewiesen.")
+                switch model.balanceResult?.basis {
+                case nil:
+                    Text("Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest. Fremdwährungen werden getrennt ausgewiesen.")
+                case .reported:
+                    Text("Stand = gemeldeter Stand plus spätere Buchungen. Fremdwährungen werden getrennt ausgewiesen.")
+                case .openingBalance:
+                    Text("Stand = Anfangsbestand plus Buchungen ab dem Stichtag. Fremdwährungen werden getrennt ausgewiesen.")
+                }
             }
 
             if onDelete != nil {
