@@ -4,14 +4,28 @@ struct PendingBookedReconciler: Sendable {
     static let defaultDateTolerance: TimeInterval = 7 * 24 * 3600
     static let amountTolerance = Decimal(string: "0.01")!
 
+    /// - Parameter includingCancelled: Auch Vormerkungen, die ein Bankabruf
+    ///   storniert hat, weil die Bank sie nicht mehr meldete, kommen als Ziel
+    ///   in Frage. Bucht die Bank den Umsatz doch noch, wird dieselbe Zeile
+    ///   gebucht und Kategorie, Notiz und Belege bleiben. Vorgemerkte Zeilen
+    ///   haben Vorrang vor stornierten.
     func findTarget(
         for incoming: Transaction,
-        among candidates: [Transaction]
+        among candidates: [Transaction],
+        includingCancelled: Bool = false
     ) -> Transaction? {
         guard incoming.status != .pending else { return nil }
+        if let pending = match(incoming, among: candidates, status: .pending) { return pending }
+        return includingCancelled ? match(incoming, among: candidates, status: .cancelled) : nil
+    }
 
-        return candidates.first { candidate in
-            guard candidate.status == .pending else { return false }
+    private func match(
+        _ incoming: Transaction,
+        among candidates: [Transaction],
+        status: TransactionStatus
+    ) -> Transaction? {
+        candidates.first { candidate in
+            guard candidate.status == status else { return false }
             guard candidate.accountID == incoming.accountID else { return false }
             guard candidate.source == incoming.source else { return false }
             guard candidate.amount.currency == incoming.amount.currency else { return false }

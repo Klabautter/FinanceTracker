@@ -301,8 +301,14 @@ struct BankSyncService: Sendable {
                     importedTxns,
                     source: .openBanking,
                     providerIdentifier: backgroundProvider.identifier,
-                    into: account.id
+                    into: account.id,
+                    // Die Antwort ist ab dem angefragten Beginn vollständig:
+                    // Vormerkungen, die darin fehlen, gibt es nicht mehr.
+                    pendingCompleteSince: overlapStart ?? .distantPast
                 )
+                if result.cancelledPendingCount > 0 {
+                    Self.logger.info("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) \(result.cancelledPendingCount, privacy: .public) Vormerkungen storniert (nicht mehr gemeldet)")
+                }
 
                 try await backgroundService.classifyEarlierTransfers(accountID: account.id, ownerNames: ownerNames)
                 if let balance = data.balance, balance.currency == account.currency {

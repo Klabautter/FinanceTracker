@@ -20,6 +20,9 @@ struct ImportResult: Sendable, Equatable {
     var crossSourceDuplicateCount: Int = 0
     /// Aus der Datei übernommener Kontostand.
     var savedBalance: ReportedBalance?
+    /// Im `updatedCount` enthaltene Vormerkungen, die der Bankabruf
+    /// storniert hat, weil die Bank sie nicht mehr meldet.
+    var cancelledPendingCount: Int = 0
 
     /// UI-Label für Duplikate, bewusst identisch mit der ImportView-Preview
     /// („Duplikate übersprungen: N"), damit Summary + Preview konsistent bleiben (#5).
@@ -27,8 +30,11 @@ struct ImportResult: Sendable, Equatable {
 
     var summaryMessage: String {
         var parts = [String(localized: "Importiert: \(importedCount)")]
-        if updatedCount > 0 {
-            parts.append(String(localized: "Aktualisiert (Pending→Booked): \(updatedCount)"))
+        if updatedCount > cancelledPendingCount {
+            parts.append(String(localized: "Aktualisiert (Pending→Booked): \(updatedCount - cancelledPendingCount)"))
+        }
+        if cancelledPendingCount > 0 {
+            parts.append(String(localized: "Vormerkungen storniert: \(cancelledPendingCount)"))
         }
         if duplicateCount > 0 {
             parts.append("\(Self.duplicateLabel): \(duplicateCount)")
@@ -130,6 +136,10 @@ struct PreparedImport: Sendable, Equatable {
     /// sich auch übernehmen, wenn alle Buchungen schon vorhanden sind.
     var reportedBalanceIsNew = false
 
+    /// Vormerkungen, die der Bankabruf storniert hat, weil die Bank sie
+    /// nicht mehr meldet. Sie stehen auch in `updates`.
+    var cancelledPendingCount = 0
+
     /// Währung, in der (fast) alle neuen Buchungen der Datei stehen, wenn
     /// sie nicht die des Kontos ist. Sie zählen dann nicht im Kontostand.
     var foreignFileCurrency: CurrencyCode?
@@ -155,7 +165,8 @@ struct PreparedImport: Sendable, Equatable {
             failedCount: failedCount,
             isExactFileReplay: isExactFileReplay,
             crossSourceHintCount: crossSourceHints.count,
-            crossSourceDuplicateCount: crossSourceDuplicates.count
+            crossSourceDuplicateCount: crossSourceDuplicates.count,
+            cancelledPendingCount: cancelledPendingCount
         )
     }
 }
@@ -199,13 +210,23 @@ struct ImportPipeline: Sendable {
         return try await commit(prepared)
     }
 
+    /// - Parameter pendingCompleteSince: Nur beim Bankabruf gesetzt: Die
+    ///   Liste enthält ALLE Umsätze des Kontos ab diesem Zeitpunkt, auch die
+    ///   vorgemerkten. Eine gespeicherte Vormerkung ab diesem Datum, die
+    ///   nicht mehr vorkommt, hat die Bank verworfen oder unter anderem
+    ///   Betrag gebucht: Sie wird storniert (bleibt sichtbar, zählt nicht
+    ///   mehr; AGENTS #21) und steht mit ihrem alten Zustand im Importverlauf.
+    ///   Bucht oder meldet die Bank sie später doch, lebt dieselbe Zeile
+    ///   wieder auf. `nil` (Dateien): keine Aussage, nichts wird storniert.
     @discardableResult
     func commitParsedTransactions(
         _ importedTransactions: [ImportedTransaction],
         source: TransactionSource,
         providerIdentifier: String,
-        into accountID: UUID
+        into accountID: UUID,
+        pendingCompleteSince: Date? = nil
     ) async throws -> ImportResult {
+        let tracksPending = pendingCompleteSince != nil
         var query = TransactionQuery()
         query.accountIDs = [accountID]
         query.sources = [source]
@@ -238,7 +259,12 @@ struct ImportPipeline: Sendable {
             )
             if existingByExternalKey[key] == nil { existingByExternalKey[key] = txn }
         }
-        let pendingCandidates = existing.filter { $0.status == .pending }
+        // Vom Abruf stornierte Vormerkungen bleiben Ziel einer späteren Buchung.
+        let pendingCandidates = existing.filter {
+            $0.status == .pending || (tracksPending && $0.status == .cancelled)
+        }
+        /// Gespeicherte Zeilen, die in dieser Antwort wieder vorkommen.
+        var reportedExistingIDs = Set<UUID>()
 
         // Liegt dieselbe Buchung schon aus einer Datei auf dem Konto, legt
         // der Abruf keinen zweiten Eintrag an, sondern übernimmt den
@@ -319,7 +345,11 @@ struct ImportPipeline: Sendable {
             )
 
             if let exact = existingByFingerprint[fingerprint] {
-                if exact.status == .pending && imported.status != .pending {
+                let isFirstReport = reportedExistingIDs.insert(exact.id).inserted
+                let booksPending = exact.status == .pending && imported.status != .pending
+                // Die Bank meldet eine vom Abruf stornierte Vormerkung wieder.
+                let revivesCancelled = tracksPending && exact.status == .cancelled
+                if isFirstReport, booksPending || revivesCancelled {
                     mutations.append(ImportMutation(
                         transactionID: exact.id,
                         kind: .updated,
@@ -341,7 +371,29 @@ struct ImportPipeline: Sendable {
                     externalID: externalID
                 )
                 if existingExternalIDs.contains(key) || !seenExternalKeys.insert(key).inserted {
-                    if let target = reconciler.findTarget(for: draft, among: availableCandidates) {
+                    let storedWithSameID = existingByExternalKey[key]
+                    let isFirstReport = storedWithSameID.map { reportedExistingIDs.insert($0.id).inserted } ?? false
+                    if let stored = storedWithSameID, isFirstReport, draft.status != .pending,
+                       stored.status == .pending || (tracksPending && stored.status == .cancelled),
+                       stored.amount.isNegative == draft.amount.isNegative {
+                        // Dieselbe Bank-Kennung, jetzt gebucht: Die Vormerkung
+                        // wird zur Buchung und übernimmt deren Betrag (Trinkgeld,
+                        // Tankstelle, Fremdwährung), auch wenn er abweicht.
+                        mutations.append(ImportMutation(
+                            transactionID: stored.id,
+                            kind: .updated,
+                            previousSnapshot: TransactionSnapshot(transaction: stored)
+                        ))
+                        let booked = Self.booked(target: stored, with: draft)
+                        updates.append(booked)
+                        existingByExternalKey[key] = booked
+                        availableCandidates.removeAll { $0.id == stored.id }
+                    } else if let target = reconciler.findTarget(
+                        for: draft,
+                        among: availableCandidates,
+                        includingCancelled: tracksPending
+                    ) {
+                        reportedExistingIDs.insert(target.id)
                         mutations.append(ImportMutation(
                             transactionID: target.id,
                             kind: .updated,
@@ -370,7 +422,12 @@ struct ImportPipeline: Sendable {
                 continue
             }
 
-            if let target = reconciler.findTarget(for: draft, among: availableCandidates) {
+            if let target = reconciler.findTarget(
+                for: draft,
+                among: availableCandidates,
+                includingCancelled: tracksPending
+            ) {
+                reportedExistingIDs.insert(target.id)
                 mutations.append(ImportMutation(
                     transactionID: target.id,
                     kind: .updated,
@@ -395,6 +452,27 @@ struct ImportPipeline: Sendable {
             draft.importBatchID = batchID
             inserts.append(draft)
             mutations.append(ImportMutation(transactionID: draft.id, kind: .inserted, previousSnapshot: nil))
+        }
+
+        // Vormerkungen, die die Bank im abgerufenen Zeitraum nicht mehr
+        // meldet: storniert statt gelöscht, damit nichts still verschwindet.
+        var cancelledPendingCount = 0
+        if let pendingCompleteSince {
+            let now = Date()
+            for stale in existing where stale.status == .pending
+                && !reportedExistingIDs.contains(stale.id)
+                && stale.displayDate >= pendingCompleteSince {
+                mutations.append(ImportMutation(
+                    transactionID: stale.id,
+                    kind: .updated,
+                    previousSnapshot: TransactionSnapshot(transaction: stale)
+                ))
+                var cancelled = stale
+                cancelled.status = .cancelled
+                cancelled.updatedAt = now
+                updates.append(cancelled)
+                cancelledPendingCount += 1
+            }
         }
 
         let prepared = PreparedImport(
@@ -422,7 +500,8 @@ struct ImportPipeline: Sendable {
                 duplicateCount: duplicateCount,
                 failedCount: 0,
                 mutations: mutations
-            )
+            ),
+            cancelledPendingCount: cancelledPendingCount
         )
 
         return try await commit(prepared)
@@ -778,6 +857,18 @@ struct ImportPipeline: Sendable {
         return adopted
     }
 
+    /// Vormerkung → Buchung über dieselbe Bank-Kennung: wie `merged`, dazu
+    /// der gebuchte Betrag. Die Bank bucht nicht immer den vorgemerkten.
+    private static func booked(target: Transaction, with draft: Transaction) -> Transaction {
+        var updated = merged(target: target, with: draft)
+        updated.amount = draft.amount
+        updated.originalAmount = draft.originalAmount ?? updated.originalAmount
+        updated.originalCurrency = draft.originalCurrency ?? updated.originalCurrency
+        if draft.rawMerchantName != nil { updated.rawMerchantName = draft.rawMerchantName }
+        if draft.valueDate != nil { updated.valueDate = draft.valueDate }
+        return updated
+    }
+
     private static func merged(target: Transaction, with draft: Transaction) -> Transaction {
         var updated = target
         updated.status = draft.status
@@ -919,7 +1010,8 @@ struct ImportPipeline: Sendable {
             isExactFileReplay: prepared.isExactFileReplay,
             crossSourceHintCount: prepared.crossSourceHints.count,
             crossSourceDuplicateCount: prepared.crossSourceDuplicates.count,
-            savedBalance: savedBalance
+            savedBalance: savedBalance,
+            cancelledPendingCount: prepared.cancelledPendingCount
         )
     }
 
