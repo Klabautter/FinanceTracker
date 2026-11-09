@@ -137,17 +137,28 @@ struct RecurringPaymentsDetector: Sendable {
         guard let interval = median(gaps), interval > 0,
               let cadence = Self.cadence(forDays: interval) else { return nil }
 
-        let allowedDeviation = max(tolerance.intervalDays, Int((Double(interval) * 0.25).rounded()))
+        // Wöchentlich ist streng: Wer jede Woche einkauft, hat zwar einen
+        // Rhythmus, aber keine Fixkost. Eine Wochenzahlung braucht einen
+        // festen Betrag, Abstände von höchstens zwei Tagen Abweichung und
+        // mindestens vier Buchungen.
+        let isWeekly = cadence == .weekly
+        let allowedDeviation = isWeekly
+            ? 2
+            : max(tolerance.intervalDays, Int((Double(interval) * 0.25).rounded()))
         let matchingGaps = gaps.filter { abs($0 - interval) <= allowedDeviation }.count
         let confidence = Double(matchingGaps) / Double(max(1, gaps.count))
 
-        guard confidence >= 0.6 else { return nil }
+        guard confidence >= (isWeekly ? 0.75 : 0.6) else { return nil }
 
         let medianAmountValue = medianDecimal(amounts) ?? 0
 
         let amountTolerance = max(Decimal(string: "0.50")!, medianAmountValue * tolerance.amountFraction)
         let consistentAmounts = amounts.filter { abs($0 - medianAmountValue) <= amountTolerance }.count
         let amountConfidence = Double(consistentAmounts) / Double(amounts.count)
+
+        if isWeekly {
+            guard dates.count >= Self.minimumWeeklyOccurrences, amountConfidence >= 0.75 else { return nil }
+        }
 
         let combinedConfidence = (confidence + amountConfidence) / 2
         guard combinedConfidence >= 0.6 else { return nil }
@@ -248,6 +259,9 @@ struct RecurringPaymentsDetector: Sendable {
         }
         return clusters
     }
+
+    /// Drei Wochenzahlungen können noch Zufall sein (ein Monat Einkaufen).
+    static let minimumWeeklyOccurrences = 4
 
     static func cadence(forDays days: Int) -> RecurringSeries.Cadence? {
         switch days {

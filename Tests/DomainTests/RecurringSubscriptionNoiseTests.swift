@@ -75,4 +75,48 @@ struct RecurringSubscriptionNoiseTests {
         // das ist ein eigener Punkt.)
         #expect(!series.contains { $0.cadence == .monthly })
     }
+
+    @Test("Wöchentlicher Einkauf mit wechselnden Beträgen ist keine wöchentliche Fixkost")
+    func weeklyGroceriesAreNoFixedCost() {
+        // Jeden Samstag ±1 Tag beim selben Supermarkt, Beträge wie im Alltag.
+        let dates = [(5, 2), (5, 9), (5, 16), (5, 24), (5, 30), (6, 6), (6, 13), (6, 20), (6, 27), (7, 4)]
+        let amounts = ["23.40", "41.10", "35.80", "52.30", "18.90", "44.75", "60.20", "29.99", "38.45", "47.10"]
+        let transactions = zip(dates, amounts).map { date, amount in
+            purchase("Supermarkt", amount, date.0, date.1)
+        }
+        let series = RecurringPaymentsDetector().detect(
+            transactions: transactions,
+            calendar: calendar,
+            now: calendar.date(from: DateComponents(year: 2026, month: 7, day: 10))!
+        )
+        #expect(series.isEmpty)
+    }
+
+    @Test("Wöchentliche Zahlung mit festem Betrag wird weiterhin erkannt")
+    func weeklyFixedAmountIsDetected() throws {
+        let transactions = [(5, 2), (5, 9), (5, 16), (5, 23), (5, 30), (6, 6)].map { date in
+            purchase("Kochbox", "59.90", date.0, date.1)
+        }
+        let series = RecurringPaymentsDetector().detect(
+            transactions: transactions,
+            calendar: calendar,
+            now: calendar.date(from: DateComponents(year: 2026, month: 6, day: 10))!
+        )
+        let weekly = try #require(series.first)
+        #expect(weekly.cadence == .weekly)
+        #expect(weekly.medianAmount == Decimal(string: "59.90")!)
+    }
+
+    @Test("Vier wöchentliche Zahlungen reichen für die Erkennung")
+    func fourWeeklyPaymentsSuffice() {
+        let transactions = [(5, 2), (5, 9), (5, 16), (5, 23)].map { date in
+            purchase("Reinigung", "35.00", date.0, date.1)
+        }
+        let series = RecurringPaymentsDetector().detect(
+            transactions: transactions,
+            calendar: calendar,
+            now: calendar.date(from: DateComponents(year: 2026, month: 5, day: 25))!
+        )
+        #expect(series.first?.cadence == .weekly)
+    }
 }
