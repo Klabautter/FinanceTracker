@@ -48,6 +48,51 @@ struct AnalyticsSplitTests {
         #expect(snapshot.spendingByMerchant.first?.amount == 90)
     }
 
+    @Test("Kategorie-Filter: Fremdwährungs-Split mit Originalbetrag zählt nur seinen Anteil")
+    func categoryFilterScalesOriginalAmountOfForeignSplit() {
+        let calculator = AnalyticsCalculator(
+            baseCurrency: .eur,
+            converter: CurrencyConverter(eurPerUnit: [CurrencyCode("USD"): Decimal(string: "0.80")!])
+        )
+        let foodID = UUID()
+        let householdID = UUID()
+        // Dollar-Karte, Abrechnung nennt den exakten Gegenwert: 100 $ = 90 €.
+        var parent = Transaction(
+            accountID: UUID(),
+            source: .demo,
+            status: .booked,
+            kind: .purchase,
+            amount: Money(amount: -Decimal(100), currency: CurrencyCode("USD")),
+            bookedAt: Date(),
+            rawDescription: "Foreign split purchase",
+            rawMerchantName: "Shop",
+            categoryID: foodID
+        )
+        parent.originalCurrency = .eur
+        parent.originalAmount = 90
+        let lines = [
+            TransactionSplitLine(parentTransactionID: parent.id, amount: 60, categoryID: foodID),
+            TransactionSplitLine(parentTransactionID: parent.id, amount: 40, categoryID: householdID)
+        ]
+        let categories = [
+            Category(id: foodID, name: "Food", systemIconName: "cart"),
+            Category(id: householdID, name: "Household", systemIconName: "house")
+        ]
+
+        let food = calculator.snapshot(
+            transactions: [parent], categories: categories, splitLines: lines, categoryIDs: [foodID]
+        )
+        let household = calculator.snapshot(
+            transactions: [parent], categories: categories, splitLines: lines, categoryIDs: [householdID]
+        )
+        let all = calculator.snapshot(transactions: [parent], categories: categories, splitLines: lines)
+
+        // 60 % bzw. 40 % des exakten Gegenwerts, nicht jeweils die ganzen 90 €.
+        #expect(food.totalSpending == 54)
+        #expect(household.totalSpending == 36)
+        #expect(all.totalSpending == 90)
+    }
+
     @Test("Kategorie-Breakdown nutzt Split-Lines statt Parent; Summen bleiben erhalten")
     func splitBreakdown() {
         let calculator = AnalyticsCalculator(baseCurrency: .eur)

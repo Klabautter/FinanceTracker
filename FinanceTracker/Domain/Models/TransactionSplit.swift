@@ -69,10 +69,15 @@ enum TransactionCategoryScope {
             guard !selected.isEmpty else { return nil }
             var projected = transaction
             let sign: Decimal = transaction.amount.amount < 0 ? -1 : 1
-            projected.amount = Money(
-                amount: sign * selected.reduce(Decimal.zero) { $0 + $1.amount },
-                currency: transaction.amount.currency
-            )
+            let selectedAmount = selected.reduce(Decimal.zero) { $0 + $1.amount }
+            projected.amount = Money(amount: sign * selectedAmount, currency: transaction.amount.currency)
+            // Der Gegenwert in Originalwährung gehört zur ganzen Buchung: Er
+            // schrumpft mit dem Anteil, sonst rechnete die Umrechnung für
+            // jeden Teil den vollen Gegenwert an.
+            let parentMagnitude = abs(transaction.amount.amount)
+            if let original = transaction.originalAmount, parentMagnitude != 0 {
+                projected.originalAmount = original * selectedAmount / parentMagnitude
+            }
             return projected
         }
     }
