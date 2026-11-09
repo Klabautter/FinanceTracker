@@ -398,8 +398,8 @@ final class AnalyticsModel {
         filtersChanged()
     }
 
-    /// Roadmap #92: Ausgaben-Vergleich zur unmittelbar vorangehenden,
-    /// gleich langen Periode.
+    /// Roadmap #92: Ausgaben-Vergleich zum gleichen Abschnitt der
+    /// vorangehenden Periode (siehe `previousInterval(current:now:calendar:)`).
     var spendingTrendPercent: Double? {
         guard let current = snapshot?.totalSpending,
               let previous = previousSnapshot?.totalSpending,
@@ -482,12 +482,41 @@ final class AnalyticsModel {
         )
     }
 
-    /// Roadmap #92: unmittelbar vorangehende, gleich lange Periode.
     private func previousInterval(current: DateInterval) -> DateInterval {
-        DateInterval(
-            start: current.start.addingTimeInterval(-current.duration),
-            duration: current.duration
+        Self.previousInterval(current: current, now: Date(), calendar: calendar)
+    }
+
+    /// Roadmap #92: Vergleichszeitraum vor `current`.
+    ///
+    /// Er beginnt gleich viele Kalendermonate früher (01.09.–01.12. →
+    /// 01.06.–01.09., nicht 02.06.) und reicht, solange `current` noch läuft,
+    /// nur bis zum entsprechenden Tag: Am 09.11. steht „01.09. bis heute"
+    /// gegen „01.06. bis 09.08.". Sonst träte ein angebrochener Zeitraum
+    /// gegen einen vollen an und zeigte immer einen Rückgang.
+    nonisolated static func previousInterval(
+        current: DateInterval,
+        now: Date,
+        calendar: Calendar
+    ) -> DateInterval {
+        let months = calendar.dateComponents([.month], from: current.start, to: current.end).month ?? 0
+        guard months > 0,
+              let previousStart = calendar.date(byAdding: .month, value: -months, to: current.start) else {
+            return DateInterval(
+                start: current.start.addingTimeInterval(-current.duration),
+                duration: current.duration
+            )
+        }
+        guard now >= current.start, now < current.end,
+              let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) else {
+            return DateInterval(start: previousStart, end: current.start)
+        }
+        let elapsed = calendar.dateComponents(
+            [.month, .day],
+            from: current.start,
+            to: min(startOfTomorrow, current.end)
         )
+        let cutoff = calendar.date(byAdding: elapsed, to: previousStart) ?? current.start
+        return DateInterval(start: previousStart, end: min(max(cutoff, previousStart), current.start))
     }
 
     private func resolveAnnotations(for transactions: [Transaction]) async throws -> [Transaction] {
