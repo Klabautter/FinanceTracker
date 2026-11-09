@@ -73,14 +73,17 @@ struct AnalyticsTrendCoverageTests {
         let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
         try await dependencies.accountRepository.upsert([account])
         let calendar = Calendar(identifier: .gregorian)
-        // Vorperiode von „letzte 3 Monate“: nur eine Buchung kurz vor ihrem Ende.
-        let monthStart = try #require(calendar.date(from: calendar.dateComponents([.year, .month], from: Date())))
-        let lateInPrevious = try #require(calendar.date(byAdding: .day, value: -70, to: monthStart))
+        // Vorperiode von „letzte 3 Monate“ (bis zum heutigen Kalendertag
+        // gerechnet): nur eine Buchung kurz vor ihrem Ende.
+        let now = Date()
+        let current = try #require(AnalyticsModel.DateRange.last3Months.interval(calendar: calendar))
+        let previous = AnalyticsModel.previousInterval(current: current, now: now, calendar: calendar)
+        let lateInPrevious = try #require(calendar.date(byAdding: .hour, value: -12, to: previous.end))
         func expense(_ amount: Decimal, _ date: Date) -> Transaction {
             Transaction(accountID: account.id, source: .manual, kind: .purchase,
                         amount: Money(amount: -amount, currency: .eur), bookedAt: date, rawMerchantName: "Test")
         }
-        try await dependencies.transactionRepository.upsert([expense(1000, Date()), expense(10, lateInPrevious)])
+        try await dependencies.transactionRepository.upsert([expense(1000, now), expense(10, lateInPrevious)])
 
         let model = AnalyticsModel(dependencies: dependencies, calendar: calendar)
         model.range = .last3Months
