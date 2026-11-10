@@ -36,19 +36,20 @@ struct CategoryDrilldownSheet: View {
     var body: some View {
         AdaptiveSheet(title: categoryName) {
             Group {
-                if model.isLoading {
+                switch ScreenState(load: model.loadState, hasContent: !model.transactions.isEmpty) {
+                case .loading:
                     LoadingStateView()
-                } else if let errorMessage = model.errorMessage {
+                case .failed(let errorMessage):
                     ErrorStateView(message: errorMessage) {
                         Task { await model.load() }
                     }
-                } else if model.transactions.isEmpty {
+                case .empty:
                     EmptyStateView(
                         title: String(localized: "Keine Transaktionen"),
                         message: String(localized: "Für „\(categoryName)“ wurden im ausgewählten Zeitraum keine Ausgaben gefunden."),
                         systemImage: "tray"
                     )
-                } else {
+                case .content:
                     transactionList
                 }
             }
@@ -85,6 +86,9 @@ struct CategoryDrilldownSheet: View {
                 }
                 .disabled(model.isLoadingPage)
             }
+            if let actionError = model.actionError {
+                InlineNotice(message: actionError, tone: .warning)
+            }
         }
         .financeFormStyle()
     }
@@ -106,10 +110,13 @@ final class CategoryDrilldownModel {
     private var rawOffset = 0
 
     private(set) var transactions: [Transaction] = []
-    private(set) var isLoading = true
-    private(set) var errorMessage: String?
+    /// Beginnt ladend (AGENTS #37); ein Fehler beim Nachladen ist eine
+    /// Aktion und steht in `actionError`.
+    private(set) var loadState: LoadState = .loading
+    private(set) var actionError: String?
     private(set) var canLoadMore = false
     private(set) var isLoadingPage = false
+    var isLoading: Bool { loadState.isLoading }
 
     init(
         categoryID: UUID?,
@@ -128,11 +135,12 @@ final class CategoryDrilldownModel {
     }
 
     func load() async {
-        isLoading = true
-        errorMessage = nil
+        loadState = .loading
+        actionError = nil
         transactions = []
         rawOffset = 0
-        defer { isLoading = false }
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         do {
             let categories = try await dependencies.categoryRepository.categories()
@@ -140,7 +148,7 @@ final class CategoryDrilldownModel {
             calculator = AnalyticsCalculator(baseCurrency: currency, converter: await dependencies.fxRateProvider.converter())
             try await appendPagesUntilVisible()
         } catch {
-            errorMessage = String(localized: "Transaktionen konnten nicht geladen werden.")
+            failure = String(localized: "Transaktionen konnten nicht geladen werden.")
             transactions = []
             canLoadMore = false
         }
@@ -153,7 +161,7 @@ final class CategoryDrilldownModel {
         do {
             try await appendPagesUntilVisible()
         } catch {
-            errorMessage = String(localized: "Weitere Transaktionen konnten nicht geladen werden.")
+            actionError = String(localized: "Weitere Transaktionen konnten nicht geladen werden.")
         }
     }
 

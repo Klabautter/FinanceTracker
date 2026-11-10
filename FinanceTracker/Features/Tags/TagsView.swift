@@ -90,17 +90,20 @@ struct TagsView: View {
                         .accessibilityLabel("Farbe des neuen Tags")
                     }
                 }
-                if let errorMessage = model.errorMessage {
+                if let errorMessage = model.loadState.failureMessage {
                     HStack(spacing: AppSpacing.m) {
                         InlineNotice(message: errorMessage, title: String(localized: "Tags konnten nicht geladen werden"), tone: .critical)
                         Button("Erneut versuchen") { Task { await model.load() } }
                     }
                 }
+                if let actionError = model.actionError {
+                    InlineNotice(message: actionError, tone: .critical)
+                }
                 PageSection(
                     String(localized: "Deine Tags"),
                     subtitle: model.tags.isEmpty ? nil : (model.tags.count == 1 ? String(localized: "1 Tag") : String(localized: "\(model.tags.count) Tags"))
                 ) {
-                    if model.tags.isEmpty && !model.isLoading {
+                    if ScreenState(load: model.loadState, hasContent: !model.tags.isEmpty) == .empty {
                         Text("Noch keine Tags. Erstelle deinen ersten Tag oben.")
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("screen-ready-tags")

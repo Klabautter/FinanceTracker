@@ -32,11 +32,16 @@ struct BudgetsView: View {
 
     var body: some View {
         Group {
-            if model.isLoading, model.progresses.isEmpty {
+            switch ScreenState(load: model.loadState, hasContent: !model.progresses.isEmpty) {
+            case .loading:
                 LoadingStateView()
-            } else if model.progresses.isEmpty {
+            case .failed(let errorMessage):
+                ErrorStateView(message: errorMessage) {
+                    Task { await model.load() }
+                }
+            case .empty:
                 emptyList
-            } else {
+            case .content:
                 #if os(macOS)
                 macWorkspace
                 #else
@@ -47,8 +52,13 @@ struct BudgetsView: View {
         .accessibilityIdentifier("screen-ready-budgets")
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                if let errorMessage = model.errorMessage {
-                    InlineNotice(message: errorMessage, title: String(localized: "Budgets konnten nicht vollständig geladen werden"), tone: .critical)
+                if !model.progresses.isEmpty, let errorMessage = model.loadState.failureMessage {
+                    InlineNotice(message: errorMessage, title: String(localized: "Budgets konnten nicht neu geladen werden"), tone: .critical)
+                        .padding(.horizontal, AppLayout.pageHorizontalPadding)
+                        .padding(.bottom, AppSpacing.s)
+                }
+                if let actionError = model.actionError {
+                    InlineNotice(message: actionError, tone: .critical)
                         .padding(.horizontal, AppLayout.pageHorizontalPadding)
                         .padding(.bottom, AppSpacing.s)
                 }

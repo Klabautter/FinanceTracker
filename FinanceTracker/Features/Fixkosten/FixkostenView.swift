@@ -43,11 +43,19 @@ struct FixkostenView: View {
 
     var body: some View {
         Group {
-            if model.isLoading, model.commitments.isEmpty, model.suggestions.isEmpty {
+            switch ScreenState(
+                load: model.loadState,
+                hasContent: !(model.commitments.isEmpty && model.suggestions.isEmpty && model.hiddenSuggestions.isEmpty)
+            ) {
+            case .loading:
                 LoadingStateView()
-            } else if model.commitments.isEmpty, model.suggestions.isEmpty, model.hiddenSuggestions.isEmpty {
+            case .failed(let errorMessage):
+                ErrorStateView(message: errorMessage) {
+                    Task { await model.load() }
+                }
+            case .empty:
                 emptyList
-            } else {
+            case .content:
                 #if os(macOS)
                 macWorkspace
                 #else
@@ -56,14 +64,19 @@ struct FixkostenView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let errorMessage = model.errorMessage {
-                HStack(spacing: AppSpacing.m) {
-                    InlineNotice(message: errorMessage, title: String(localized: "Zahlungspläne konnten nicht geladen werden"), tone: .critical)
-                    Button("Erneut versuchen") { Task { await model.load() } }
+            VStack(spacing: AppSpacing.s) {
+                if !model.commitments.isEmpty, let errorMessage = model.loadState.failureMessage {
+                    HStack(spacing: AppSpacing.m) {
+                        InlineNotice(message: errorMessage, title: String(localized: "Zahlungspläne konnten nicht neu geladen werden"), tone: .critical)
+                        Button("Erneut versuchen") { Task { await model.load() } }
+                    }
                 }
-                .padding(.horizontal, AppLayout.pageHorizontalPadding)
-                .padding(.bottom, AppSpacing.s)
+                if let actionError = model.actionError {
+                    InlineNotice(message: actionError, tone: .critical)
+                }
             }
+            .padding(.horizontal, AppLayout.pageHorizontalPadding)
+            .padding(.bottom, AppSpacing.s)
         }
         .accessibilityIdentifier("screen-ready-recurring")
         .workspaceNavigationTitle(String(localized: "Wiederkehrend"))

@@ -54,7 +54,7 @@ struct TransactionDetailSheet: View {
     private var sheetContent: some View {
         if model.transaction(withID: transactionID) != nil {
             TransactionDetailView(model: model, transactionID: transactionID)
-        } else if let errorMessage = model.errorMessage, !model.isLoading {
+        } else if let errorMessage = model.loadState.failureMessage {
             ErrorStateView(message: errorMessage) {
                 Task { await model.load(transactionID: transactionID) }
             }

@@ -7,8 +7,11 @@ final class TagsModel {
 
     private(set) var tags: [Tag] = []
     private(set) var usageCounts: [UUID: Int] = [:]
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden (AGENTS #37); Speicher-, Lösch- und Eingabefehler stehen
+    /// getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
 
     var dataRevision: Int { dependencies.changeTracker.revision }
 
@@ -18,15 +21,15 @@ final class TagsModel {
 
     func load() async {
         guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         do {
             tags = try await dependencies.tagRepository.tags()
             usageCounts = try await loadUsageCounts()
         } catch {
-            errorMessage = String(localized: "Tags konnten nicht geladen werden.")
+            failure = String(localized: "Tags konnten nicht geladen werden.")
         }
     }
 
@@ -45,7 +48,7 @@ final class TagsModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Tag konnte nicht erstellt werden.")
+            actionError = String(localized: "Tag konnte nicht erstellt werden.")
         }
     }
 
@@ -55,7 +58,7 @@ final class TagsModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Tag konnte nicht gespeichert werden.")
+            actionError = String(localized: "Tag konnte nicht gespeichert werden.")
         }
     }
 
@@ -67,7 +70,7 @@ final class TagsModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Tag konnte nicht gelöscht werden.")
+            actionError = String(localized: "Tag konnte nicht gelöscht werden.")
         }
     }
 

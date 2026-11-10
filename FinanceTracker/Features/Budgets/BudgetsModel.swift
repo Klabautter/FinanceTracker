@@ -9,8 +9,11 @@ final class BudgetsModel {
     private let progressLoader: LoadBudgetProgresses
 
     private(set) var progresses: [BudgetProgress] = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden (AGENTS #37); Speicher-, Lösch- und Eingabefehler stehen
+    /// getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
     private(set) var currency: CurrencyCode = .eur
     /// FX-Status für UI-Debug (Quelle live/cache/fallback + Stand, `nil` =
     /// keine Fremdwährung im Scope). Fallback blockiert nie.
@@ -46,13 +49,13 @@ final class BudgetsModel {
 
     func load() async {
         guard !isLoading else { return }
-        isLoading = true
+        loadState = .loading
         fxIsLoading = true
-        errorMessage = nil
+        var failure: String?
         let signpost = PerfSignpost.signposter.beginInterval("BudgetLoad")
         defer {
             PerfSignpost.signposter.endInterval("BudgetLoad", signpost)
-            isLoading = false
+            loadState = failure.map { .failed($0) } ?? .loaded
             fxIsLoading = false
         }
 
@@ -66,7 +69,7 @@ final class BudgetsModel {
             fxSnapshot = result.fxSnapshot
             salaryCycleFallbackBudgetIDs = result.salaryCycleFallbackBudgetIDs
         } catch {
-            errorMessage = String(localized: "Budgets konnten nicht geladen werden.")
+            failure = String(localized: "Budgets konnten nicht geladen werden.")
         }
     }
 
@@ -76,7 +79,7 @@ final class BudgetsModel {
             await load()
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Budget konnte nicht gelöscht werden.")
+            actionError = String(localized: "Budget konnte nicht gelöscht werden.")
         }
     }
 

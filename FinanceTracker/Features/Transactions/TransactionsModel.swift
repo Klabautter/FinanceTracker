@@ -37,9 +37,12 @@ final class TransactionsModel {
                 : account.name
         }
     }
-    private(set) var isLoading = false
+    /// Laden der Liste (AGENTS #37); Speicher-, Lösch- und Eingabefehler
+    /// stehen getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
     private(set) var isLoadingPage = false
-    private(set) var errorMessage: String?
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
     private(set) var canLoadMore = false
 
     var searchText: String = ""
@@ -219,14 +222,14 @@ final class TransactionsModel {
         searchDebounceTask?.cancel()
         loadGeneration += 1
         let generation = loadGeneration
-        isLoading = true
+        loadState = .loading
         // Ein laufendes Nachladen ist damit überholt; sein Ende würde das
         // Flag wegen der Generation nicht mehr zurücksetzen.
         isLoadingPage = false
-        errorMessage = nil
+        var failure: String?
         defer {
             if generation == loadGeneration {
-                isLoading = false
+                loadState = failure.map { .failed($0) } ?? .loaded
                 hasLoadedData = true
             }
         }
@@ -259,7 +262,7 @@ final class TransactionsModel {
                 uniqueKeysWithValues: fetchedAccounts.map { ($0.id, $0) }
             )
         } catch {
-            errorMessage = String(localized: "Die Transaktionen konnten nicht geladen werden.")
+            failure = String(localized: "Die Transaktionen konnten nicht geladen werden.")
         }
     }
 
@@ -267,10 +270,10 @@ final class TransactionsModel {
     /// dürfen nicht erst eine komplette Seite laden und hoffen, dass die
     /// angeklickte Transaktion darin enthalten ist.
     func load(transactionID: Transaction.ID) async {
-        isLoading = true
-        errorMessage = nil
+        loadState = .loading
+        var failure: String?
         defer {
-            isLoading = false
+            loadState = failure.map { .failed($0) } ?? .loaded
             hasLoadedData = true
         }
 
@@ -282,7 +285,7 @@ final class TransactionsModel {
 
             guard let transaction = try await transactionTask else {
                 transactions = []
-                errorMessage = String(localized: "Die Transaktion wurde nicht gefunden.")
+                failure = String(localized: "Die Transaktion wurde nicht gefunden.")
                 return
             }
 
@@ -302,7 +305,7 @@ final class TransactionsModel {
             canLoadMore = false
         } catch {
             transactions = []
-            errorMessage = String(localized: "Die Transaktionsdetails konnten nicht geladen werden.")
+            failure = String(localized: "Die Transaktionsdetails konnten nicht geladen werden.")
         }
     }
 
@@ -329,7 +332,7 @@ final class TransactionsModel {
             canLoadMore = page.hasMore
             transactions.append(contentsOf: try await resolveAnnotations(for: page.transactions))
         } catch {
-            errorMessage = String(localized: "Weitere Transaktionen konnten nicht geladen werden.")
+            actionError = String(localized: "Weitere Transaktionen konnten nicht geladen werden.")
         }
     }
 
@@ -553,7 +556,7 @@ final class TransactionsModel {
             }
             markLocallyChanged()
         } catch {
-            errorMessage = failureMessage
+            actionError = failureMessage
         }
     }
 
@@ -584,7 +587,7 @@ final class TransactionsModel {
             }
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Rückgängig konnte nicht angewendet werden.")
+            actionError = String(localized: "Rückgängig konnte nicht angewendet werden.")
         }
     }
 
@@ -646,7 +649,7 @@ final class TransactionsModel {
         do {
             guard let raw = try await dependencies.transactionRepository.transaction(id: transaction.id) else {
                 // Die Buchung existiert nicht mehr (z. B. anderswo gelöscht).
-                errorMessage = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
+                actionError = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
                 await refresh()
                 return
             }
@@ -657,7 +660,7 @@ final class TransactionsModel {
             try await dependencies.transactionRepository.upsert([stored])
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
+            actionError = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
             await refresh()
             return
         }
@@ -790,7 +793,7 @@ final class TransactionsModel {
                             deletingRuleID: previousRule == nil ? rule.id : nil
                         )
                     } catch {
-                        self.errorMessage = String(localized: "Rückgängig konnte nicht angewendet werden.")
+                        self.actionError = String(localized: "Rückgängig konnte nicht angewendet werden.")
                     }
                 },
                 apply: { [weak self] in
@@ -798,12 +801,12 @@ final class TransactionsModel {
                     do {
                         try await self.writeMerchantCategory(changed, rule: rule, deletingRuleID: nil)
                     } catch {
-                        self.errorMessage = String(localized: "Änderung konnte nicht gespeichert werden.")
+                        self.actionError = String(localized: "Änderung konnte nicht gespeichert werden.")
                     }
                 }
             )
         } catch {
-            errorMessage = String(localized: "Die Kategorie konnte nicht für alle Buchungen des Händlers übernommen werden.")
+            actionError = String(localized: "Die Kategorie konnte nicht für alle Buchungen des Händlers übernommen werden.")
         }
     }
 
@@ -855,7 +858,7 @@ final class TransactionsModel {
             // Die konkrete Korrektur ist bereits gespeichert. Nur das Lernen
             // ist fehlgeschlagen, daher die Ansicht nicht durch einen
             // Full-Screen-Fehler ersetzen.
-            errorMessage = String(localized: "Die Kategorie wurde gesetzt, konnte für diesen Händler aber nicht gemerkt werden.")
+            actionError = String(localized: "Die Kategorie wurde gesetzt, konnte für diesen Händler aber nicht gemerkt werden.")
         }
         await prepareMerchantCategoryOffer(for: updated)
     }
@@ -900,7 +903,7 @@ final class TransactionsModel {
             }
             return true
         } catch {
-            errorMessage = String(localized: "Die Regel konnte nicht gespeichert werden.")
+            actionError = String(localized: "Die Regel konnte nicht gespeichert werden.")
             return false
         }
     }
@@ -929,7 +932,7 @@ final class TransactionsModel {
             transactions[index] = effectiveTransactionResolver.applying(annotation: annotation, to: transaction)
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Der Prüfstatus konnte nicht gespeichert werden.")
+            actionError = String(localized: "Der Prüfstatus konnte nicht gespeichert werden.")
             await refresh()
         }
     }
@@ -956,7 +959,7 @@ final class TransactionsModel {
             transactions[index] = effectiveTransactionResolver.applying(annotation: annotation, to: transaction)
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Der Analyse-Ausschluss konnte nicht gespeichert werden.")
+            actionError = String(localized: "Der Analyse-Ausschluss konnte nicht gespeichert werden.")
             await refresh()
         }
     }
@@ -983,7 +986,7 @@ final class TransactionsModel {
             transactions[index] = effectiveTransactionResolver.applying(annotation: annotation, to: transaction)
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Die Notiz konnte nicht gespeichert werden.")
+            actionError = String(localized: "Die Notiz konnte nicht gespeichert werden.")
             await refresh()
         }
     }
@@ -1011,14 +1014,14 @@ final class TransactionsModel {
                 dependencies.changeTracker.markChanged()
                 await refresh()
             case .alreadyMirrored:
-                errorMessage = String(localized: "Diese Abhebung ist bereits im Bargeldkonto gutgeschrieben.")
+                actionError = String(localized: "Diese Abhebung ist bereits im Bargeldkonto gutgeschrieben.")
             case .currencyMismatch:
-                errorMessage = String(localized: "Bargeldkonto und Buchung haben unterschiedliche Währungen.")
+                actionError = String(localized: "Bargeldkonto und Buchung haben unterschiedliche Währungen.")
             case .notEligible:
-                errorMessage = String(localized: "Nur Ausgaben von einem anderen Konto lassen sich als Abhebung gutschreiben.")
+                actionError = String(localized: "Nur Ausgaben von einem anderen Konto lassen sich als Abhebung gutschreiben.")
             }
         } catch {
-            errorMessage = String(localized: "Die Abhebung konnte nicht gutgeschrieben werden.")
+            actionError = String(localized: "Die Abhebung konnte nicht gutgeschrieben werden.")
         }
     }
 
@@ -1047,7 +1050,7 @@ final class TransactionsModel {
             transactions[index] = effectiveTransactionResolver.applying(annotation: annotation, to: base)
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Der Typ konnte nicht gespeichert werden.")
+            actionError = String(localized: "Der Typ konnte nicht gespeichert werden.")
             await refresh()
         }
     }
@@ -1075,7 +1078,7 @@ final class TransactionsModel {
             transactions[index] = effectiveTransactionResolver.applying(annotation: annotation, to: transaction)
             markLocallyChanged()
         } catch {
-            errorMessage = String(localized: "Die Tags konnten nicht gespeichert werden.")
+            actionError = String(localized: "Die Tags konnten nicht gespeichert werden.")
             await refresh()
         }
     }
@@ -1163,7 +1166,7 @@ final class TransactionsModel {
                         self.dependencies.changeTracker.markChanged()
                         await self.refresh()
                     } catch {
-                        self.errorMessage = String(localized: "Rückgängig konnte nicht angewendet werden.")
+                        self.actionError = String(localized: "Rückgängig konnte nicht angewendet werden.")
                     }
                 },
                 apply: { [weak self] in
@@ -1173,12 +1176,12 @@ final class TransactionsModel {
                         self.transactions.removeAll { ids.contains($0.id) }
                         self.markLocallyChanged()
                     } catch {
-                        self.errorMessage = String(localized: "Die Buchung konnte nicht gelöscht werden.")
+                        self.actionError = String(localized: "Die Buchung konnte nicht gelöscht werden.")
                     }
                 }
             )
         } catch {
-            errorMessage = String(localized: "Die Buchung konnte nicht gelöscht werden.")
+            actionError = String(localized: "Die Buchung konnte nicht gelöscht werden.")
         }
     }
 
@@ -1224,7 +1227,7 @@ final class TransactionsModel {
                 }
             )
         } catch {
-            errorMessage = String(localized: "Bulk-Kategorie konnte nicht gespeichert werden.")
+            actionError = String(localized: "Bulk-Kategorie konnte nicht gespeichert werden.")
         }
     }
 
@@ -1315,7 +1318,7 @@ final class TransactionsModel {
                 }
             )
         } catch {
-            errorMessage = failureMessage
+            actionError = failureMessage
         }
     }
 }

@@ -62,7 +62,7 @@ struct DashboardView: View {
         Group {
             if model.isLoading, model.snapshot == nil {
                 LoadingStateView()
-            } else if let errorMessage = model.errorMessage {
+            } else if let errorMessage = model.loadState.failureMessage, model.snapshot == nil {
                 ErrorStateView(message: errorMessage) {
                     Task { await model.load() }
                 }

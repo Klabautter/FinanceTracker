@@ -43,8 +43,11 @@ final class FixkostenModel {
     /// Fixkosten, deren Konto gelöscht ist und die sich keinem anderen
     /// Konto eindeutig zuordnen lassen.
     private(set) var orphanedCommitmentIDs: Set<RecurringCommitment.ID> = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden (AGENTS #37); Speicher-, Lösch- und Eingabefehler stehen
+    /// getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
 
     /// WP7: Occurrence-Resolution pro Commitment (aktueller Zeitraum):
     /// Quelle für Summary und UI-Paid-Status (§59/§60).
@@ -64,9 +67,9 @@ final class FixkostenModel {
 
     func load() async {
         guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         dismissedKeys = Set(
             dependencies.userDefaults.stringArray(forKey: dismissedDefaultsKey) ?? []
@@ -169,7 +172,7 @@ final class FixkostenModel {
             suggestions = open.filter { !dismissedKeys.contains(dismissKey(for: $0)) }
             hiddenSuggestions = open.filter { dismissedKeys.contains(dismissKey(for: $0)) }
         } catch {
-            errorMessage = String(localized: "Zahlungspläne konnten nicht geladen werden.")
+            failure = String(localized: "Zahlungspläne konnten nicht geladen werden.")
         }
     }
 
@@ -206,7 +209,7 @@ final class FixkostenModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Abo konnte nicht bestätigt werden.")
+            actionError = String(localized: "Abo konnte nicht bestätigt werden.")
         }
     }
 
@@ -238,7 +241,7 @@ final class FixkostenModel {
                 await restoreSuggestion(series)
                 dependencies.changeTracker.markChanged()
             } catch {
-                errorMessage = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
+                actionError = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
             }
         case nil:
             break
@@ -269,7 +272,7 @@ final class FixkostenModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Der Zahlungsplan konnte nicht gespeichert werden.")
+            actionError = String(localized: "Der Zahlungsplan konnte nicht gespeichert werden.")
         }
     }
 
@@ -282,7 +285,7 @@ final class FixkostenModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
+            actionError = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
         }
     }
 

@@ -105,8 +105,9 @@ final class AnalyticsModel {
     private(set) var scope: AnalyticsScope?
     private(set) var availableAccounts: [Account] = []
     private(set) var availableCategories: [Category] = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden der Analyse (AGENTS #37); diese Ansicht hat keine Aktionen.
+    private(set) var loadState: LoadState = .idle
+    var isLoading: Bool { loadState.isLoading }
     /// FX-Status für UI-Debug (Quelle live/cache/fallback + Stand). `nil` =
     /// keine Fremdwährung im Scope (kein Fetch nötig) oder noch nie geladen.
     /// Ein Fallback blockiert die Analyse nie, er gilt immer.
@@ -214,15 +215,14 @@ final class AnalyticsModel {
     func load() async {
         loadGeneration += 1
         let generation = loadGeneration
-        isLoading = true
+        loadState = .loading
         let signpost = PerfSignpost.signposter.beginInterval("AnalyticsLoad")
         defer {
             PerfSignpost.signposter.endInterval("AnalyticsLoad", signpost)
             // Ein abgebrochener Load (Filterwechsel, View verschwindet) darf
             // keinen Spinner hinterlassen; ein neuerer Load verwaltet ihn selbst.
-            if generation == loadGeneration { isLoading = false }
+            if generation == loadGeneration, loadState == .loading { loadState = .loaded }
         }
-        errorMessage = nil
 
         let key = CacheKey(
             revision: dataRevision,
@@ -261,7 +261,7 @@ final class AnalyticsModel {
                 previousSnapshot = entry.previousSnapshot
                 monthlyPoints = entry.monthlyPoints
                 scope = entry.scope
-                isLoading = false
+                loadState = .loaded
                 return
             }
             // Kurse geändert → fällt in die Neuberechnung unten.
@@ -368,14 +368,13 @@ final class AnalyticsModel {
             )
 
             if generation == loadGeneration {
-                isLoading = false
+                loadState = .loaded
             }
         } catch {
             // WP15: Auch der Error eines veralteten Loads überschreibt den
             // Zustand des aktuellen Loads nicht.
             guard generation == loadGeneration, !Task.isCancelled else { return }
-            errorMessage = String(localized: "Die Analyse konnte nicht geladen werden.")
-            isLoading = false
+            loadState = .failed(String(localized: "Die Analyse konnte nicht geladen werden."))
         }
     }
 
@@ -387,8 +386,7 @@ final class AnalyticsModel {
         previousSnapshot = nil
         monthlyPoints = []
         scope = nil
-        errorMessage = nil
-        isLoading = true
+        loadState = .loading
         activeFilterLoadTask?.cancel()
         activeFilterLoadTask = Task { [weak self] in
             await self?.load()

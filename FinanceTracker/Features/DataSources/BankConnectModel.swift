@@ -81,8 +81,11 @@ final class BankConnectModel {
     private let healthEvaluator = ConnectionHealthEvaluator()
 
     private(set) var connections: [Connection] = []
-    private(set) var isLoadingConnections = false
-    private(set) var connectionsErrorMessage: String?
+    /// Laden der Verbindungsliste (AGENTS #37); Trennen-Fehler stehen in
+    /// `connectionsActionError`.
+    private(set) var connectionsLoadState: LoadState = .idle
+    private(set) var connectionsActionError: String?
+    var isLoadingConnections: Bool { connectionsLoadState.isLoading }
     private(set) var syncingConnectionID: UUID?
     /// 3-Wege-Sync-Fehler pro Connection (silent-retry vs. Re-Auth vs. blockiert).
     private(set) var syncIssues: [UUID: SyncFailureKind] = [:]
@@ -563,7 +566,7 @@ final class BankConnectModel {
             dependencies.changeTracker.markChanged()
             await loadConnections()
         } catch {
-            connectionsErrorMessage = String(localized: "\(connection.displayName) konnte nicht getrennt werden.")
+            connectionsActionError = String(localized: "\(connection.displayName) konnte nicht getrennt werden.")
         }
     }
 
@@ -727,14 +730,14 @@ final class BankConnectModel {
     /// Lädt bestehende Connections (read-only) für Banner + Pro-Connection-Zeile.
     func loadConnections() async {
         guard !isLoadingConnections else { return }
-        isLoadingConnections = true
-        connectionsErrorMessage = nil
-        defer { isLoadingConnections = false }
+        connectionsLoadState = .loading
+        var failure: String?
+        defer { connectionsLoadState = failure.map { .failed($0) } ?? .loaded }
         do {
             let fetched = try await dependencies.connectionRepository.connections()
             connections = fetched.sorted { $0.updatedAt > $1.updatedAt }
         } catch {
-            connectionsErrorMessage = String(localized: "Die Bankverbindungen konnten nicht geladen werden.")
+            failure = String(localized: "Die Bankverbindungen konnten nicht geladen werden.")
         }
     }
 

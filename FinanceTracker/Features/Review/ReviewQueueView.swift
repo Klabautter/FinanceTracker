@@ -13,20 +13,21 @@ struct ReviewQueueView: View {
     var body: some View {
         AdaptiveSheet(title: String(localized: "Prüfliste")) {
             Group {
-                if let error = model.errorMessage, model.items.isEmpty && !model.isLoading {
+                switch ScreenState(load: model.loadState, hasContent: !model.items.isEmpty) {
+                case .failed(let error):
                     ErrorStateView(message: error) {
                         Task { await model.load() }
                     }
-                } else if model.isLoading, model.items.isEmpty {
+                case .loading:
                     LoadingStateView()
-                } else if model.items.isEmpty {
+                case .empty:
                     EmptyStateView(
                         title: String(localized: "Alles geprüft"),
                         message: String(localized: "Aktuell gibt es nichts zu prüfen. Neue Buchungen ohne Kategorie oder mit Auffälligkeiten erscheinen hier."),
                         systemImage: "checkmark.seal.fill",
                         tint: AppPalette.positive
                     )
-                } else {
+                case .content:
                     reviewList
                 }
             }
@@ -62,7 +63,7 @@ struct ReviewQueueView: View {
             VStack(alignment: .leading, spacing: AppSpacing.l) {
                 overview
 
-                if let error = model.errorMessage {
+                if let error = model.loadState.failureMessage {
                     HStack(spacing: AppSpacing.m) {
                         InlineNotice(message: error, tone: .warning)
                         Button("Erneut versuchen") {
@@ -70,6 +71,9 @@ struct ReviewQueueView: View {
                         }
                         .controlSize(.small)
                     }
+                }
+                if let actionError = model.actionError {
+                    InlineNotice(message: actionError, tone: .warning)
                 }
 
                 reviewSection(

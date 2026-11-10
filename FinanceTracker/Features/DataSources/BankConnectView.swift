@@ -188,7 +188,7 @@ struct BankConnectView: View {
                 }
                 .accessibilityLabel("Bankverbindungen werden geladen")
             }
-        } else if let error = model.connectionsErrorMessage {
+        } else if let error = model.connectionsLoadState.failureMessage {
             Section {
                 HStack(spacing: AppSpacing.s) {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -202,6 +202,12 @@ struct BankConnectView: View {
                 }
             }
         } else if !model.connections.isEmpty {
+            if let actionError = model.connectionsActionError {
+                Section {
+                    Label(actionError, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(AppPalette.warning)
+                }
+            }
             Section {
                 if model.showsConsentBanner, let banner = model.consentBannerMessage {
                     Label {

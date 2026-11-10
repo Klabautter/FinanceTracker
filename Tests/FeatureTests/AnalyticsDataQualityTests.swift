@@ -75,7 +75,7 @@ struct AnalyticsDataQualityTests {
 
         await model.load()
 
-        #expect(model.errorMessage != nil)
+        #expect(model.loadState.failureMessage != nil)
         #expect(model.snapshot == nil)
         #expect(model.previousSnapshot == nil)
         #expect(model.isLoading == false)
@@ -93,7 +93,7 @@ struct AnalyticsDataQualityTests {
 
         await model.load()
 
-        #expect(model.errorMessage != nil)
+        #expect(model.loadState.failureMessage != nil)
         #expect(model.snapshot == nil)
         #expect(model.isLoading == false)
     }
@@ -110,7 +110,7 @@ struct AnalyticsDataQualityTests {
 
         await model.load()
 
-        #expect(model.errorMessage != nil)
+        #expect(model.loadState.failureMessage != nil)
         #expect(model.snapshot == nil)
         #expect(model.isLoading == false)
     }

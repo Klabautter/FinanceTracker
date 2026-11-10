@@ -79,7 +79,7 @@ final class AddTransactionModel {
             draft.accountID = account.id
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Das Konto konnte nicht angelegt werden.")
+            actionError = String(localized: "Das Konto konnte nicht angelegt werden.")
         }
     }
 
@@ -119,9 +119,12 @@ final class AddTransactionModel {
         }
     }
     private(set) var tags: [Tag] = []
-    private(set) var isLoading = false
+    /// Laden der Stammdaten (AGENTS #37); Eingabe- und Speicherfehler
+    /// stehen getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
     private(set) var isSaving = false
-    private(set) var errorMessage: String?
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
     private var didSave = false
 
     var draft = Draft()
@@ -167,9 +170,9 @@ final class AddTransactionModel {
 
     func load() async {
         guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         do {
             async let accountsTask = dependencies.accountRepository.accounts()
@@ -195,7 +198,7 @@ final class AddTransactionModel {
                 draft.accountID = accounts.first?.id
             }
         } catch {
-            errorMessage = String(localized: "Stammdaten konnten nicht geladen werden.")
+            failure = String(localized: "Stammdaten konnten nicht geladen werden.")
         }
     }
 
@@ -211,11 +214,11 @@ final class AddTransactionModel {
     func save() async -> Bool {
         guard !isSaving, !didSave else { return false }
         isSaving = true
-        errorMessage = nil
+        actionError = nil
         defer { isSaving = false }
 
         guard let amount = DecimalParser.parse(draft.amountText), amount > 0 else {
-            errorMessage = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
+            actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
             return false
         }
         let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -232,12 +235,12 @@ final class AddTransactionModel {
 
         let merchant = draft.merchant.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !merchant.isEmpty else {
-            errorMessage = String(localized: "Bitte einen Händler bzw. eine Beschreibung eingeben.")
+            actionError = String(localized: "Bitte einen Händler bzw. eine Beschreibung eingeben.")
             return false
         }
         guard let accountID = draft.accountID,
               let account = accounts.first(where: { $0.id == accountID }) else {
-            errorMessage = String(localized: "Bitte ein Konto wählen.")
+            actionError = String(localized: "Bitte ein Konto wählen.")
             return false
         }
 
@@ -294,7 +297,7 @@ final class AddTransactionModel {
             dependencies.changeTracker.markChanged()
             return true
         } catch {
-            errorMessage = String(localized: "Transaktion konnte nicht gespeichert werden.")
+            actionError = String(localized: "Transaktion konnte nicht gespeichert werden.")
             return false
         }
     }
@@ -340,7 +343,7 @@ final class AddTransactionModel {
             dependencies.changeTracker.markChanged()
             return true
         } catch {
-            errorMessage = String(localized: "Änderungen konnten nicht gespeichert werden.")
+            actionError = String(localized: "Änderungen konnten nicht gespeichert werden.")
             return false
         }
     }
@@ -356,20 +359,20 @@ final class AddTransactionModel {
     ) async -> Bool {
         guard let fromID = transferDraft.fromAccountID,
               let fromAccount = accounts.first(where: { $0.id == fromID }) else {
-            errorMessage = String(localized: "Bitte das Ausgangskonto (Von) wählen.")
+            actionError = String(localized: "Bitte das Ausgangskonto (Von) wählen.")
             return false
         }
         guard let toID = transferDraft.toAccountID,
               let toAccount = accounts.first(where: { $0.id == toID }) else {
-            errorMessage = String(localized: "Bitte das Zielkonto (Nach) wählen.")
+            actionError = String(localized: "Bitte das Zielkonto (Nach) wählen.")
             return false
         }
         guard fromID != toID else {
-            errorMessage = String(localized: "Ausgangs- und Zielkonto müssen unterschiedlich sein.")
+            actionError = String(localized: "Ausgangs- und Zielkonto müssen unterschiedlich sein.")
             return false
         }
         guard fromAccount.currency == toAccount.currency else {
-            errorMessage = String(localized: "Transfers zwischen unterschiedlichen Währungen benötigen eine explizite Umrechnung.")
+            actionError = String(localized: "Transfers zwischen unterschiedlichen Währungen benötigen eine explizite Umrechnung.")
             return false
         }
 
@@ -409,7 +412,7 @@ final class AddTransactionModel {
             dependencies.changeTracker.markChanged()
             return true
         } catch {
-            errorMessage = String(localized: "Transfer konnte nicht gespeichert werden.")
+            actionError = String(localized: "Transfer konnte nicht gespeichert werden.")
             return false
         }
     }

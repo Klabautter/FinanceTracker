@@ -313,14 +313,14 @@ struct DashboardScopeTests {
         #expect(model.transactions.allSatisfy { interval.contains($0.displayDate) })
         #expect(model.transactions.contains { $0.amount.currency == .usd })
         #expect(model.canLoadMore == false)
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         let uncategorizedModel = CategoryDrilldownModel(
             categoryID: nil, dateInterval: interval, currency: .eur,
             dependencies: dependencies, pageSize: 2
         )
         await uncategorizedModel.load()
         while uncategorizedModel.canLoadMore { await uncategorizedModel.loadNextPage() }
-        #expect(uncategorizedModel.errorMessage == nil)
+        #expect(uncategorizedModel.loadState.failureMessage == nil)
         #expect(Set(uncategorizedModel.transactions.map(\.id)) == [splitID, uncategorizedID])
     }
 
@@ -399,7 +399,7 @@ struct DashboardScopeTests {
         let model = DashboardModel(dependencies: dependencies)
         await model.load()
 
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         #expect(model.snapshot?.totalSpending == 25)
         #expect(model.snapshot?.spendingByCategory.first(where: { $0.categoryID == Category.groceries.id })?.amount == 10)
         #expect(model.snapshot?.spendingByCategory.first(where: { $0.categoryID == Category.restaurants.id })?.amount == 15)

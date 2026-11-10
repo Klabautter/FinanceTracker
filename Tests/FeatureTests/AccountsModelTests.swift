@@ -83,7 +83,7 @@ struct AccountsModelTests {
         ])
         let model = AccountDetailModel(account: account, dependencies: dependencies)
         await model.load()
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         #expect(!model.isLoading)
         #expect(model.netMovement == -25)
         #expect(model.transactionCount == 3)
@@ -128,7 +128,7 @@ struct AccountsModelTests {
             let detail = AccountDetailModel(account: account, dependencies: dependencies)
             await detail.load()
             let listed = try #require(list.accounts.first { $0.id == account.id })
-            #expect(detail.errorMessage == nil)
+            #expect(detail.loadState.failureMessage == nil)
             #expect(detail.balance == listed.balance?.amount)
         }
         let bothDetail = AccountDetailModel(account: both, dependencies: dependencies)

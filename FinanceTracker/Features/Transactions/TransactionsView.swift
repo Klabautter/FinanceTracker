@@ -76,17 +76,16 @@ private struct MacTransactionsContent: View {
                     .padding(.bottom, AppSpacing.s)
                 }
                 Group {
-                    if let errorMessage = model.errorMessage, model.transactions.isEmpty {
+                    switch ScreenState(load: model.loadState, hasContent: !model.transactions.isEmpty) {
+                    case .failed(let errorMessage):
                         ErrorStateView(message: errorMessage) {
                             Task { await model.refresh() }
                         }
-                    } else if model.transactions.isEmpty {
-                        if model.isLoading {
-                            LoadingStateView()
-                        } else {
-                            transactionEmptyState
-                        }
-                    } else {
+                    case .loading:
+                        LoadingStateView()
+                    case .empty:
+                        transactionEmptyState
+                    case .content:
                         // MacUX-Audit: Tabelle in eigenem View-Kontext, Inspector-
                         // Toggle, Toolbar- und Suche-Zustände re-evaluieren nicht
                         // mehr die Table-Observation-Kette (Inspector-Lag).
@@ -281,7 +280,9 @@ private struct MacTransactionsContent: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 12)
         }
-        if let error = model.errorMessage, !model.transactions.isEmpty {
+        // Nachladefehler trotz Inhalt: Hinweis mit Neuladen; Aktionsfehler
+        // (Speichern, Löschen) als eigener Hinweis ohne Neuladen.
+        if !model.transactions.isEmpty, let error = model.loadState.failureMessage {
             HStack {
                 Label(error, systemImage: "exclamationmark.triangle")
                 Spacer()
@@ -290,6 +291,13 @@ private struct MacTransactionsContent: View {
             .font(.callout).padding(AppSpacing.m)
             .background(AppTone.warning.foregroundColor.opacity(0.1), in: RoundedRectangle(cornerRadius: AppRadius.medium))
             .padding(.horizontal, AppLayout.pageHorizontalPadding)
+        }
+        if let error = model.actionError {
+            Label(error, systemImage: "exclamationmark.triangle")
+                .font(.callout).padding(AppSpacing.m)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(AppTone.warning.foregroundColor.opacity(0.1), in: RoundedRectangle(cornerRadius: AppRadius.medium))
+                .padding(.horizontal, AppLayout.pageHorizontalPadding)
             .padding(.bottom, AppSpacing.s)
         }
     }
@@ -1093,23 +1101,22 @@ private struct MobileTransactionsContent: View {
 
     private var mobileContent: some View {
         Group {
-            if let errorMessage = model.errorMessage {
+            switch ScreenState(load: model.loadState, hasContent: !model.transactions.isEmpty) {
+            case .failed(let errorMessage):
                 ErrorStateView(message: errorMessage) {
                     Task { await model.refresh() }
                 }
-            } else if model.transactions.isEmpty {
-                if model.isLoading {
-                    LoadingStateView()
-                } else {
-                    EmptyStateView(
-                        title: String(localized: "Keine Transaktionen"),
-                        message: model.searchText.isEmpty
-                            ? String(localized: "Es sind noch keine Transaktionen vorhanden.")
-                            : String(localized: "Keine Treffer für „\(model.searchText)“."),
-                        systemImage: "list.bullet.rectangle"
-                    )
-                }
-            } else {
+            case .loading:
+                LoadingStateView()
+            case .empty:
+                EmptyStateView(
+                    title: String(localized: "Keine Transaktionen"),
+                    message: model.searchText.isEmpty
+                        ? String(localized: "Es sind noch keine Transaktionen vorhanden.")
+                        : String(localized: "Keine Treffer für „\(model.searchText)“."),
+                    systemImage: "list.bullet.rectangle"
+                )
+            case .content:
                 transactionList
             }
         }

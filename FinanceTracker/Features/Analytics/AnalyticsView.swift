@@ -266,7 +266,7 @@ struct AnalyticsView: View {
         Group {
             if model.isLoading, model.snapshot == nil {
                 LoadingStateView(label: String(localized: "Analyse für den gewählten Bereich laden…"))
-            } else if let errorMessage = model.errorMessage {
+            } else if let errorMessage = model.loadState.failureMessage, model.snapshot == nil {
                 ErrorStateView(message: errorMessage) {
                     Task { await model.load() }
                 }

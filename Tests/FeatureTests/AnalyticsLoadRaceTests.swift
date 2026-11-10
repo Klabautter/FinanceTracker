@@ -131,7 +131,7 @@ struct AnalyticsLoadRaceTests {
         let model = AnalyticsModel(dependencies: dependencies)
         model.filterCategoryIDs = [selected.id]
         await model.load()
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         #expect(model.snapshot?.totalSpending == 30)
         #expect(model.snapshot?.transactionCount == 1)
         #expect(model.snapshot?.spendingByCategory.map(\.amount) == [30])
@@ -250,7 +250,7 @@ struct AnalyticsLoadRaceTests {
 
         // 4) Final UI muss B zeigen: A darf nicht überschrieben haben.
         #expect(model.snapshot?.totalSpending == 222)
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         #expect(model.isLoading == false)
 
         // Ein anschließender Filterwechsel entfernt das alte Ergebnis schon
@@ -338,13 +338,13 @@ struct AnalyticsLoadRaceTests {
         model.filterCategoryIDs = [fastCategory]
         await model.load()
         #expect(model.snapshot?.totalSpending == 222)
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
 
         gate.open()
         await staleLoad.value
 
         // Kein Stale-Error, gültiges B-Ergebnis bleibt stehen.
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         #expect(model.snapshot?.totalSpending == 222)
     }
 }

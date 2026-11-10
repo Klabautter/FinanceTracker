@@ -79,8 +79,11 @@ final class ReviewQueueModel {
     private(set) var newCategoryProposals: [Transaction.ID: NewCategoryProposal] = [:]
     private var adviceTask: Task<Void, Never>?
     private var adviceRunID: UUID?
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden (AGENTS #37); Speicher-, Lösch- und Eingabefehler stehen
+    /// getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
     /// MacUX-Audit: Transaktionen, für die eine Kategorie-Merkregel erstellt
     /// wurde (Bestätigung im Row-Button; Wiederholungstäter verschwinden
     /// damit dauerhaft aus der Queue).
@@ -126,9 +129,9 @@ final class ReviewQueueModel {
 
     func load() async {
         guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         do {
             async let candidatesTask = dependencies.transactionRepository.reviewCandidateTransactions()
@@ -169,7 +172,7 @@ final class ReviewQueueModel {
             )
             startAdvising()
         } catch {
-            errorMessage = String(localized: "Die Prüfliste konnte nicht geladen werden.")
+            failure = String(localized: "Die Prüfliste konnte nicht geladen werden.")
         }
     }
 
@@ -434,7 +437,7 @@ final class ReviewQueueModel {
         processingTransactionIDs.formUnion(operationIDs)
         defer { processingTransactionIDs.subtract(operationIDs) }
         guard CategoryHierarchy().isAssignable(categoryID, in: categories) else {
-            errorMessage = String(localized: "Diese Kategorie kann Transaktionen nicht direkt zugewiesen werden.")
+            actionError = String(localized: "Diese Kategorie kann Transaktionen nicht direkt zugewiesen werden.")
             return
         }
         do {
@@ -442,7 +445,7 @@ final class ReviewQueueModel {
             // Mutation die vollständige Transaktion laden, damit keine
             // Felder der Persistenz verloren gehen.
             guard var updated = try await dependencies.transactionRepository.transaction(id: item.transaction.id) else {
-                errorMessage = String(localized: "Die Transaktion konnte nicht geladen werden.")
+                actionError = String(localized: "Die Transaktion konnte nicht geladen werden.")
                 return
             }
             updated.categoryID = categoryID
@@ -458,7 +461,7 @@ final class ReviewQueueModel {
                     categoryID: categoryID,
                     existingRules: existingRules
                 ) else {
-                    errorMessage = String(localized: "Für diesen Händler kann keine sichere Merkregel erstellt werden.")
+                    actionError = String(localized: "Für diesen Händler kann keine sichere Merkregel erstellt werden.")
                     return
                 }
                 if existingRules.first(where: { $0.id == rule.id }) != rule {
@@ -484,10 +487,10 @@ final class ReviewQueueModel {
                     linkedTransactionID: existingItem.linkedTransactionID
                 )
             }
-            errorMessage = nil
+            actionError = nil
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
+            actionError = String(localized: "Die Kategorie konnte nicht gespeichert werden.")
         }
     }
 
@@ -500,10 +503,10 @@ final class ReviewQueueModel {
             annotation.updatedAt = Date()
             try await dependencies.transactionAnnotationRepository.upsert([annotation])
             items.removeAll { $0.transaction.id == item.transaction.id }
-            errorMessage = nil
+            actionError = nil
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Der Prüfstatus konnte nicht gespeichert werden.")
+            actionError = String(localized: "Der Prüfstatus konnte nicht gespeichert werden.")
         }
     }
 
@@ -533,10 +536,10 @@ final class ReviewQueueModel {
                 assignableCategoryIDs: [categoryID]
             )
             createdRuleTransactionIDs.insert(item.transaction.id)
-            errorMessage = nil
+            actionError = nil
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Die Regel konnte nicht gespeichert werden.")
+            actionError = String(localized: "Die Regel konnte nicht gespeichert werden.")
         }
     }
 
@@ -552,7 +555,7 @@ final class ReviewQueueModel {
             // WP14: Vollständige Transaktionen laden (leichte Projection
             // nie zurückschreiben).
             guard var main = try await dependencies.transactionRepository.transaction(id: item.transaction.id) else {
-                errorMessage = String(localized: "Die Transaktion konnte nicht geladen werden.")
+                actionError = String(localized: "Die Transaktion konnte nicht geladen werden.")
                 return
             }
             var updates: [Transaction] = []
@@ -582,10 +585,10 @@ final class ReviewQueueModel {
             try await dependencies.transactionAnnotationRepository.upsert(annotations)
             let affectedIDs = Set(updates.map(\.id))
             items.removeAll { affectedIDs.contains($0.transaction.id) }
-            errorMessage = nil
+            actionError = nil
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Der Transfer konnte nicht gespeichert werden. Die Transaktionen bleiben unverändert.")
+            actionError = String(localized: "Der Transfer konnte nicht gespeichert werden. Die Transaktionen bleiben unverändert.")
         }
     }
 

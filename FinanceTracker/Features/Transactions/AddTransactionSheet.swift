@@ -152,7 +152,7 @@ struct AddTransactionSheet: View {
                         .accessibilityLabel("Notiz")
                 }
 
-                if let errorMessage = model.errorMessage {
+                if let errorMessage = model.actionError {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
                 }

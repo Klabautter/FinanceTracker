@@ -254,6 +254,6 @@ struct ManualTransferTests {
         model.draft.amountText = "100"
 
         #expect(await model.save() == false)
-        #expect(model.errorMessage != nil)
+        #expect(model.actionError != nil)
     }
 }
