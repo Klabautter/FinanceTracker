@@ -26,16 +26,22 @@
 # angelegt mit Sparkles generate_keys), öffentlich als SUPublicEDKey in
 # Config/FinanceTracker.macOS.Info.plist. Er verlässt den Mac nie.
 #
-# Code-Signatur: standardmäßig das selbst signierte Zertifikat „FinanceTracker
-# Release" aus dem Schlüsselbund, sonst FT_SIGNING_IDENTITY="Name". Ohne
-# Developer-ID bekommt jeder Build sonst eine neue Ad-hoc-Signatur, und macOS
-# fragt nach jedem Update erneut nach dem Schlüsselbund-Zugriff (Enable-
-# Banking-Schlüssel). Ein selbst erstelltes Zertifikat (Schlüsselbund-
-# verwaltung → Zertifikatsassistent → Code-Signierung) hält die Signatur
-# über Updates gleich.
+# Code-Signatur: „Developer ID Application" aus dem Schlüsselbund (die erste
+# gefundene, oder FT_SIGNING_IDENTITY="Developer ID Application: … (TEAM)").
+# Der Build wird mit Hardened Runtime und sicherem Zeitstempel signiert, bei
+# Apple notarisiert (notarytool, Schlüsselbund-Profil FT_NOTARY_PROFILE,
+# Standard "financetracker-notary") und gestapelt. Erst danach wird die
+# ZIP gepackt und mit Sparkle signiert. Ohne Developer ID bricht das Script
+# ab: Die Release-Entitlements erlauben keine fremden Bibliotheken mehr,
+# eine selbst signierte App lüde Sparkle nicht.
 #
-# --dry-run: Build, ZIP und Appcast laufen echt (im Arbeitsbaum), Push, Tag
-# und Release werden nur angezeigt.
+# Notary-Profil einmalig anlegen (Passwort = App-spezifisches Passwort von
+# appleid.apple.com, wird nur im Schlüsselbund gespeichert):
+#   xcrun notarytool store-credentials financetracker-notary \
+#       --apple-id <Apple-ID> --team-id <Team-ID>
+#
+# --dry-run: Build, Notarisierung, ZIP und Appcast laufen echt (im
+# Arbeitsbaum), Push, Tag und Release werden nur angezeigt.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -43,6 +49,7 @@ cd "$ROOT"
 # Muss zu SUFeedURL in Config/FinanceTracker.macOS.Info.plist passen.
 REPO="${FT_REPO:-Klabautter/FinanceTracker}"
 SPARKLE_ACCOUNT="financetracker"
+NOTARY_PROFILE="${FT_NOTARY_PROFILE:-financetracker-notary}"
 DERIVED="${FT_DERIVED_DATA:-$ROOT/build/release}"
 NOTES_FILE="$ROOT/RELEASE_NOTES.md"
 DRY_RUN=0
@@ -106,28 +113,80 @@ if [ "$DRY_RUN" = 0 ]; then
 fi
 echo "   Version $VERSION, Tag $TAG, Notizen: $SUMMARY"
 
-# --- 2. Bauen, packen, signieren -------------------------------------------
+IDENTITY="${FT_SIGNING_IDENTITY:-}"
+if [ -z "$IDENTITY" ]; then
+    IDENTITY="$(security find-identity -v -p codesigning \
+        | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)"
+fi
+case "$IDENTITY" in
+    "Developer ID Application: "*"("*")") ;;
+    *)
+        echo "Keine Developer-ID-Signatur gefunden (FT_SIGNING_IDENTITY=\"$IDENTITY\")." >&2
+        echo "Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application." >&2
+        exit 1 ;;
+esac
+TEAM_ID="${IDENTITY##*(}"; TEAM_ID="${TEAM_ID%)}"
+xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 || {
+    echo "Notary-Profil \"$NOTARY_PROFILE\" fehlt oder ist ungültig. Einmalig anlegen:" >&2
+    echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <Apple-ID> --team-id $TEAM_ID" >&2
+    exit 1
+}
+echo "   Signatur: $IDENTITY, Notary-Profil: $NOTARY_PROFILE"
+
+# --- 2. Bauen, signieren, notarisieren, packen ------------------------------
 
 echo "→ Erzeuge Projekt und baue Release …"
 xcodegen generate >/dev/null
-SIGN_ARGS=()
-# Standard: das selbst signierte Zertifikat aus dem Schlüsselbund, sofern vorhanden.
-if [ -z "${FT_SIGNING_IDENTITY:-}" ] && security find-certificate -c "FinanceTracker Release" >/dev/null 2>&1; then
-    FT_SIGNING_IDENTITY="FinanceTracker Release"
-fi
-if [ -n "${FT_SIGNING_IDENTITY:-}" ]; then
-    SIGN_ARGS=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$FT_SIGNING_IDENTITY" DEVELOPMENT_TEAM=)
-    echo "   Code-Signatur: $FT_SIGNING_IDENTITY"
-else
-    echo "   Code-Signatur: ad hoc (FT_SIGNING_IDENTITY nicht gesetzt)"
-fi
 xcodebuild build -project FinanceTracker.xcodeproj -scheme FinanceTracker \
-    -configuration Release -derivedDataPath "$DERIVED" ${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"} 2>&1 \
+    -configuration Release -derivedDataPath "$DERIVED" \
+    CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$IDENTITY" "DEVELOPMENT_TEAM=$TEAM_ID" \
+    "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO 2>&1 \
     | grep -E " error: |BUILD (SUCCEEDED|FAILED)" || true
 
 APP="$DERIVED/Build/Products/Release/FinanceTracker.app"
 [ -d "$APP" ] || { echo "Build fehlgeschlagen: $APP fehlt" >&2; exit 1; }
+
+# Sparkles Hilfsprogramme von innen nach außen mit der Developer ID neu
+# signieren, sonst lehnt die Notarisierung sie ab
+# (sparkle-project.org/documentation/sandboxing/#code-signing).
+echo "→ Signiere Sparkle-Komponenten und App …"
+FW="$APP/Contents/Frameworks/Sparkle.framework"
+CS=(codesign --force --timestamp --options runtime --sign "$IDENTITY")
+"${CS[@]}" "$FW/Versions/B/XPCServices/Installer.xpc"
+"${CS[@]}" --preserve-metadata=entitlements "$FW/Versions/B/XPCServices/Downloader.xpc"
+"${CS[@]}" "$FW/Versions/B/Autoupdate"
+"${CS[@]}" "$FW/Versions/B/Updater.app"
+"${CS[@]}" "$FW"
+# App zuletzt; Entitlements (Sandbox usw.) bleiben wie von Xcode gesetzt.
+"${CS[@]}" --preserve-metadata=entitlements,requirements,flags "$APP"
 codesign --verify --deep --strict "$APP"
+codesign -dvv "$APP" 2>&1 | grep -q "TeamIdentifier=$TEAM_ID" || {
+    echo "App trägt nicht die Team-ID $TEAM_ID." >&2; exit 1; }
+# Debug-Berechtigung: die Notarisierung lehnt sie ab.
+if codesign -d --entitlements - --xml "$APP" 2>/dev/null | grep -q "get-task-allow"; then
+    echo "App enthält com.apple.security.get-task-allow, Notarisierung würde scheitern." >&2
+    exit 1
+fi
+
+echo "→ Notarisiere bei Apple (dauert meist wenige Minuten) …"
+NOTARY_ZIP="$ROOT/build/FinanceTracker-notarize.zip"
+mkdir -p "$ROOT/build"
+rm -f "$NOTARY_ZIP"
+ditto -c -k --keepParent "$APP" "$NOTARY_ZIP"
+NOTARY_OUT="$(xcrun notarytool submit "$NOTARY_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1)" || true
+rm -f "$NOTARY_ZIP"
+echo "$NOTARY_OUT" | grep -E "^\s*(id|status):" | sed 's/^/   /' || true
+if ! echo "$NOTARY_OUT" | grep -qE "^\s*status: Accepted"; then
+    SUBMISSION_ID="$(echo "$NOTARY_OUT" | sed -n 's/^ *id: //p' | head -1)"
+    echo "Notarisierung nicht akzeptiert." >&2
+    [ -n "$SUBMISSION_ID" ] && echo "Details: xcrun notarytool log $SUBMISSION_ID --keychain-profile $NOTARY_PROFILE" >&2
+    echo "$NOTARY_OUT" >&2
+    exit 1
+fi
+xcrun stapler staple "$APP" >/dev/null
+xcrun stapler validate "$APP" >/dev/null
+spctl --assess --type execute "$APP" || { echo "Gatekeeper lehnt die App ab." >&2; exit 1; }
+echo "   Notarisiert, gestapelt, von Gatekeeper akzeptiert."
 
 BUILT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
