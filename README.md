@@ -14,8 +14,8 @@ Screenshots show made-up demo data.
 ## Features
 
 - **Bank sync via Enable Banking** (PSD2, read-only) for thousands of European
-  banks, using your own free Enable Banking application. The app cannot make
-  payments.
+  banks, using your own free Enable Banking application. Connected banks
+  refresh automatically while the app runs. The app cannot make payments.
 - **File import** for banks and cards that aren't available via bank sync:
   load their CSV, Excel or PDF export. Columns and transaction types (card
   purchases, top-ups, refunds, cashback, fees, interest) are recognised in
@@ -30,7 +30,8 @@ Screenshots show made-up demo data.
   transactions at the ECB rate of their booking day.
 - **Total balance** across all accounts with a per-account split, using the
   balance reported by your bank or statement, and how long it lasts at your
-  usual spending.
+  usual spending. Accounts without a balance can be given one directly in
+  the list, and single accounts can be left out of the total.
 - **Budgets, recurring payments and collections** (trips, projects, shared
   expenses).
 - **Backups** as a single `.ftbackup` file, plus CSV export.
