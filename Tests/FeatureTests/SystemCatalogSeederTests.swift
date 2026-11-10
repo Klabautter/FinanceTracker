@@ -180,6 +180,36 @@ struct SystemCatalogSeederTests {
         #expect(storedUserChoice.kind == .purchase)
     }
 
+    @Test("Katalog-Update lässt umbenannte und verschobene Standardkategorien unangetastet")
+    func catalogUpdateKeepsUserEditsToBuiltInCategories() async throws {
+        let dependencies = try makeDependencies()
+        let defaults = makeDefaults()
+        await SystemCatalogSeeder(dependencies: dependencies, defaults: defaults).seedIfNeeded()
+
+        let catalog = FinanceTracker.Category.defaultCatalog()
+        let child = try #require(catalog.first { $0.parentID != nil })
+        let ownParent = FinanceTracker.Category(name: "Mein Bereich", systemIconName: "tag")
+        var edited = try #require(await dependencies.categoryRepository.categories().first { $0.id == child.id })
+        edited.name = "Umbenannt"
+        edited.systemIconName = "star"
+        edited.parentID = ownParent.id
+        try await dependencies.categoryRepository.upsert([ownParent, edited])
+
+        // Neue Katalog-Version: alles läuft erneut.
+        defaults.set(SystemCatalogSeeder.catalogVersion - 1, forKey: SystemCatalogSeeder.defaultsKey)
+        await SystemCatalogSeeder(dependencies: dependencies, defaults: defaults).seedIfNeeded()
+
+        let categories = try await dependencies.categoryRepository.categories()
+        let after = try #require(categories.first { $0.id == child.id })
+        #expect(after.name == "Umbenannt")
+        #expect(after.systemIconName == "star")
+        #expect(after.parentID == ownParent.id)
+        #expect(categories.contains { $0.id == ownParent.id })
+        #expect(defaults.integer(forKey: SystemCatalogSeeder.defaultsKey) == SystemCatalogSeeder.catalogVersion)
+        // Fehlende Standardkategorien legt das Update weiterhin an.
+        #expect(Set(catalog.map(\.id)).isSubset(of: Set(categories.map(\.id))))
+    }
+
     @Test("User-Regel schlägt System-Katalog")
     func userRuleWinsOverSystemCatalog() async throws {
         let dependencies = try makeDependencies()

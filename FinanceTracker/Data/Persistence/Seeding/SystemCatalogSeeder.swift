@@ -68,7 +68,15 @@ struct SystemCatalogSeeder {
                     || missingStableRules
                     || unsafeLegacyRules.contains(where: \.enabled) else { return }
 
-            try await dependencies.categoryRepository.upsert(Category.defaultCatalog())
+            // Nur fehlende Standardkategorien anlegen. Vorhandene bleiben,
+            // wie der Nutzer sie hat: Name, Symbol, Farbe und Einordnung
+            // einer umbenannten oder verschobenen Kategorie darf ein
+            // Katalog-Update nicht zurücksetzen.
+            let storedCategoryIDs = Set(try await dependencies.categoryRepository.categories().map(\.id))
+            let missingCategories = Category.defaultCatalog().filter { !storedCategoryIDs.contains($0.id) }
+            if !missingCategories.isEmpty {
+                try await dependencies.categoryRepository.upsert(missingCategories)
+            }
 
             let existingByID = Dictionary(
                 uniqueKeysWithValues: storedRules.map { ($0.id, $0) }
