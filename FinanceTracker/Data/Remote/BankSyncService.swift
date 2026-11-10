@@ -78,7 +78,7 @@ struct BankSyncService: Sendable {
                 existing.providerAccountID = remoteProviderAccountID
                 changed = true
             }
-            if Self.hasAutomaticName(existing, remote: remote), existing.name != fallbackName {
+            if Self.hasAutomaticName(existing, remote: remote, bankName: connection.institutionName), existing.name != fallbackName {
                 existing.name = fallbackName
                 changed = true
             }
@@ -110,7 +110,7 @@ struct BankSyncService: Sendable {
             relinked.isActive = true
             // MacUX-Audit #5: Alte, unbrauchbare „Bankkonto"-Fallback-Namen
             // werden beim Sync mit dem besseren Namen ersetzt.
-            if Self.hasAutomaticName(relinked, remote: remote) {
+            if Self.hasAutomaticName(relinked, remote: remote, bankName: connection.institutionName) {
                 relinked.name = fallbackName
             }
             try await dependencies.accountRepository.upsert([relinked])
@@ -140,7 +140,10 @@ struct BankSyncService: Sendable {
     static func defaultAccountName(bankName: String?, remote: RemoteBankAccount, sharesConnection: Bool) -> String {
         let last4 = String((remote.maskedIBAN ?? "").suffix(4)).trimmingCharacters(in: .whitespaces)
         if let bankName, !bankName.isEmpty {
-            return sharesConnection && !last4.isEmpty ? "\(bankName) ••\(last4)" : bankName
+            guard sharesConnection else { return bankName }
+            // Mehrere Konten einer Verbindung: per IBAN-Ende unterscheiden,
+            // ohne IBAN (Währungstöpfe wie bei Revolut) per Währung.
+            return last4.isEmpty ? "\(bankName) \(remote.currency.rawValue)" : "\(bankName) ••\(last4)"
         }
         if let owner = remote.ownerName, !owner.isEmpty { return owner }
         if let providerID = remote.providerAccountID, providerID.count >= 4 {
@@ -151,8 +154,10 @@ struct BankSyncService: Sendable {
 
     /// Vom Nutzer umbenannte Konten bleiben unangetastet; ersetzt werden nur
     /// die früheren Automatik-Namen (Kontoinhaber, „Bankkonto …").
-    static func hasAutomaticName(_ account: Account, remote: RemoteBankAccount) -> Bool {
+    static func hasAutomaticName(_ account: Account, remote: RemoteBankAccount, bankName: String? = nil) -> Bool {
         if account.name.hasPrefix("Bankkonto") { return true }
+        // Früher hießen mehrere Konten einer Verbindung nur nach der Bank.
+        if let bankName, !bankName.isEmpty, account.name == bankName { return true }
         if let owner = remote.ownerName, !owner.isEmpty, account.name == owner { return true }
         return false
     }

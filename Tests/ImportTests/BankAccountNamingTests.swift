@@ -18,6 +18,18 @@ struct BankAccountNamingTests {
         #expect(BankSyncService.defaultAccountName(bankName: nil, remote: remote(owner: nil), sharesConnection: false) == "Konto ••cc-1")
     }
 
+    @Test("Währungstöpfe ohne IBAN (Revolut) heißen nach Bank und Währung")
+    func currencyPocketNames() {
+        let sek = RemoteBankAccount(id: "a", providerAccountID: "a", ownerName: nil, maskedIBAN: nil, currency: CurrencyCode("SEK"))
+        #expect(BankSyncService.defaultAccountName(bankName: "Revolut", remote: sek, sharesConnection: true) == "Revolut SEK")
+        #expect(BankSyncService.defaultAccountName(bankName: "Revolut", remote: sek, sharesConnection: false) == "Revolut")
+        // Früher automatisch nur „Revolut" genannt: wird beim Abruf ersetzt.
+        let old = Account(name: "Revolut", type: .checking, currency: CurrencyCode("SEK"), source: .openBanking)
+        #expect(BankSyncService.hasAutomaticName(old, remote: sek, bankName: "Revolut"))
+        let custom = Account(name: "Urlaubskasse", type: .checking, currency: CurrencyCode("SEK"), source: .openBanking)
+        #expect(!BankSyncService.hasAutomaticName(custom, remote: sek, bankName: "Revolut"))
+    }
+
     @Test("Automatik-Namen werden ersetzt, eigene Namen bleiben")
     func automaticNames() {
         let auto = Account(name: "Max Mustermann", type: .checking, currency: .eur, source: .openBanking)
