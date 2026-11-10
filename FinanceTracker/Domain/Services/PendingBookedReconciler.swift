@@ -29,6 +29,8 @@ struct PendingBookedReconciler: Sendable {
             guard candidate.accountID == incoming.accountID else { return false }
             guard candidate.source == incoming.source else { return false }
             guard candidate.amount.currency == incoming.amount.currency else { return false }
+            // Eine Erstattung ist nicht die Buchung einer vorgemerkten Zahlung.
+            guard candidate.amount.isNegative == incoming.amount.isNegative else { return false }
 
             let candidateAbs = abs(candidate.amount.amount)
             let incomingAbs = abs(incoming.amount.amount)
