@@ -148,8 +148,6 @@ struct AddBudgetSheet: View {
 
                 Section {
                     Toggle("Rest in nächsten Monat übertragen", isOn: $rolloverAccumulate)
-                } footer: {
-                    Text("Rücklagen-Budgets (z. B. Autoversicherung) übertragen nicht ausgegebenes Geld in den Folgemonat.")
                 }
 
                 Section {
@@ -161,7 +159,7 @@ struct AddBudgetSheet: View {
                 } header: {
                     Text("Sparziel (optional)")
                 } footer: {
-                    Text("Sparziele nutzen Rücklagen-Budgets: Der verbleibende Rest zählt als Gespartes. Leeres Ziel = kein Sparziel.")
+                    Text("Sparziele nutzen Rücklagen-Budgets: Der verbleibende Rest zählt als Gespartes.")
                 }
 
                 if let errorMessage {

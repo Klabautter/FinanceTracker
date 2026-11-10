@@ -22,7 +22,7 @@ struct AddDataSourceView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xl) {
-                    PageHeader(String(localized: "Daten hinzufügen"), subtitle: String(localized: "Verbinde deine Bank oder importiere einen Export."))
+                    PageHeader(String(localized: "Daten hinzufügen"))
                     Button {
                         path.append(.bank)
                     } label: {
@@ -45,15 +45,11 @@ struct AddDataSourceView: View {
                                 showsAccountEditor = true
                             }
                         } label: {
-                            sourceRow(title: "Konto manuell anlegen", subtitle: "Bargeld, Geldbeutel oder ein Konto ohne Anbindung, mit Anfangsbestand. Buchungen trägst du selbst ein", systemImage: "wallet.pass")
+                            sourceRow(title: "Konto manuell anlegen", subtitle: "Bargeld oder ein Konto ohne Bankanbindung. Buchungen trägst du selbst ein", systemImage: "wallet.pass")
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
                     }
-                    Label("Bankzugriff nur zum Lesen. Du behältst die Kontrolle über deine Daten.", systemImage: "lock.shield")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(AppSpacing.xl)
             }

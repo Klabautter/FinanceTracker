@@ -33,12 +33,14 @@ struct EmptyStateView<Actions: View>: View {
             Text(title)
                 .font(.system(.title3).weight(.semibold))
                 .multilineTextAlignment(.center)
-            Text(message)
-                .font(AppTypography.supporting)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
-                .fixedSize(horizontal: false, vertical: true)
+            if !message.isEmpty {
+                Text(message)
+                    .font(AppTypography.supporting)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 400)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if Actions.self != EmptyView.self {
                 VStack(spacing: AppSpacing.s) {
                     actions
@@ -111,7 +113,7 @@ enum FXRateStatusPresentation {
     static let warningAge: TimeInterval = 30 * 24 * 60 * 60
 
     static var explanation: String {
-        String(localized: "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags oder zum genauen Gegenwert aus der Datei, Kontostände zum aktuellen Kurs. Ohne Tageskurs gilt der aktuelle.")
+        String(localized: "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags, Kontostände zum aktuellen Kurs.")
     }
 
     static func quoteDate(for snapshot: FXRateSnapshot) -> Date? {

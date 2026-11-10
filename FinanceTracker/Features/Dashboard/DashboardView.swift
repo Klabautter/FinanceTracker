@@ -171,7 +171,7 @@ struct DashboardView: View {
                         .font(.system(size: 40, weight: .semibold))
                         .tracking(-1)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Verbinde eine Bank oder importiere eine Datei. FinanceTracker trennt Währungen und zeigt danach Cashflow, Kategorien und Prognose für den aktuellen Monat.")
+                    Text("Verbinde eine Bank oder importiere eine Datei. Danach siehst du Cashflow, Kategorien und Prognose für den aktuellen Monat.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: 560, alignment: .leading)
@@ -189,18 +189,15 @@ struct DashboardView: View {
                 }
 
                 HStack(alignment: .top, spacing: 0) {
-                    firstRunFeature("01", "Bank verbinden", "Umsätze über Enable Banking abrufen (ausschließlich lesend).")
+                    firstRunFeature("01", "Bank verbinden", "Umsätze über Enable Banking abrufen.")
                     Rectangle().fill(AppPalette.hairline).frame(width: 1)
                     firstRunFeature("02", "Datei importieren", "CSV-, Excel- oder PDF-Auszüge deiner Bank lokal einlesen.")
                     Rectangle().fill(AppPalette.hairline).frame(width: 1)
-                    firstRunFeature("03", "Lokal & privat", "Alle Daten bleiben auf diesem Mac. Keine Zahlungen.")
+                    firstRunFeature("03", "Lokal & privat", "Alle Daten bleiben auf diesem Mac.")
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .appSurface(.groupedContent)
 
-                Text("Weitere Quellen lassen sich jederzeit unter „Konten“ ergänzen.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: 820, alignment: .leading)
             .padding(.horizontal, 48)
@@ -396,9 +393,6 @@ struct MonthlyCashflowChart: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Cashflow")
                     .font(.title3.weight(.semibold))
-                Text("Einnahmen und Ausgaben der letzten Monate")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             }
             cashflowChart

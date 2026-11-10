@@ -627,10 +627,10 @@ struct ImportView: View {
 
     private var hintSection: some View {
         Section("Unterstützte Formate") {
-            Text("CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Spalten und Buchungsarten (Kartenzahlung, Aufladung, Erstattung, Cashback, Gebühr, Zinsen) werden auf Deutsch und Englisch erkannt; unbekannte Arten ordnest du einmal zu. Kategorien kommen aus deinen Regeln.")
+            Text("CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte. Spalten und Buchungsarten werden auf Deutsch und Englisch erkannt.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Text("Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen. Gleiche Zeilen in einem anderen Konto gelten nicht als doppelt.")
+            Text("Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

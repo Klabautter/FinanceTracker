@@ -35,9 +35,6 @@ struct PocketEditorSheet: View {
                 Section("Zeitraum") {
                     DatePicker("Von", selection: $input.startDateInclusive, displayedComponents: .date)
                     DatePicker("Bis (einschließlich)", selection: $input.endDateInclusive, displayedComponents: .date)
-                    Text("Der gesamte Bis-Tag gehört zur Sammlung.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("Konten und Karten") {
@@ -78,9 +75,6 @@ struct PocketEditorSheet: View {
                         "Transaktionen werden automatisch nach Zeitraum und Konten zugeordnet.",
                         systemImage: "wand.and.stars"
                     )
-                    Text("Sammlungen ändern weder globale Analysen noch Budgets und erzeugen keine Kopien von Transaktionen.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 if let message = localError ?? validationError?.message {

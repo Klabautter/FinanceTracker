@@ -92,7 +92,6 @@ struct CategoriesView: View {
         }
         .workspaceHeading(
             String(localized: "Kategorien"),
-            subtitle: String(localized: "Ordne deine Ausgaben, automatisiere Zuordnungen und markiere Buchungen mit Tags"),
             eyebrow: String(localized: "Organisation")
         )
         .workspaceCanvas()
@@ -169,7 +168,7 @@ struct CategoriesView: View {
             case .empty:
                 EmptyStateView(
                     title: String(localized: "Keine Kategorien"),
-                    message: String(localized: "Es sind noch keine Kategorien vorhanden."),
+                    message: String(localized: "Lege über „Neue Kategorie“ die erste an."),
                     systemImage: "tag"
                 )
                 .accessibilityIdentifier("screen-ready-categories")

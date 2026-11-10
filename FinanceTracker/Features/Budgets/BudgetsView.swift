@@ -73,7 +73,6 @@ struct BudgetsView: View {
         .workspaceNavigationTitle(String(localized: "Budgets"))
         .workspaceHeading(
             String(localized: "Budgets"),
-            subtitle: String(localized: "Deine Ausgaben planen und Grenzen im Blick behalten"),
             eyebrow: String(localized: "Planung")
         )
         .workspaceCanvas()
@@ -346,7 +345,7 @@ struct BudgetsView: View {
     private var emptyList: some View {
         EmptyStateView(
             title: String(localized: "Noch keine Budgets"),
-            message: String(localized: "Lege Limits für Kategorien fest und verfolge Verbrauch, Restbetrag und Prognose direkt in der Übersicht."),
+            message: String(localized: "Lege Limits für Kategorien fest."),
             systemImage: "chart.bar.fill"
         ) {
             Button("Erstes Budget hinzufügen") { activeSheet = .add }

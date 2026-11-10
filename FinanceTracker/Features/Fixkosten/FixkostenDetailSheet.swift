@@ -83,7 +83,7 @@ struct FixkostenDetailSheet: View {
                     .accessibilityIdentifier("recurring-detail-pause")
                     .disabled(isUpdatingStatus)
                 } footer: {
-                    Text("Pausieren ändert nur den Status. Offene Formularänderungen werden erst mit „Speichern“ übernommen.")
+                    Text("Pausieren wird sofort gespeichert.")
                 }
 
                 Section("Letzte Zahlungen") {

@@ -142,7 +142,7 @@ struct BankConnectView: View {
             }
             Button("Abbrechen", role: .cancel) { connectionPendingDisconnect = nil }
         } message: { connection in
-            Text("Nur \(connection.displayName) wird getrennt. Konten und Buchungen bleiben erhalten, werden aber nicht mehr abgerufen. Andere Banken sind nicht betroffen.")
+            Text("Konten und Buchungen bleiben erhalten, werden aber nicht mehr abgerufen.")
         }
     }
 
@@ -151,7 +151,7 @@ struct BankConnectView: View {
         let affected = banks.isEmpty
             ? String(localized: "Danach kann die App keine Umsätze mehr abrufen")
             : String(localized: "Danach kann die App bei keiner Bank mehr Umsätze abrufen (\(ListFormatter.localizedString(byJoining: banks)))")
-        return String(localized: "Der Schlüssel deiner \(model.kind.displayName)-Anwendung wird von diesem Mac entfernt. \(affected), bis du ihn erneut lädst. Konten und Buchungen bleiben erhalten.\n\nNur eine Bank entfernen? Dann bei der Bank „Trennen“ wählen.")
+        return String(localized: "Der Schlüssel deiner \(model.kind.displayName)-Anwendung wird von diesem Mac entfernt. \(affected), bis du ihn erneut lädst. Konten und Buchungen bleiben erhalten.")
     }
 
     // MARK: - Consent-Health (P1, PSD2 read-only)
@@ -160,11 +160,11 @@ struct BankConnectView: View {
     private var headerText: (title: String, subtitle: String)? {
         switch model.phase {
         case .credentials where model.isLoadingStoredCredentials:
-            (String(localized: "Bankkonto verbinden"), String(localized: "Die App liest nur. Zahlungen sind nicht möglich."))
+            (String(localized: "Bankkonto verbinden"), String(localized: "Einmalig: deine eigene Enable-Banking-Anwendung einrichten."))
         case .credentials:
             (String(localized: "Bankkonto verbinden"), String(localized: "Einmalig: deine eigene Enable-Banking-Anwendung einrichten."))
         case .institutions, .connecting, .checking, .failed:
-            (String(localized: "Bankkonto verbinden"), String(localized: "Wähle deine Bank. Die App liest nur. Zahlungen sind nicht möglich."))
+            (String(localized: "Bankkonto verbinden"), String(localized: "Wähle deine Bank."))
         case .codeExchange(_, let institutionName, _), .waitingForAuthorization(_, let institutionName):
             model.renewalPurpose == .reauthorize
                 ? (String(localized: "\(institutionName) neu autorisieren"), String(localized: "Verlängert den Lesezugriff auf die volle Dauer, die deine Bank erlaubt."))
@@ -298,7 +298,6 @@ struct BankConnectView: View {
                         Label("Trennen …", systemImage: "link.badge.minus")
                     }
                     .controlSize(.small)
-                    .help("Nur diese Bank trennen. Konten und Buchungen bleiben erhalten.")
                     .accessibilityLabel("\(connection.displayName) trennen")
                     Button {
                         Task { await model.refreshConnection(connection) }
@@ -362,7 +361,7 @@ struct BankConnectView: View {
             }
 
             Section {
-                setupStep(3, "Schlüssel laden", "Wähle die heruntergeladene .pem-Datei. Sie bleibt im Schlüsselbund dieses Macs.")
+                setupStep(3, "Schlüssel laden", "Wähle die heruntergeladene .pem-Datei.")
                 HStack(spacing: AppSpacing.s) {
                     Button {
                         importsKeyFile = true
@@ -408,7 +407,7 @@ struct BankConnectView: View {
                 setupStep(
                     4,
                     "Speichern und prüfen",
-                    "Die App fragt bei Enable Banking nach, ob die Anwendung auf Production steht, aktiv ist und die Redirect-URL stimmt. Danach wählst du deine Bank und gibst sie im Browser frei. Deine Bank-Login-Daten gehören nie in diese App."
+                    "Danach wählst du deine Bank und gibst sie im Browser frei."
                 )
                 Button {
                     Task { await model.saveCredentialsAndContinue() }
@@ -425,9 +424,6 @@ struct BankConnectView: View {
             }
 
             Section {
-                Text("Nur ausprobieren? Eine Sandbox-Anwendung mit der Testbank „Mock ASPSP“ genügt, ganz ohne echte Konten.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Button(role: .destructive) {
                     confirmsCredentialDeletion = true
                 } label: {
@@ -546,9 +542,6 @@ struct BankConnectView: View {
                     .foregroundStyle(AppPalette.warning)
             }
             if ready {
-                Label("Bereit für echte Konten.", systemImage: "checkmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(AppPalette.positive)
             }
         } else if let message = model.applicationCheckMessage {
             Label(message, systemImage: "exclamationmark.triangle")
@@ -577,7 +570,7 @@ struct BankConnectView: View {
 
                 DisclosureGroup("Hinweis zu GoCardless") {
                     VStack(alignment: .leading, spacing: AppSpacing.s) {
-                        Text("Neue Zugänge sind pausiert. Dieser Weg funktioniert nur mit einem bestehenden Bank-Account-Data-Konto.")
+                        Text("Funktioniert nur mit einem bestehenden Bank-Account-Data-Konto.")
                         Link(
                             "Gespeicherte User Secrets öffnen",
                             destination: URL(string: "https://bankaccountdata.gocardless.com/user-secrets/")!
@@ -638,7 +631,7 @@ struct BankConnectView: View {
                 } header: {
                     Text("Sandbox")
                 } footer: {
-                    Text("Mock-Bank von GoCardless: im Login einfach beliebige Werte eingeben. Kein echtes Bankkonto, keine PSD2-Authentifizierung.")
+                    Text("Im Login einfach beliebige Werte eingeben.")
                 }
             }
 
@@ -673,9 +666,6 @@ struct BankConnectView: View {
                         } label: {
                             Label(credentialDeletionTitle, systemImage: "key.slash")
                         }
-                        Text("Gilt für alle Banken. Um nur eine Bank zu entfernen, nutze oben bei der Bank „Trennen“.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                     .padding(.top, AppSpacing.xs)
                 }
@@ -804,7 +794,7 @@ struct BankConnectView: View {
                 Text(connectFooter)
             }
         } else if !model.institutions.isEmpty {
-            Text("Beliebte Banken. Alle \(model.institutions.count.formatted()) Banken in \(BankConnectModel.countryName(model.country)) findest du über die Suche, auch deine Sparkasse oder Volksbank.")
+            Text("Beliebte Banken. Alle \(model.institutions.count.formatted()) Banken in \(BankConnectModel.countryName(model.country)) findest du über die Suche.")
         }
     }
 
@@ -892,11 +882,11 @@ struct BankConnectView: View {
     private var stepOneHint: LocalizedStringResource {
         switch model.renewalPurpose {
         case .olderTransactions:
-            "Ältere Umsätze gibt es meist nur direkt nach einer frischen Anmeldung. Vorhandene Buchungen werden nicht doppelt angelegt."
+            "Ältere Umsätze gibt es meist nur direkt nach einer frischen Anmeldung."
         case .reauthorize:
-            "Zum Verlängern reicht „Standard der Bank“. Ein längerer Zeitraum holt zusätzlich ältere Umsätze nach, ohne Doppelte."
+            "Zum Verlängern reicht „Standard der Bank“. Ein längerer Zeitraum holt zusätzlich ältere Umsätze nach."
         case nil:
-            "Mehr als etwa 90 Tage liefern nicht alle Banken. Die App zeigt danach, ab wann Umsätze kamen."
+            "Mehr als etwa 90 Tage liefern nicht alle Banken."
         }
     }
 

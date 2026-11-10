@@ -33,7 +33,7 @@ struct SettingsView: View {
         settingsLayout
         .workspaceNavigationTitle(String(localized: "Einstellungen"))
         #if !os(macOS)
-        .workspaceHeading(String(localized: "Einstellungen"), subtitle: String(localized: "Passe FinanceTracker an deinen Alltag an"))
+        .workspaceHeading(String(localized: "Einstellungen"))
         #endif
         .workspaceCanvas()
         .task { await model.loadFXRates() }
@@ -151,9 +151,6 @@ struct SettingsView: View {
 
             settingsSection(String(localized: "Wechselkurse", comment: "Settings-Sektion: Wechselkurse")) {
                 FXRateStatusView(snapshot: model.fxSnapshot, isLoading: model.fxIsLoading, detailed: true)
-                Text("Referenzwährung: \(model.baseCurrency.rawValue). Kurse werden täglich aktualisiert; ohne Verbindung gelten die zuletzt verfügbaren Kurse.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
                 Button {
                     Task { await model.refreshFXRates() }
                 } label: {
@@ -195,7 +192,7 @@ struct SettingsView: View {
                 .accessibilityLabel("Bargeldkonto für automatische Abhebungen")
                 (model.cashAccounts.isEmpty
                     ? Text("Lege unter Konten ein Bargeldkonto an, dann kann die App Abhebungen am Geldautomaten automatisch als Umbuchung dorthin verbuchen.")
-                    : Text("Erkannte Abhebungen (Geldautomat, Bargeldauszahlung) aus Bank-Sync und Datei-Import werden als Transfer gebucht und dem gewählten Bargeldkonto gutgeschrieben. Einzelne Buchungen gehen auch per Rechtsklick in den Transaktionen."))
+                    : Text("Gilt für Abhebungen aus Bank-Sync und Datei-Import."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -226,9 +223,6 @@ struct SettingsView: View {
                     .accessibilityLabel("Konten und Verbindungen öffnen")
                     .accessibilityIdentifier("settings-show-accounts")
                 }
-                Text("CSV-, Excel- und PDF-Importe werden lokal verarbeitet. FinanceTracker führt keine Zahlungen aus.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
     }
 
@@ -265,7 +259,7 @@ struct SettingsView: View {
                     Label("Daten exportieren", systemImage: "square.and.arrow.up")
                 }
                 .disabled(model.isBusyWithData)
-                Text("Das vollständige Backup enthält alles, auch deine Belege, und lässt sich komplett wiederherstellen. Ohne Belege ist es kleiner, Belegdateien fehlen dann nach einer Wiederherstellung.")
+                Text("Ohne Belege ist das Backup kleiner, Belegdateien fehlen dann nach einer Wiederherstellung.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Button("Backup wiederherstellen…", systemImage: "arrow.counterclockwise") {
                     showsBackupImporter = true

@@ -46,7 +46,6 @@ struct TagsView: View {
                 scrollContent
                     .workspaceHeading(
                         String(localized: "Tags"),
-                        subtitle: String(localized: "Eigene Markierungen für deine Transaktionen"),
                         eyebrow: String(localized: "Organisation")
                     )
                     .workspaceNavigationTitle(String(localized: "Tags"))
@@ -67,7 +66,7 @@ struct TagsView: View {
             VStack(alignment: .leading, spacing: AppSpacing.l) {
                 PageSection(
                     String(localized: "Neuer Tag"),
-                    subtitle: String(localized: "Zum Beispiel „dienstlich“ oder „erstattbar“. Mehrere Tags pro Transaktion sind möglich.")
+                    subtitle: String(localized: "Zum Beispiel „dienstlich“ oder „erstattbar“.")
                 ) {
                     VStack(alignment: .leading, spacing: AppSpacing.m) {
                         HStack(spacing: AppSpacing.m) {
@@ -141,7 +140,7 @@ struct TagsView: View {
             }
         } message: {
             if let tag = tagPendingDeletion {
-                Text("Dieser Tag ist \(model.usageCount(for: tag.id)) Transaktionen zugewiesen. Die Transaktionen selbst bleiben unverändert.")
+                Text("Der Tag wird von \(model.usageCount(for: tag.id)) Transaktionen entfernt.")
             }
         }
     }

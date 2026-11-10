@@ -81,7 +81,7 @@ struct AccountsView: View {
             }
         }
         .workspaceNavigationTitle(String(localized: "Konten"))
-        .workspaceHeading(String(localized: "Konten"), subtitle: String(localized: "Deine Konten und Bankverbindungen an einem Ort"), eyebrow: String(localized: "Alltag"))
+        .workspaceHeading(String(localized: "Konten"), eyebrow: String(localized: "Alltag"))
         .workspaceCanvas()
         .task(id: model.dataRevision) {
             await model.load()
@@ -203,7 +203,7 @@ struct AccountsView: View {
     private var emptyState: some View {
         EmptyStateView(
             title: String(localized: "Noch keine Konten"),
-            message: String(localized: "Verbinde deine Bank über Enable Banking oder importiere einen CSV-/Excel-Export. Der Bankzugriff ist ausschließlich lesend."),
+            message: String(localized: "Verbinde deine Bank über Enable Banking oder importiere einen CSV-/Excel-Export."),
             systemImage: "building.columns.fill"
         ) {
             addDataSourceButton
@@ -236,7 +236,7 @@ struct AccountsView: View {
                     }
                 }
                 if !model.accounts.isEmpty {
-                    PageSection(String(localized: "Deine Konten"), subtitle: String(localized: "Stand laut Bank, Kontoauszug oder Anfangsbestand, sonst die Summe der Transaktionen")) {
+                    PageSection(String(localized: "Deine Konten")) {
                         VStack(spacing: 0) {
                             ForEach(model.accounts) { summary in
                                 row(for: summary)
@@ -522,7 +522,7 @@ private struct AccountBalanceSheet: View {
                     DatePicker("Stand am Ende von", selection: $date, in: ...Date(), displayedComponents: .date)
                         .accessibilityLabel("Tag des Kontostands")
                 } footer: {
-                    Text("Der Stand gilt am Ende des gewählten Tages, Buchungen dieses Tages sind enthalten. Spätere Buchungen verändern ihn. Er zählt nicht als Einnahme und verändert keine Auswertung.")
+                    Text("Buchungen dieses Tages sind enthalten, spätere verändern den Stand.")
                 }
             }
             .financeFormStyle()

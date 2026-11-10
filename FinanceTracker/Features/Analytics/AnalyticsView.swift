@@ -134,7 +134,7 @@ struct AnalyticsView: View {
             VStack(spacing: 0) {
                     PageHeader(
                         String(localized: "Analyse"),
-                        subtitle: model.scope?.summary ?? String(localized: "Deine Einnahmen und Ausgaben im Überblick"),
+                        subtitle: model.scope?.summary,
                         eyebrow: String(localized: "Alltag")
                     ) {
                         Button { showsFilterSheet = true } label: {
@@ -237,7 +237,7 @@ struct AnalyticsView: View {
                 if !model.displayedMonthlyPoints.isEmpty {
                     PageSection(
                         String(localized: "Cashflow"),
-                        subtitle: String(localized: "Einnahmen und Ausgaben pro Monat · Monat anklicken für Details")
+                        subtitle: String(localized: "Monat anklicken für Details")
                     ) {
                         MonthlyCashflowChart(
                             points: model.displayedMonthlyPoints,
@@ -273,7 +273,7 @@ struct AnalyticsView: View {
             } else if let snapshot = model.snapshot, snapshot.transactionCount == 0 {
                 EmptyStateView(
                     title: String(localized: "Keine Transaktionen im Zeitraum"),
-                    message: String(localized: "Für den gewählten Zeitraum und Filter gibt es keine Transaktionen. Passe „Zeitraum & Filter“ an oder importiere Daten."),
+                    message: String(localized: "Passe „Zeitraum & Filter“ an oder importiere Daten."),
                     systemImage: "chart.pie.fill"
                 ) {
                     Button("Zeitraum & Filter") { showsFilterSheet = true }
@@ -311,7 +311,7 @@ struct AnalyticsView: View {
         [
             MetricStripItem(label: String(localized: "Einnahmen"), value: PrivacyAwareMoney.signedTotal(snapshot.totalIncome, kind: .income, currency: model.currency, privacy: privacyState), tone: snapshot.totalIncome == 0 ? .neutral : .positive, accessibilityValue: accessibleAmount(snapshot.totalIncome)),
             MetricStripItem(label: String(localized: "Ausgaben"), value: PrivacyAwareMoney.signedTotal(snapshot.totalSpending, kind: .expense, currency: model.currency, privacy: privacyState), caption: model.spendingDeltaText ?? String(localized: "netto nach Erstattungen"), tone: snapshot.totalSpending == 0 ? .neutral : .critical, accessibilityValue: accessibleAmount(snapshot.totalSpending)),
-            MetricStripItem(label: String(localized: "Saldo"), value: PrivacyAwareMoney.signedTotal(snapshot.netCashflow, kind: .balance, currency: model.currency, privacy: privacyState), caption: String(localized: "Einnahmen − Ausgaben"), tone: snapshot.netCashflow < 0 ? .critical : (snapshot.netCashflow == 0 ? .neutral : .positive), accessibilityValue: accessibleAmount(snapshot.netCashflow))
+            MetricStripItem(label: String(localized: "Saldo"), value: PrivacyAwareMoney.signedTotal(snapshot.netCashflow, kind: .balance, currency: model.currency, privacy: privacyState), tone: snapshot.netCashflow < 0 ? .critical : (snapshot.netCashflow == 0 ? .neutral : .positive), accessibilityValue: accessibleAmount(snapshot.netCashflow))
         ]
     }
 
@@ -340,7 +340,7 @@ struct AnalyticsView: View {
             if model.categoryPieItems.isEmpty {
                 EmptyStateView(
                     title: String(localized: "Keine Ausgaben"),
-                    message: String(localized: "In diesem Zeitraum gab es keine Ausgaben."),
+                    message: "",
                     systemImage: "chart.pie"
                 )
                 .frame(height: 200)
@@ -473,8 +473,7 @@ struct AnalyticsView: View {
     /// Roadmap #90: Merchant-Klick öffnet das Merchant-Detail.
     private func topMerchantsSection() -> some View {
         PageSection(
-            String(localized: "Top-Händler"),
-            subtitle: String(localized: "Wo im gewählten Zeitraum das meiste Geld hinging")
+            String(localized: "Top-Händler")
         ) {
             let merchants = model.topMerchants
             if merchants.isEmpty {

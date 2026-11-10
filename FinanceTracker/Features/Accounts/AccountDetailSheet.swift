@@ -160,11 +160,11 @@ struct AccountDetailSheet: View {
             } footer: {
                 switch model.balanceResult?.basis {
                 case nil:
-                    Text("Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest. Fremdwährungen werden getrennt ausgewiesen.")
+                    Text("Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest.")
                 case .reported:
-                    Text("Stand = gemeldeter Stand plus spätere Buchungen. Fremdwährungen werden getrennt ausgewiesen.")
+                    Text("Stand = gemeldeter Stand plus spätere Buchungen.")
                 case .openingBalance:
-                    Text("Stand = Anfangsbestand plus Buchungen ab dem Stichtag. Fremdwährungen werden getrennt ausgewiesen.")
+                    Text("Stand = Anfangsbestand plus Buchungen ab dem Stichtag.")
                 }
             }
 
@@ -176,7 +176,7 @@ struct AccountDetailSheet: View {
                     .accessibilityLabel("Konto \(model.account.name) mit allen Buchungen löschen")
                     .accessibilityIdentifier("account-delete-manual")
                 } footer: {
-                    Text("Entfernt dieses selbst angelegte Konto samt seiner Buchungen. Importierte Buchungen lassen sich danach erneut importieren.")
+                    Text("Importierte Buchungen lassen sich danach erneut importieren.")
                 }
             }
 

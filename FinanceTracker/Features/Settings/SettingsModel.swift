@@ -186,9 +186,6 @@ final class SettingsModel {
             defaults.set(true, forKey: Self.notificationsEnabledKey)
             notificationsEnabled = true
             await refreshLocalNotifications()
-            if notificationMessage == nil {
-                notificationMessage = String(localized: "Mitteilungen sind aktiv. Hinweise entstehen nur aus lokalen Daten.")
-            }
         } else {
             defaults.set(false, forKey: Self.notificationsEnabledKey)
             notificationsEnabled = false

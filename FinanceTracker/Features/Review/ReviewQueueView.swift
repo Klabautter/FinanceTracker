@@ -23,7 +23,7 @@ struct ReviewQueueView: View {
                 case .empty:
                     EmptyStateView(
                         title: String(localized: "Alles geprüft"),
-                        message: String(localized: "Aktuell gibt es nichts zu prüfen. Neue Buchungen ohne Kategorie oder mit Auffälligkeiten erscheinen hier."),
+                        message: String(localized: "Neue Buchungen ohne Kategorie oder mit Auffälligkeiten erscheinen hier."),
                         systemImage: "checkmark.seal.fill",
                         tint: AppPalette.positive
                     )
@@ -126,12 +126,9 @@ struct ReviewQueueView: View {
 
     private var reviewSummaryText: String {
         let issueCount = model.items.count
-        let base = issueCount == model.entries.count
-            ? String(localized: "Transaktionen warten auf deine Entscheidung.")
-            : String(localized: "\(issueCount) Hinweise sind in eindeutigen Transaktionen gebündelt.")
         let suggested = model.suggestedCategorizeEntries.count
-        guard suggested > 0 else { return base }
-        return base + " " + String(localized: "Davon \(suggested) mit Kategorie-Vorschlag.")
+        guard suggested > 0 else { return "" }
+        return String(localized: "Davon \(suggested) mit Kategorie-Vorschlag.")
     }
 
     @ViewBuilder
@@ -273,9 +270,6 @@ struct ReviewQueueView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("\(similarCount) ähnliche Transaktionen können gemeinsam kategorisiert werden")
             } else {
-                Text("Kategorie auswählen und künftig automatisch zuordnen")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         } else if let categoryName = model.categoryName(for: entry.transaction) {
             Label(categoryName, systemImage: "tag")

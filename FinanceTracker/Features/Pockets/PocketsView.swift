@@ -119,7 +119,7 @@ struct PocketsView: View {
     private var emptyState: some View {
         EmptyStateView(
             title: String(localized: "Noch keine Sammlungen"),
-            message: String(localized: "Fasse Reisen, Projekte oder gemeinsame Ausgaben nach Zeitraum und Konten zusammen. Analysen und Budgets bleiben unverändert."),
+            message: String(localized: "Fasse Reisen, Projekte oder gemeinsame Ausgaben nach Zeitraum und Konten zusammen."),
             systemImage: "square.stack.3d.up.fill"
         ) {
             if model.activeAccounts.isEmpty {
@@ -632,9 +632,6 @@ private struct PocketMobileDetail: View {
                                     .monospacedDigit()
                             }
                         }
-                        Text("Globale Analysen und Budgets bleiben unverändert.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                     Section("Transaktionen") {
                         ForEach(model.selectedRows) { row in

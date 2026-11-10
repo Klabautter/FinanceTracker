@@ -15,7 +15,7 @@ struct TransactionDetailView: View {
             } else {
                 EmptyStateView(
                     title: String(localized: "Transaktion nicht gefunden"),
-                    message: String(localized: "Diese Transaktion existiert nicht mehr."),
+                    message: "",
                     systemImage: "questionmark.folder"
                 )
             }

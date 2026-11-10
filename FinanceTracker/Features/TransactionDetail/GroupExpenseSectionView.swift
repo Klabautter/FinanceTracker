@@ -51,7 +51,7 @@ struct GroupExpenseSectionView: View {
             )
             .accessibilityIdentifier("group-expense-header")
 
-            Text("Wer schuldet dir etwas von dieser Ausgabe? Nur eine Notiz, es wird kein Geld versendet.")
+            Text("Wer schuldet dir etwas von dieser Ausgabe?")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -155,7 +155,7 @@ struct GroupExpenseSectionView: View {
         } message: {
             if let transfer = pendingTransfer {
                 let amount = MoneyFormatter.decimalString(transfer.amount, currency: transfer.currency)
-                Text("\(transfer.from) → \(transfer.to): \(amount). Es wird nur eine manuelle Buchung angelegt, kein Geldversand. Die Gegenbuchung ggf. manuell auf dem Absender-Konto anlegen.")
+                Text("\(transfer.from) → \(transfer.to): \(amount). Die Gegenbuchung auf dem Absender-Konto legst du bei Bedarf selbst an.")
             }
         }
     }
@@ -294,9 +294,6 @@ struct GroupExpenseSectionView: View {
                     .pickerStyle(.menu)
                     .accessibilityLabel("Zielkonto für die Ausgleichsbuchung")
                     .accessibilityIdentifier("group-expense-settlement-account")
-                    Text("Die Ausgleichsbuchung wird manuell auf dem gewählten Konto angelegt, kein Geldversand.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
                 ForEach(Array(model.transfers.enumerated()), id: \.offset) { _, transfer in
                     HStack(alignment: .firstTextBaseline, spacing: AppSpacing.s) {
@@ -323,9 +320,6 @@ struct GroupExpenseSectionView: View {
                     }
                     .accessibilityElement(children: .contain)
                 }
-                Text("Buchungen sind manuell und Cashflow-neutral, es wird kein Geld versendet.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
         }
         .accessibilityIdentifier("group-expense-settlement")
@@ -389,7 +383,6 @@ private struct GroupExpenseAddShareSheet: View {
     var body: some View {
         FormSheetScaffold(
             title: String(localized: "Anteil hinzufügen"),
-            subtitle: String(localized: "Wer hat bezahlt, und wer schuldet welchen Anteil?"),
             systemImage: "person.2"
         ) {
             VStack(alignment: .leading, spacing: AppSpacing.m) {

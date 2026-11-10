@@ -232,7 +232,6 @@ private struct MacTransactionsContent: View {
         VStack(alignment: .leading, spacing: 16) {
             PageHeader(
                 String(localized: "Transaktionen"),
-                subtitle: String(localized: "Alle Kontobewegungen an einem Ort"),
                 eyebrow: String(localized: "Alltag")
             ) {
                 Button { activeSheet = .reviewQueue } label: {
@@ -308,7 +307,7 @@ private struct MacTransactionsContent: View {
             // Leer wegen Filter ≠ leer wegen fehlender Daten.
             EmptyStateView(
                 title: String(localized: "Keine Treffer für diese Filter"),
-                message: String(localized: "Mit den gewählten Filtern gibt es keine Buchungen."),
+                message: "",
                 systemImage: "line.3.horizontal.decrease.circle"
             ) {
                 Button("Filter zurücksetzen") {
@@ -711,7 +710,7 @@ private struct MacTransactionsTable: View {
         .safeAreaInset(edge: .bottom) {
             HStack {
                 (model.canLoadMore
-                    ? Text("\(model.visibleTransactions.count) angezeigt · weitere Buchungen verfügbar")
+                    ? Text("\(model.visibleTransactions.count) angezeigt")
                     : Text("\(model.visibleTransactions.count) angezeigt"))
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
@@ -1112,7 +1111,7 @@ private struct MobileTransactionsContent: View {
                 EmptyStateView(
                     title: String(localized: "Keine Transaktionen"),
                     message: model.searchText.isEmpty
-                        ? String(localized: "Es sind noch keine Transaktionen vorhanden.")
+                        ? String(localized: "Verbinde eine Datenquelle oder erfasse die erste Transaktion.")
                         : String(localized: "Keine Treffer für „\(model.searchText)“."),
                     systemImage: "list.bullet.rectangle"
                 )

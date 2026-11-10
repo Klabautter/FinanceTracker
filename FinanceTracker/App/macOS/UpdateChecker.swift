@@ -69,7 +69,7 @@ struct UpdateSettingsSection: View {
                 updateChecker.checkForUpdates()
             }
             .disabled(!updateChecker.canCheck)
-            Text("Einmal am Tag prüft die App, ob es eine neue Version gibt. Updates sind signiert und werden erst nach deiner Bestätigung installiert.")
+            Text("Einmal am Tag prüft die App, ob es eine neue Version gibt.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else {

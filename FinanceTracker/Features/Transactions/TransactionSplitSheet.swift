@@ -267,7 +267,7 @@ struct TransactionSplitSheet: View {
                 }
 
                 Section {
-                    Text("Die Summe der Positionen muss exakt dem Transaktionsbetrag entsprechen. Die Split-Positionen ersetzen die Original-Buchung in Budgets und Analysen.")
+                    Text("Die Split-Positionen ersetzen die Original-Buchung in Budgets und Analysen.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -299,7 +299,6 @@ struct BentoDashboardContent: View {
             MetricStripItem(
                 label: String(localized: "Saldo"),
                 value: signedAmount(abs(snapshot.netCashflow), sign: snapshot.netCashflow < 0 ? "−" : "+"),
-                caption: String(localized: "Einnahmen − Ausgaben"),
                 tone: snapshot.netCashflow < 0 ? .critical : (snapshot.netCashflow == 0 ? .neutral : .positive)
             )
         ]
@@ -372,7 +371,7 @@ struct BentoDashboardContent: View {
     @ViewBuilder
     private var planningSection: some View {
         if let forecast = model.forecast, forecast.confidence != .low {
-            PageSection(String(localized: "Verfügbar bis Monatsende"), subtitle: String(localized: "Prognose · kein Kontostand")) {
+            PageSection(String(localized: "Verfügbar bis Monatsende"), subtitle: String(localized: "Prognose")) {
                 VStack(alignment: .leading, spacing: AppSpacing.s) {
                     Text(amountString(forecast.availableAmount))
                         .font(AppTypography.largeMetric)
@@ -432,7 +431,7 @@ struct BentoDashboardContent: View {
     // MARK: - Budgets
 
     private var budgetSection: some View {
-        PageSection(String(localized: "Budgets"), subtitle: String(localized: "Verbrauch im jeweiligen Zeitraum")) {
+        PageSection(String(localized: "Budgets")) {
             VStack(alignment: .leading, spacing: AppSpacing.l) {
                 ForEach(model.attentionBudgets) { progress in
                     budgetRow(progress)

@@ -219,7 +219,7 @@ struct FixkostenView: View {
                     if model.upcomingWithin30Days.isEmpty {
                         EmptyStateView(
                             title: String(localized: "Keine offenen Termine"),
-                            message: String(localized: "In den nächsten 30 Tagen sind keine offenen Einnahmen oder Ausgaben geplant. Alle Einträge findest du unter Zahlungspläne."),
+                            message: String(localized: "In den nächsten 30 Tagen ist nichts fällig. Alle Einträge findest du unter Zahlungspläne."),
                             systemImage: "calendar.badge.checkmark"
                         )
                         .frame(height: 280)
@@ -256,7 +256,7 @@ struct FixkostenView: View {
                         } else if model.hiddenSuggestions.isEmpty {
                             EmptyStateView(
                                 title: String(localized: "Keine Vorschläge"),
-                                message: String(localized: "Neue wiederkehrende Muster erscheinen hier zur ausdrücklichen Bestätigung."),
+                                message: String(localized: "Neue wiederkehrende Muster erscheinen hier zur Bestätigung."),
                                 systemImage: "sparkles"
                             )
                             .frame(maxWidth: .infinity)
@@ -480,7 +480,7 @@ struct FixkostenView: View {
     private var emptyList: some View {
         EmptyStateView(
             title: String(localized: "Noch keine Zahlungspläne"),
-            message: String(localized: "Erfasse wiederkehrende Beträge wie Miete, Abos oder Gehalt, damit Termine und Zahlstatus an einem Ort sichtbar sind."),
+            message: String(localized: "Erfasse wiederkehrende Beträge wie Miete, Abos oder Gehalt."),
             systemImage: "calendar.badge.plus"
         ) {
             Button("Ersten Eintrag hinzufügen") { activeSheet = .create }
