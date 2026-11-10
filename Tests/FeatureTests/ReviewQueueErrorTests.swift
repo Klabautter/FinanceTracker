@@ -139,7 +139,7 @@ struct ReviewQueueErrorHandlingTests {
         let item = try #require(model.items.first { $0.transaction.id == txn.id })
         await model.assignCategory(item, categoryID: UUID())
 
-        #expect(model.errorMessage != nil)
+        #expect(model.actionError != nil)
         #expect(model.items.contains { $0.id == item.id })
     }
 
@@ -176,7 +176,7 @@ struct ReviewQueueErrorHandlingTests {
         let model = ReviewQueueModel(dependencies: dependencies)
         await model.load()
 
-        #expect(model.errorMessage != nil)
+        #expect(model.loadState.failureMessage != nil)
     }
 
     @Test("Geprüft persistiert Annotation und entfernt alle Gründe der Transaktion")
@@ -206,7 +206,8 @@ struct ReviewQueueErrorHandlingTests {
     @Test("Kategorie entfernt nur Ohne-Kategorie-Grund und aktualisiert weitere Gründe")
     func categoryAssignmentResolvesOnlyUncategorizedReason() async throws {
         let dependencies = try makeDependencies(failUpsert: false)
-        let account = Account(name: "USD-Karte", type: .creditCard, currency: .usd, source: .manual)
+        // USD-Buchung auf einem Euro-Konto: passt nicht zum Konto, also Prüffall.
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
         let category = FinanceTracker.Category(name: "Einkauf", systemIconName: "cart")
         try await dependencies.accountRepository.upsert([account])
         try await dependencies.categoryRepository.upsert([category])
@@ -305,7 +306,7 @@ struct ReviewQueueErrorHandlingTests {
 
         await model.assignCategory(item, categoryID: Category.food.id)
 
-        #expect(model.errorMessage != nil)
+        #expect(model.actionError != nil)
         #expect(try await dependencies.transactionRepository.transaction(id: transaction.id)?.categoryID == nil)
         #expect(model.items.contains { $0.id == item.id })
     }
@@ -345,13 +346,14 @@ struct ReviewQueueErrorHandlingTests {
         )
         #expect(annotations.count == 2)
         #expect(annotations.allSatisfy { $0.manualKindOverride == .transfer && $0.reviewed })
-        #expect(model.errorMessage == nil)
+        #expect(model.actionError == nil)
     }
 
     @Test("Workspace bündelt mehrere Hinweise pro Transaktion")
     func workspaceBundlesReasonsByTransaction() async throws {
         let dependencies = try makeDependencies(failUpsert: false)
-        let account = Account(name: "USD-Karte", type: .creditCard, currency: .usd, source: .manual)
+        // USD-Buchung auf einem Euro-Konto: passt nicht zum Konto, also Prüffall.
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
         try await dependencies.accountRepository.upsert([account])
         var transaction = uncategorizedItem()
         transaction.accountID = account.id
