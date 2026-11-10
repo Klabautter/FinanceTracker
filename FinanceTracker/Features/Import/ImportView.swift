@@ -550,6 +550,10 @@ struct ImportView: View {
             Section {
                 Text(message)
                     .foregroundStyle(AppPalette.critical)
+                if model.canRetryLastFile {
+                    Button("Erneut versuchen") { Task { await model.retryLastFile() } }
+                        .accessibilityLabel("Dieselbe Datei erneut vorbereiten")
+                }
             }
         default:
             EmptyView()

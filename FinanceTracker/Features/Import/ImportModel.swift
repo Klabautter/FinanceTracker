@@ -75,7 +75,11 @@ final class ImportModel {
                 selectedAccountID = accounts.first(where: { $0.type == .checking })?.id ?? accounts.first?.id
             }
         } catch {
-            phase = .failed(String(localized: "Konten konnten nicht geladen werden."))
+            // Mitten in einer Vorschau bleibt die Vorschau; nur der leere
+            // Einstieg zeigt den Fehler.
+            if case .idle = phase {
+                phase = .failed(String(localized: "Konten konnten nicht geladen werden."))
+            }
         }
     }
 
@@ -157,7 +161,7 @@ final class ImportModel {
     func createAccountAndContinue(named name: String) async {
         guard let file = pendingFile else { return }
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        phase = .idle
+        // Bleibt in `.needsAccount`, bis das Konto steht; kein Umweg über idle.
         guard await createAccount(named: name) else { return }
         phase = .running
 
@@ -258,9 +262,9 @@ final class ImportModel {
         do {
             try await runPreparation(last.file, providerDisplayName: last.providerDisplayName, provider: last.provider)
         } catch let error as ImportError {
-            phase = .failed(error.userFacingMessage)
+            fail(error.userFacingMessage)
         } catch {
-            phase = .failed(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
+            fail(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
         }
     }
 
@@ -282,9 +286,9 @@ final class ImportModel {
             let provider = (last.provider as? GenericCSVProvider)?.with(fallbackCurrency: currency) ?? last.provider
             try await runPreparation(last.file, providerDisplayName: last.providerDisplayName, provider: provider)
         } catch let error as ImportError {
-            phase = .failed(error.userFacingMessage)
+            fail(error.userFacingMessage)
         } catch {
-            phase = .failed(String(localized: "Die Kontowährung konnte nicht umgestellt werden."))
+            fail(String(localized: "Die Kontowährung konnte nicht umgestellt werden."))
         }
     }
 
@@ -298,9 +302,9 @@ final class ImportModel {
                 importCrossSourceDuplicates: true
             )
         } catch let error as ImportError {
-            phase = .failed(error.userFacingMessage)
+            fail(error.userFacingMessage)
         } catch {
-            phase = .failed(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
+            fail(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
         }
     }
 
@@ -412,11 +416,34 @@ final class ImportModel {
             }
             dependencies.changeTracker.markChanged()
             await loadHistory()
+            pendingFile = nil
+            preparedImport = nil
         } catch {
+            // Vorbereitung bleibt: „Erneut versuchen“ bereitet die Datei neu vor.
+            preparedImport = nil
             phase = .failed(String(localized: "Der Import ist fehlgeschlagen."))
         }
-        pendingFile = nil
+    }
+
+    /// Nach einem Fehler dieselbe Datei noch einmal vorbereiten.
+    var canRetryLastFile: Bool { lastPreparation != nil }
+
+    func retryLastFile() async {
+        guard let last = lastPreparation else { return }
+        phase = .running
+        do {
+            try await runPreparation(last.file, providerDisplayName: last.providerDisplayName, provider: last.provider)
+        } catch let error as ImportError {
+            fail(error.userFacingMessage)
+        } catch {
+            fail(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
+        }
+    }
+
+    /// Fehler einer Vorbereitung: keine veraltete Vorschau stehen lassen.
+    private func fail(_ message: String) {
         preparedImport = nil
+        phase = .failed(message)
     }
 
     /// Bargeld-Automatik nach dem Import: erkannte Abhebungen dieses Batches
@@ -447,7 +474,13 @@ final class ImportModel {
             dependencies.changeTracker.markChanged()
             await loadHistory()
         } catch {
-            phase = .failed(String(localized: "Der Import konnte nicht rückgängig gemacht werden."))
+            // Eine laufende Vorschau bleibt erhalten.
+            switch phase {
+            case .idle, .completed, .failed:
+                phase = .failed(String(localized: "Der Import konnte nicht rückgängig gemacht werden."))
+            default:
+                break
+            }
         }
     }
 
@@ -463,6 +496,8 @@ final class ImportModel {
     func reset() {
         pendingFile = nil
         preparedImport = nil
+        lastPreparation = nil
+        lastCompletedBatchID = nil
         mappingHeaders = []
         phase = .idle
     }
