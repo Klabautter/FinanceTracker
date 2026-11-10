@@ -94,7 +94,7 @@ struct BankConnectView: View {
                 codeExchange(authorizationID: authorizationID, institutionName: institutionName, authURL: authURL)
             case .success(let accountsCreated):
                 successSummary(accountsCreated: accountsCreated)
-            case .failed(let message):
+            case .failed(let message, _):
                 failedView(message)
             }
             }
@@ -417,6 +417,11 @@ struct BankConnectView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canSaveEnableBankingCredentials)
+                if let validation = model.credentialsValidationMessage {
+                    Label(validation, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(AppPalette.warning)
+                        .font(.callout)
+                }
             }
 
             Section {
@@ -592,6 +597,11 @@ struct BankConnectView: View {
                 Label("Speichern & Institute laden", systemImage: "key.fill")
             }
             .buttonStyle(.borderedProminent)
+            if let validation = model.credentialsValidationMessage {
+                Label(validation, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(AppPalette.warning)
+                    .font(.callout)
+            }
 
             Button(role: .destructive) {
                 confirmsCredentialDeletion = true
@@ -1004,7 +1014,7 @@ struct BankConnectView: View {
 
     private func failedView(_ message: String) -> some View {
         ErrorStateView(message: message) {
-            model.retryAfterFailure()
+            Task { await model.retryAfterFailure() }
         }
     }
 

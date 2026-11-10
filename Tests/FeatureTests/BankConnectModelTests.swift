@@ -207,7 +207,7 @@ struct BankConnectModelTests {
 
         await model.finishWithRedirectURL("https://example.com/redirect?state=ohne-code")
 
-        guard case .failed(let message) = model.phase else {
+        guard case .failed(let message, _) = model.phase else {
             Issue.record("Expected failed, got \(model.phase)")
             return
         }
@@ -304,5 +304,30 @@ struct BankConnectModelTests {
         #expect(connections.count == 1)
         #expect(connections.first?.id != old.id)
         #expect(connections.first?.institutionID == "DE|VR Bank Beispiel")
+    }
+
+    @Test("Leere Zugangsdaten bleiben im Formular statt im Fehlerschritt; Zurück löscht die Erneuerung")
+    func validationStaysInCredentialsAndBackClearsRenewal() async throws {
+        let dependencies = try makeDependencies()
+        let provider = MockBankDataProvider()
+        let credentials = InMemoryGoCardlessCredentialStore()
+        let model = BankConnectModel(
+            kind: .gocardless,
+            dependencies: dependencies,
+            credentialStore: credentials,
+            providerFactory: StaticProviderFactory(provider: provider)
+        )
+        model.secretIDInput = ""
+        model.secretKeyInput = ""
+
+        await model.saveCredentialsAndContinue()
+
+        #expect(model.phase == .credentials)
+        #expect(model.credentialsValidationMessage != nil)
+
+        // Nach „Andere Bank wählen" ist keine Erneuerung mehr aktiv.
+        model.chooseAnotherBank()
+        #expect(model.renewalPurpose == nil)
+        #expect(model.phase == .institutions)
     }
 }
