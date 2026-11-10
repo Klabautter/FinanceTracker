@@ -112,15 +112,18 @@ extension RecurringOccurrenceResolver {
     }
 
     /// So viele Tage bleibt ein unbezahlter Termin nach seinem Fälligkeitstag
-    /// noch als „überfällig" in der Vorschau sichtbar.
+    /// mindestens als „überfällig" in der Vorschau sichtbar, auch über den
+    /// Monatswechsel hinweg.
     static let overdueGraceDays = 7
 
     /// Offene Vorkommen für „Anstehend": alle unbezahlten Termine bis `end`
-    /// sowie überfällige der letzten `overdueGraceDays` Tage. Ein gestern
-    /// fälliger, nicht bezahlter Termin verschwindet so nicht kommentarlos.
+    /// sowie überfällige des laufenden Monats und der letzten
+    /// `overdueGraceDays` Tage. Ein fälliger, nicht bezahlter Termin
+    /// verschwindet so nicht kommentarlos, und „Noch offen" (laufender Monat)
+    /// enthält keinen Betrag, den die Liste nicht zeigt.
     ///
-    /// Aufgelöst wird über das doppelte Rückschaufenster, damit eine kurz vor
-    /// dem Termin eingegangene Zahlung ihn weiterhin als bezahlt markiert.
+    /// Aufgelöst wird zusätzlich über `overdueGraceDays` Tage davor, damit
+    /// eine kurz vor dem Termin eingegangene Zahlung ihn als bezahlt markiert.
     func openOccurrences(
         commitment: RecurringCommitment,
         explicitOccurrences: [RecurringOccurrence],
@@ -131,8 +134,12 @@ extension RecurringOccurrenceResolver {
         latestPaymentDate: Date? = nil
     ) -> [ScheduledRecurringOccurrence] {
         let today = calendar.startOfDay(for: now)
-        guard let visibleFrom = calendar.date(byAdding: .day, value: -Self.overdueGraceDays, to: today),
-              let resolveFrom = calendar.date(byAdding: .day, value: -2 * Self.overdueGraceDays, to: today),
+        guard let graceStart = calendar.date(byAdding: .day, value: -Self.overdueGraceDays, to: today),
+              let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: today)) else {
+            return []
+        }
+        let visibleFrom = min(graceStart, monthStart)
+        guard let resolveFrom = calendar.date(byAdding: .day, value: -Self.overdueGraceDays, to: visibleFrom),
               resolveFrom < end else {
             return []
         }

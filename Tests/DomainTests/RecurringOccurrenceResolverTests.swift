@@ -302,14 +302,36 @@ struct RecurringOccurrenceResolverTests {
         )
         #expect(paid.isEmpty)
 
+        // Im nächsten Monat und nach der Karenz: nicht mehr in der Vorschau.
         let afterGrace = resolver.openOccurrences(
             commitment: plan,
             explicitOccurrences: [],
             allTransactions: [],
-            now: day(2026, 10, 25),
+            now: day(2026, 11, 3),
             end: day(2026, 11, 5),
             calendar: calendar
         )
         #expect(afterGrace.isEmpty)
+    }
+
+    @Test("Überfälliger Termin des laufenden Monats bleibt bis Monatsende sichtbar")
+    func overdueOccurrenceStaysVisibleWithinMonth() {
+        var plan = commitment(name: "Cloud", merchantKey: "CLOUD", amount: 1)
+        plan.nextExpectedDate = day(2026, 11, 2)
+        let now = day(2026, 11, 10, hour: 9)
+
+        let open = resolver.openOccurrences(
+            commitment: plan,
+            explicitOccurrences: [],
+            allTransactions: [],
+            now: now,
+            end: day(2026, 12, 10),
+            calendar: calendar
+        )
+
+        // Acht Tage überfällig, aber im laufenden Monat: zählt in „Noch offen"
+        // und steht deshalb auch in der Liste.
+        #expect(open.map(\.scheduledDate) == [day(2026, 11, 2), day(2026, 12, 2)])
+        #expect(open[0].isOverdue(now: now, calendar: calendar))
     }
 }
