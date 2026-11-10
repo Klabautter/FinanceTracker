@@ -62,6 +62,10 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
     /// Zuletzt von Bank oder Datei gemeldeter Stand. Wird nicht über
     /// `upsert` geschrieben, sondern nur beim Abruf oder Import.
     var reportedBalance: ReportedBalance?
+    /// „Nicht zum Gesamtstand zählen": Stand und Buchungen bleiben, nur
+    /// Gesamtstand und Reichweite lassen das Konto aus (z. B. ein Depot-
+    /// Verrechnungskonto oder Geld, das nicht dem Nutzer gehört).
+    var excludedFromTotal: Bool
 
     init(
         id: UUID = UUID(),
@@ -77,7 +81,8 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         isActive: Bool = true,
         openingBalance: Decimal? = nil,
         openingBalanceDate: Date? = nil,
-        reportedBalance: ReportedBalance? = nil
+        reportedBalance: ReportedBalance? = nil,
+        excludedFromTotal: Bool = false
     ) {
         self.id = id
         self.connectionID = connectionID
@@ -93,6 +98,33 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         self.openingBalance = openingBalance
         self.openingBalanceDate = openingBalanceDate
         self.reportedBalance = reportedBalance
+        self.excludedFromTotal = excludedFromTotal
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, connectionID, institutionID, name, type, currency, maskedIdentifier, ibanLast4
+        case providerAccountID, source, isActive, openingBalance, openingBalanceDate, reportedBalance
+        case excludedFromTotal
+    }
+
+    /// Ältere Backups kennen die Einstellung nicht: dann zählt das Konto mit.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        connectionID = try container.decodeIfPresent(UUID.self, forKey: .connectionID)
+        institutionID = try container.decodeIfPresent(String.self, forKey: .institutionID)
+        name = try container.decode(String.self, forKey: .name)
+        type = try container.decode(AccountType.self, forKey: .type)
+        currency = try container.decode(CurrencyCode.self, forKey: .currency)
+        maskedIdentifier = try container.decodeIfPresent(String.self, forKey: .maskedIdentifier)
+        ibanLast4 = try container.decodeIfPresent(String.self, forKey: .ibanLast4)
+        providerAccountID = try container.decodeIfPresent(String.self, forKey: .providerAccountID)
+        source = try container.decode(AccountSource.self, forKey: .source)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        openingBalance = try container.decodeIfPresent(Decimal.self, forKey: .openingBalance)
+        openingBalanceDate = try container.decodeIfPresent(Date.self, forKey: .openingBalanceDate)
+        reportedBalance = try container.decodeIfPresent(ReportedBalance.self, forKey: .reportedBalance)
+        excludedFromTotal = try container.decodeIfPresent(Bool.self, forKey: .excludedFromTotal) ?? false
     }
 }
 

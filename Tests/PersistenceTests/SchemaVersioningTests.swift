@@ -28,8 +28,12 @@ struct SchemaVersioningTests {
         #expect(FinanceTrackerSchemaV13.versionIdentifier == Schema.Version(13, 0, 0))
         // V14 = zuletzt gemeldeter Kontostand (Sidecar).
         #expect(FinanceTrackerSchemaV14.versionIdentifier == Schema.Version(14, 0, 0))
-        #expect(FinanceTrackerMigrationPlan.schemas.count == 14)
-        #expect(FinanceTrackerMigrationPlan.stages.count == 13)
+        // V15 = Konto-Einstellungen (Sidecar): „Nicht zum Gesamtstand zählen".
+        #expect(FinanceTrackerSchemaV15.versionIdentifier == Schema.Version(15, 0, 0))
+        #expect(FinanceTrackerSchemaV15.models.contains { $0 == SDAccountSettingsEntity.self })
+        #expect(!FinanceTrackerSchemaV14.models.contains { $0 == SDAccountSettingsEntity.self })
+        #expect(FinanceTrackerMigrationPlan.schemas.count == 15)
+        #expect(FinanceTrackerMigrationPlan.stages.count == 14)
     }
 
     @Test("V2 umfasst alle Entitäten inklusive User-Metadaten")

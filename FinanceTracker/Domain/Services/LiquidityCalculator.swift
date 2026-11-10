@@ -25,6 +25,8 @@ struct LiquidityOverview: Sendable, Hashable {
     let withoutBalance: [AccountSummary]
     /// Konten mit Stand, aber ohne Kurs in die Basiswährung.
     let unconvertible: [AccountSummary]
+    /// Konten, die der Nutzer aus dem Gesamtstand ausgenommen hat.
+    var excluded: [AccountSummary] = []
 
     var usesConversion: Bool {
         shares.contains { $0.isConverted || $0.summary.balanceConvertedFrom != nil }
@@ -57,7 +59,14 @@ struct LiquidityCalculator: Sendable {
         var converted: [(AccountSummary, Money, Money)] = []
         var withoutBalance: [AccountSummary] = []
         var unconvertible: [AccountSummary] = []
+        var excluded: [AccountSummary] = []
         for summary in summaries where summary.account.isActive {
+            // Vom Nutzer ausgenommen: Stand bleibt in der Liste sichtbar,
+            // zählt aber weder im Gesamtstand noch in der Reichweite.
+            if summary.account.excludedFromTotal {
+                excluded.append(summary)
+                continue
+            }
             guard let balance = summary.balance else {
                 withoutBalance.append(summary)
                 continue
@@ -89,7 +98,8 @@ struct LiquidityCalculator: Sendable {
             total: Money(amount: total, currency: baseCurrency),
             shares: shares,
             withoutBalance: withoutBalance,
-            unconvertible: unconvertible
+            unconvertible: unconvertible,
+            excluded: excluded
         )
     }
 

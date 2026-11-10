@@ -67,4 +67,19 @@ struct AccountEditorDraftTests {
         #expect(AccountEditorDraft(editing: manual, transactionCount: 3, baseCurrency: .eur).canChangeCurrency == false)
         #expect(AccountEditorDraft(editing: manual, transactionCount: 0, baseCurrency: .eur).canChangeCurrency)
     }
+
+    @Test("„Nicht zum Gesamtstand zählen“ wird übernommen und wieder abgewählt")
+    func excludedFromTotalToggle() {
+        var draft = AccountEditorDraft(editing: nil, transactionCount: 0, baseCurrency: .eur)
+        draft.name = "Verrechnungskonto"
+        #expect(!draft.excludedFromTotal)
+        draft.excludedFromTotal = true
+        let created = draft.makeAccount()
+        #expect(created.excludedFromTotal)
+
+        var editing = AccountEditorDraft(editing: created, transactionCount: 3, baseCurrency: .eur)
+        #expect(editing.excludedFromTotal)
+        editing.excludedFromTotal = false
+        #expect(!editing.makeAccount().excludedFromTotal)
+    }
 }

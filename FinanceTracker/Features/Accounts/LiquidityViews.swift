@@ -47,6 +47,10 @@ enum LiquidityPresentation {
             let names = overview.unconvertible.map(\.account.name).joined(separator: ", ")
             notes.append(String(localized: "Ohne Kurs, nicht enthalten: \(names)"))
         }
+        if !overview.excluded.isEmpty {
+            let names = overview.excluded.map(\.account.name).joined(separator: ", ")
+            notes.append(String(localized: "Nicht zum Gesamtstand gezählt: \(names)"))
+        }
         if overview.usesConversion {
             notes.append(String(localized: "Fremdwährungen zum Referenzkurs umgerechnet"))
         }

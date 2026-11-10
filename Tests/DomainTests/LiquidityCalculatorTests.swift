@@ -20,10 +20,11 @@ struct LiquidityCalculatorTests {
         balance: Decimal?,
         currency: CurrencyCode = .eur,
         reportedAt: Date? = nil,
-        isActive: Bool = true
+        isActive: Bool = true,
+        excludedFromTotal: Bool = false
     ) -> AccountSummary {
         AccountSummary(
-            account: Account(name: name, type: .checking, currency: currency, source: .manual, isActive: isActive),
+            account: Account(name: name, type: .checking, currency: currency, source: .manual, isActive: isActive, excludedFromTotal: excludedFromTotal),
             netMovement: Money(amount: 0, currency: currency),
             balance: balance.map { Money(amount: $0, currency: currency) },
             balanceBasis: balance == nil ? nil : (reportedAt == nil ? .openingBalance : .reported(.bank)),
@@ -86,6 +87,18 @@ struct LiquidityCalculatorTests {
     func noBalance() {
         let account = Account(name: "Karte", type: .creditCard, currency: .eur, source: .csvImport)
         #expect(AccountBalanceCalculator.balance(for: account, movements: [.init(date: Date(), amount: -10)]) == nil)
+    }
+
+    @Test("Ausgenommenes Konto behält seinen Stand, zählt aber nicht im Gesamtstand")
+    func excludedAccountIsNotCounted() {
+        let overview = LiquidityCalculator(baseCurrency: .eur, converter: CurrencyConverter()).overview(of: [
+            summary("Giro", balance: 1000),
+            summary("Verrechnungskonto", balance: 5000, excludedFromTotal: true)
+        ])
+        #expect(overview.total == Money(amount: 1000, currency: .eur))
+        #expect(overview.shares.map(\.summary.account.name) == ["Giro"])
+        #expect(overview.excluded.map(\.account.name) == ["Verrechnungskonto"])
+        #expect(overview.withoutBalance.isEmpty)
     }
 
     @Test("Summe in Basiswährung, Fremdwährung umgerechnet, fehlende Stände und Kurse gemeldet")

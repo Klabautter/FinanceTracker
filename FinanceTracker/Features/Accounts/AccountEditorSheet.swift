@@ -73,6 +73,14 @@ struct AccountEditorSheet: View {
                     Text("Der Anfangsbestand ist der Stand zu Beginn des gewählten Tages. Buchungen ab diesem Tag verändern den aktuellen Stand. Er zählt nicht als Einnahme und verändert keine Auswertung.")
                 }
 
+                Section {
+                    Toggle("Nicht zum Gesamtstand zählen", isOn: $draft.excludedFromTotal)
+                        .accessibilityLabel("Konto nicht zum Gesamtstand zählen")
+                        .accessibilityIdentifier("account-editor-exclude-total")
+                } footer: {
+                    Text("Der Stand bleibt beim Konto sichtbar, fließt aber nicht in Gesamtstand und Reichweite ein, etwa bei einem Verrechnungskonto oder fremdem Geld.")
+                }
+
                 if let errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle")

@@ -581,6 +581,13 @@ actor PersistenceModelActor {
         for row in try modelContext.fetch(reportedDescriptor) {
             reportedByAccount[row.accountID] = row
         }
+        let settingsDescriptor = FetchDescriptor<SDAccountSettingsEntity>(
+            predicate: #Predicate { ids.contains($0.accountID) }
+        )
+        var settingsByAccount: [UUID: SDAccountSettingsEntity] = [:]
+        for row in try modelContext.fetch(settingsDescriptor) {
+            settingsByAccount[row.accountID] = row
+        }
         return try accounts.map { account in
             var updated = account
             if let row = byAccount[account.id] {
@@ -590,6 +597,7 @@ actor PersistenceModelActor {
             if let row = reportedByAccount[account.id] {
                 updated.reportedBalance = try row.toDomain()
             }
+            updated.excludedFromTotal = settingsByAccount[account.id]?.excludedFromTotal ?? false
             return updated
         }
     }
@@ -773,8 +781,12 @@ actor PersistenceModelActor {
             for row in try modelContext.fetch(FetchDescriptor<SDSharedExpenseShareEntity>()) { modelContext.delete(row) }
             for row in try modelContext.fetch(FetchDescriptor<SDAccountOpeningBalanceEntity>()) { modelContext.delete(row) }
             for row in try modelContext.fetch(FetchDescriptor<SDAccountReportedBalanceEntity>()) { modelContext.delete(row) }
+            for row in try modelContext.fetch(FetchDescriptor<SDAccountSettingsEntity>()) { modelContext.delete(row) }
             for row in backup.accounts {
                 modelContext.insert(SDAccountEntity(from: row))
+                if row.excludedFromTotal {
+                    modelContext.insert(SDAccountSettingsEntity(accountID: row.id, excludedFromTotal: true))
+                }
                 if let opening = row.openingBalance {
                     modelContext.insert(SDAccountOpeningBalanceEntity(accountID: row.id, amount: opening, date: row.openingBalanceDate))
                 }
@@ -1534,9 +1546,31 @@ actor PersistenceModelActor {
                 modelContext.insert(SDAccountEntity(from: account))
             }
             try upsertOpeningBalance(for: account)
+            try upsertSettings(for: account)
         }
         if modelContext.hasChanges {
             try modelContext.save()
+        }
+    }
+
+    /// V15-Sidecar: nur Konten mit abweichender Einstellung haben eine Zeile.
+    private func upsertSettings(for account: Account) throws {
+        let id = account.id
+        let descriptor = FetchDescriptor<SDAccountSettingsEntity>(
+            predicate: #Predicate { $0.accountID == id }
+        )
+        let existing = try modelContext.fetch(descriptor).first
+        if account.excludedFromTotal {
+            if let existing {
+                if !existing.excludedFromTotal {
+                    existing.excludedFromTotal = true
+                    existing.updatedAt = Date()
+                }
+            } else {
+                modelContext.insert(SDAccountSettingsEntity(accountID: id, excludedFromTotal: true))
+            }
+        } else if let existing {
+            modelContext.delete(existing)
         }
     }
 
@@ -1562,6 +1596,7 @@ actor PersistenceModelActor {
         try modelContext.delete(model: SDAccountEntity.self)
         try modelContext.delete(model: SDAccountOpeningBalanceEntity.self)
         try modelContext.delete(model: SDAccountReportedBalanceEntity.self)
+        try modelContext.delete(model: SDAccountSettingsEntity.self)
         if modelContext.hasChanges {
             try modelContext.save()
         }
@@ -1603,6 +1638,11 @@ actor PersistenceModelActor {
                 modelContext.delete(row)
             }
             for row in try modelContext.fetch(FetchDescriptor<SDAccountReportedBalanceEntity>(
+                predicate: #Predicate { $0.accountID == accountID }
+            )) {
+                modelContext.delete(row)
+            }
+            for row in try modelContext.fetch(FetchDescriptor<SDAccountSettingsEntity>(
                 predicate: #Predicate { $0.accountID == accountID }
             )) {
                 modelContext.delete(row)
@@ -1705,6 +1745,12 @@ actor PersistenceModelActor {
                 predicate: #Predicate { deletedIDs.contains($0.accountID) }
             )
             for row in try modelContext.fetch(reported) {
+                modelContext.delete(row)
+            }
+            let settings = FetchDescriptor<SDAccountSettingsEntity>(
+                predicate: #Predicate { deletedIDs.contains($0.accountID) }
+            )
+            for row in try modelContext.fetch(settings) {
                 modelContext.delete(row)
             }
         }

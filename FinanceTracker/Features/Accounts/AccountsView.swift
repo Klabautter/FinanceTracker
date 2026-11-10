@@ -461,6 +461,11 @@ struct AccountsView: View {
                     Text(LiquidityPresentation.asOfText(summary, privacy: privacyState) ?? String(localized: "Stand"))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    if summary.account.excludedFromTotal {
+                        Text("Nicht im Gesamtstand")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
                 } else {
                     MoneyText(money: summary.netMovement, signed: true)
                         .font(.system(size: 16, weight: .semibold))

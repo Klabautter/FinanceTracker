@@ -352,6 +352,17 @@ enum FinanceTrackerSchemaV14: VersionedSchema {
     }
 }
 
+/// V15: Nutzer-Einstellungen je Konto („Nicht zum Gesamtstand zählen"),
+/// neue 1:1-Sidecar-Tabelle `SDAccountSettingsEntity`. Rein additiv →
+/// lightweight.
+enum FinanceTrackerSchemaV15: VersionedSchema {
+    static let versionIdentifier = Schema.Version(15, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        FinanceTrackerSchemaV14.models + [SDAccountSettingsEntity.self]
+    }
+}
+
 enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -368,7 +379,8 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             FinanceTrackerSchemaV11.self,
             FinanceTrackerSchemaV12.self,
             FinanceTrackerSchemaV13.self,
-            FinanceTrackerSchemaV14.self
+            FinanceTrackerSchemaV14.self,
+            FinanceTrackerSchemaV15.self
         ]
     }
 
@@ -425,6 +437,10 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: FinanceTrackerSchemaV13.self,
                 toVersion: FinanceTrackerSchemaV14.self
+            ),
+            .lightweight(
+                fromVersion: FinanceTrackerSchemaV14.self,
+                toVersion: FinanceTrackerSchemaV15.self
             )
         ]
     }

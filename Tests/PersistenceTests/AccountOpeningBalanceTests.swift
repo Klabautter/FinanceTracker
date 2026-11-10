@@ -30,6 +30,31 @@ struct AccountOpeningBalanceTests {
         #expect(try context.fetch(FetchDescriptor<SDAccountOpeningBalanceEntity>()).isEmpty)
     }
 
+    @Test("„Nicht zum Gesamtstand zählen“ überlebt Roundtrip, Backup und Zurücksetzen")
+    func excludedFromTotalRoundTrip() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        var account = Account(name: "Verrechnungskonto", type: .checking, currency: .eur, source: .manual, excludedFromTotal: true)
+        try await dependencies.accountRepository.upsert([account])
+        #expect(try await dependencies.accountRepository.account(id: account.id)?.excludedFromTotal == true)
+
+        // Ein Backup ohne das Feld (älterer Stand) lädt als „zählt mit".
+        var legacyObject = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(account)) as? [String: Any]
+        )
+        legacyObject.removeValue(forKey: "excludedFromTotal")
+        let legacy = try JSONSerialization.data(withJSONObject: legacyObject)
+        #expect(try JSONDecoder().decode(Account.self, from: legacy).excludedFromTotal == false)
+        let encoded = try JSONEncoder().encode(account)
+        #expect(try JSONDecoder().decode(Account.self, from: encoded).excludedFromTotal == true)
+
+        account.excludedFromTotal = false
+        try await dependencies.accountRepository.upsert([account])
+        #expect(try await dependencies.accountRepository.account(id: account.id)?.excludedFromTotal == false)
+        let context = ModelContext(store.container)
+        #expect(try context.fetch(FetchDescriptor<SDAccountSettingsEntity>()).isEmpty)
+    }
+
     @Test("V13 führt die Sidecar-Tabelle, V12 nicht")
     func schemaContainsSidecar() {
         let v13 = FinanceTrackerSchemaV13.models.map { String(describing: $0) }

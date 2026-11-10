@@ -9,6 +9,7 @@ struct AccountEditorDraft: Equatable, Sendable {
     var hasOpeningBalance: Bool
     var openingBalance: Decimal?
     var openingBalanceDate: Date
+    var excludedFromTotal: Bool
     let editing: Account?
     let transactionCount: Int
 
@@ -21,6 +22,7 @@ struct AccountEditorDraft: Equatable, Sendable {
         hasOpeningBalance = editing?.openingBalance != nil
         openingBalance = editing?.openingBalance
         openingBalanceDate = editing?.openingBalanceDate ?? now
+        excludedFromTotal = editing?.excludedFromTotal ?? false
     }
 
     var isNew: Bool { editing == nil }
@@ -51,6 +53,7 @@ struct AccountEditorDraft: Equatable, Sendable {
         if canChangeCurrency { account.currency = currency }
         account.openingBalance = hasOpeningBalance ? openingBalance : nil
         account.openingBalanceDate = hasOpeningBalance ? openingBalanceDate : nil
+        account.excludedFromTotal = excludedFromTotal
         return account
     }
 }
