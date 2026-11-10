@@ -56,6 +56,24 @@ struct AnalyticsPreviousPeriodTests {
         #expect(abs(trend) < 0.06)
     }
 
+    @Test("Kein Trend, wenn ein Konto mit Ausgaben erst spät in der Vorperiode Daten hat")
+    func noTrendWhenAnAccountJoinedLate() {
+        let previous = DateInterval(start: date(2024, 11, 10), end: date(2025, 11, 10))
+        let broker = UUID()
+        let bank = UUID()
+        func expense(_ account: UUID, _ day: Date) -> Transaction {
+            Transaction(accountID: account, source: .manual, kind: .purchase,
+                        amount: Money(amount: -10, currency: .eur), bookedAt: day, rawMerchantName: "Test")
+        }
+        let current = [expense(broker, date(2026, 3, 1)), expense(bank, date(2026, 3, 1))]
+        // Broker hat die ganze Vorperiode Daten, die Bank erst ab Oktober 2025.
+        let lateBank = [expense(broker, date(2024, 12, 1)), expense(bank, date(2025, 10, 21))]
+        #expect(!AnalyticsModel.previousPeriodCovered(current: current, previous: lateBank, previousInterval: previous))
+
+        let bothEarly = [expense(broker, date(2024, 12, 1)), expense(bank, date(2025, 1, 5))]
+        #expect(AnalyticsModel.previousPeriodCovered(current: current, previous: bothEarly, previousInterval: previous))
+    }
+
     private var berlin: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!

@@ -101,6 +101,9 @@ final class AnalyticsModel {
 
     private(set) var snapshot: AnalyticsSnapshot?
     private(set) var previousSnapshot: AnalyticsSnapshot?
+    /// Jedes Konto mit Ausgaben in der aktuellen Periode hat auch Daten aus
+    /// der ersten Hälfte der Vorperiode. Sonst wäre der Vergleich schief.
+    private(set) var previousPeriodCovered = false
     private(set) var monthlyPoints: [MonthlyCashflowPoint] = []
     private(set) var scope: AnalyticsScope?
     private(set) var availableAccounts: [Account] = []
@@ -132,6 +135,7 @@ final class AnalyticsModel {
     private struct CacheEntry {
         let snapshot: AnalyticsSnapshot
         let previousSnapshot: AnalyticsSnapshot
+        let previousPeriodCovered: Bool
         let monthlyPoints: [MonthlyCashflowPoint]
         let scope: AnalyticsScope
         let fxSnapshot: FXRateSnapshot?
@@ -259,6 +263,7 @@ final class AnalyticsModel {
                 cache.touch(key)
                 snapshot = entry.snapshot
                 previousSnapshot = entry.previousSnapshot
+                previousPeriodCovered = entry.previousPeriodCovered
                 monthlyPoints = entry.monthlyPoints
                 scope = entry.scope
                 loadState = .loaded
@@ -351,8 +356,14 @@ final class AnalyticsModel {
             let calculatedPrevious = calculations.1
             let calculatedMonthly = calculations.2
 
+            let covered = Self.previousPeriodCovered(
+                current: transactions,
+                previous: previousTransactions,
+                previousInterval: prevInterval
+            )
             snapshot = calculatedSnapshot
             previousSnapshot = calculatedPrevious
+            previousPeriodCovered = covered
             monthlyPoints = calculatedMonthly
             scope = currentScope
 
@@ -360,6 +371,7 @@ final class AnalyticsModel {
                 CacheEntry(
                     snapshot: calculatedSnapshot,
                     previousSnapshot: calculatedPrevious,
+                    previousPeriodCovered: covered,
                     monthlyPoints: calculatedMonthly,
                     scope: currentScope,
                     fxSnapshot: resolvedFX
@@ -384,6 +396,7 @@ final class AnalyticsModel {
         loadGeneration += 1
         snapshot = nil
         previousSnapshot = nil
+        previousPeriodCovered = false
         monthlyPoints = []
         scope = nil
         loadState = .loading
@@ -407,13 +420,32 @@ final class AnalyticsModel {
         guard let current = snapshot?.totalSpending,
               let previous = previousSnapshot?.totalSpending,
               previous > 0,
-              let currentInterval = range.interval(calendar: calendar) else { return nil }
-        // Nur vergleichen, wenn die Vorperiode wirklich Daten hat: Beginnen
-        // die Buchungen erst gegen ihr Ende, wäre „↑ 1387 %" bedeutungslos.
-        let previousPeriod = previousInterval(current: currentInterval)
-        guard let firstDay = previousSnapshot?.dailySpending.map(\.day).min(),
-              firstDay.timeIntervalSince(previousPeriod.start) <= previousPeriod.duration / 2 else { return nil }
+              previousPeriodCovered else { return nil }
         return NSDecimalNumber(decimal: (current - previous) / previous).doubleValue
+    }
+
+    /// Nur vergleichen, wenn die Vorperiode für jedes Konto mit Ausgaben in
+    /// der aktuellen Periode Daten hat, und zwar schon aus ihrer ersten
+    /// Hälfte. Kam ein Konto erst später dazu (Bankanbindung, neue Karte),
+    /// wäre „↑ 209 %" nur ein Effekt der fehlenden Daten.
+    nonisolated static func previousPeriodCovered(
+        current: [Transaction],
+        previous: [Transaction],
+        previousInterval: DateInterval
+    ) -> Bool {
+        let spendingAccounts = Set(current.filter { $0.amount.isNegative }.map(\.accountID))
+        guard !spendingAccounts.isEmpty else { return false }
+        let halfway = previousInterval.start.addingTimeInterval(previousInterval.duration / 2)
+        var earliest: [UUID: Date] = [:]
+        for transaction in previous {
+            let date = transaction.displayDate
+            if earliest[transaction.accountID].map({ date < $0 }) ?? true {
+                earliest[transaction.accountID] = date
+            }
+        }
+        return spendingAccounts.allSatisfy { account in
+            earliest[account].map { $0 <= halfway } ?? false
+        }
     }
 
     var spendingDeltaText: String? {
