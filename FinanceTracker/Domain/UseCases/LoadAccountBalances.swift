@@ -11,6 +11,9 @@ struct AccountSummary: Identifiable, Hashable, Sendable {
     let balanceReportedAt: Date?
     /// Gemeldeter Stand in anderer Währung, aus dem `balance` umgerechnet ist.
     var balanceConvertedFrom: Money? = nil
+    /// Fremdwährungen, deren Buchungen im angezeigten Betrag fehlen: ohne
+    /// Stand alle, mit Stand nur die nach dem gemeldeten Stand bzw. ab dem
+    /// Stichtag des Anfangsbestands (frühere stecken schon im Stand).
     let foreignCurrencies: Set<CurrencyCode>
     let transactionCount: Int
 
@@ -47,7 +50,7 @@ struct LoadAccountBalances: Sendable {
         let accounts = try await accountsTask
         let movements = try await movementsTask
 
-        var totalsByAccount: [UUID: (sum: Decimal, foreign: Set<CurrencyCode>, count: Int)] = [:]
+        var totalsByAccount: [UUID: (sum: Decimal, foreign: [(currency: CurrencyCode, date: Date)], count: Int)] = [:]
         var movementsByAccount: [UUID: [AccountBalanceCalculator.Movement]] = [:]
         let accountsByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
         for row in movements {
@@ -64,7 +67,7 @@ struct LoadAccountBalances: Sendable {
                     movementsByAccount[row.accountID, default: []].append(.init(date: row.date, amount: amount))
                 }
             } else {
-                entry.foreign.insert(currency)
+                entry.foreign.append((currency, row.date))
             }
             entry.count += 1
             totalsByAccount[row.accountID] = entry
@@ -80,6 +83,18 @@ struct LoadAccountBalances: Sendable {
                     calendar: calendar
                 )
                 : nil
+            let foreign = entry?.foreign ?? []
+            let missing: [(currency: CurrencyCode, date: Date)]
+            switch result?.basis {
+            case .reported?:
+                let asOf = result?.reportedAt ?? .distantPast
+                missing = foreign.filter { $0.date > asOf }
+            case .openingBalance?:
+                let start = account.openingBalanceDate.map { calendar.startOfDay(for: $0) }
+                missing = foreign.filter { row in start.map { row.date >= $0 } ?? true }
+            case nil:
+                missing = foreign
+            }
             return AccountSummary(
                 account: account,
                 netMovement: Money(amount: entry?.sum ?? Decimal(0), currency: account.currency),
@@ -87,7 +102,7 @@ struct LoadAccountBalances: Sendable {
                 balanceBasis: result?.basis,
                 balanceReportedAt: result?.reportedAt,
                 balanceConvertedFrom: result?.convertedFrom,
-                foreignCurrencies: entry?.foreign ?? [],
+                foreignCurrencies: Set(missing.map(\.currency)),
                 transactionCount: entry?.count ?? 0
             )
         }
