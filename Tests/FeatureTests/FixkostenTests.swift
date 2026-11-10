@@ -358,6 +358,50 @@ struct FixkostenTests {
         #expect(!model.upcomingWithin30Days.contains { $0.commitment.id == unplanned.id })
     }
 
+    @Test("Termine hängen an der letzten Zahlung aus dem Vormonat, wie in der Übersicht")
+    func scheduleFollowsLastPaymentFromPreviousMonth() async throws {
+        let dependencies = try makeDependencies()
+        let calendar = Calendar.current
+        let now = Date()
+        let monthStart = try #require(calendar.date(from: calendar.dateComponents([.year, .month], from: now)))
+        // Immer im Vormonat (Tag 18 bis 21), im laufenden Monat noch keine Zahlung.
+        let paymentDate = try #require(calendar.date(byAdding: .day, value: -10, to: monthStart))
+        let paymentDay = calendar.component(.day, from: paymentDate)
+
+        var commitment = makeCommitment()
+        // Gespeicherter Plan zeigt auf einen anderen Tag als die echte Zahlung.
+        commitment.nextExpectedDate = calendar.date(byAdding: .day, value: 2, to: monthStart)
+        try await dependencies.recurringCommitmentRepository.upsert([commitment])
+        var payment = txn(merchant: "Spotify", amount: Decimal(string: "-10.99")!)
+        payment.bookedAt = paymentDate
+        try await dependencies.transactionRepository.upsert([payment])
+
+        let model = FixkostenModel(dependencies: dependencies)
+        await model.load()
+
+        #expect(model.actionError == nil)
+        #expect(model.latestOccurrenceDates[commitment.id] == paymentDate)
+        let next = try #require(model.nextExpectedDates[commitment.id])
+        #expect(calendar.component(.day, from: next) == paymentDay)
+
+        // Dieselben offenen Termine wie die Übersicht (gleicher Rückblick,
+        // gleiche letzte Zahlung).
+        let windowEnd = try #require(calendar.date(byAdding: .day, value: 30, to: now))
+        let dashboardDates = RecurringOccurrenceResolver().openOccurrences(
+            commitment: commitment,
+            explicitOccurrences: [],
+            allTransactions: [payment],
+            now: now,
+            end: windowEnd,
+            calendar: calendar,
+            latestPaymentDate: paymentDate
+        ).map(\.scheduledDate)
+        let screenDates = model.upcomingWithin30Days
+            .filter { $0.commitment.id == commitment.id }
+            .map(\.scheduledDate)
+        #expect(screenDates == dashboardDates)
+    }
+
     @Test("V4-Store wird zu V5 migriert (Recurring-Tabellen entstehen)")
     func migrationV4ToV5() async throws {
         let directory = FileManager.default.temporaryDirectory

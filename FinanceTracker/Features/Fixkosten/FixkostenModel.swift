@@ -112,6 +112,10 @@ final class FixkostenModel {
             let resolver = RecurringOccurrenceResolver()
             let occurrencesByCommitment = Dictionary(grouping: allOccurrences, by: \.commitmentID)
             let currentPeriod = currentMonthInterval()
+            let latestPaymentPeriod = RecurringOccurrenceResolver.latestPaymentPeriod(
+                endingWith: currentPeriod,
+                calendar: Calendar.current
+            )
 
             paidTransactionCounts = [:]
             explicitOccurrenceCounts = [:]
@@ -130,9 +134,20 @@ final class FixkostenModel {
                 explicitOccurrenceCounts[commitment.id] = result.isExplicitlyAssigned
                     ? result.matchedTransactions.count
                     : 0
-                latestOccurrenceDates[commitment.id] = result.latestOccurrence
+                // Die letzte reale Zahlung liegt meist im Vormonat: Sie wird
+                // über denselben Rückblick gesucht wie in der Übersicht, nicht
+                // nur im laufenden Monat. Sonst hängen die Termine hier am
+                // gespeicherten Plan und dort an der Zahlung, und beide
+                // Bereiche zeigen verschiedene Fälligkeiten.
+                let latestPayment = resolver.resolve(
+                    commitment: commitment,
+                    explicitOccurrences: occurrencesByCommitment[commitment.id] ?? [],
+                    allTransactions: historyTransactions,
+                    period: latestPaymentPeriod
+                ).latestOccurrence
+                latestOccurrenceDates[commitment.id] = latestPayment
 
-                if let latest = result.latestOccurrence {
+                if let latest = latestPayment {
                     nextExpectedDates[commitment.id] = RecurringScheduleService().nextDate(
                         after: latest,
                         cadence: commitment.cadence,

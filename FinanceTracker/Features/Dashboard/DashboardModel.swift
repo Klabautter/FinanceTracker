@@ -51,13 +51,15 @@ final class DashboardModel {
     /// Ein Monatswechsel während eines laufenden Ladevorgangs darf nicht
     /// verloren gehen; der Ladevorgang wird danach einmal wiederholt.
     private var needsReload = false
-    private(set) var isLoading = false
+    /// Laden der Übersicht (AGENTS #37). Ein neuer Ladevorgang ersetzt
+    /// einen alten Fehler sofort; die alten Zahlen bleiben währenddessen.
+    private(set) var loadState: LoadState = .idle
+    var isLoading: Bool { loadState.isLoading }
     /// MacUX-Perf: Erstladung sofort, Revisions-Nachläufe gebündelt (View).
     private(set) var hasLoaded = false
     /// Die Review-Kennzahl kann erst nach dem globalen Projection- und
     /// Annotation-Read als belastbarer Palette-/Toolbar-Wert angezeigt werden.
     private(set) var hasLoadedReviewSummary = false
-    private(set) var errorMessage: String?
     /// FX-Status für UI-Debug (Quelle live/cache/fallback + Stand, `nil` =
     /// keine Fremdwährung im Scope). Budgets/Analytics teilen sich denselben
     /// Snapshot: gleiche Kurse überall (#28).
@@ -120,8 +122,9 @@ final class DashboardModel {
     }
 
     private func performLoad() async {
-        isLoading = true
+        loadState = .loading
         fxIsLoading = true
+        var failure: String?
         let signpost = PerfSignpost.signposter.beginInterval("DashboardLoad")
         // Alles Sichtbare wird erst am Ende in einem Schritt ausgetauscht.
         // Zwischenstände (geleerte Hinweise, Budgets ohne Zahlen …) ließen
@@ -134,7 +137,7 @@ final class DashboardModel {
         var newForecast: ForecastSnapshot?
         var newFXSnapshot: FXRateSnapshot?
         defer {
-            isLoading = false
+            loadState = failure.map { .failed($0) } ?? .loaded
             fxIsLoading = false
             hasLoaded = true
         }
@@ -143,7 +146,7 @@ final class DashboardModel {
         let isCurrentMonth = monthOffset == 0
         guard let anchor = calendar.date(byAdding: .month, value: monthOffset, to: today),
               let currentInterval = monthInterval(containing: anchor) else {
-            errorMessage = String(localized: "Der gewählte Monat konnte nicht ermittelt werden.")
+            failure = String(localized: "Der gewählte Monat konnte nicht ermittelt werden.")
             return
         }
         // Vergangene Monate werden als abgeschlossen betrachtet: Stichtag
@@ -152,9 +155,11 @@ final class DashboardModel {
         let now = isCurrentMonth ? today : currentInterval.end.addingTimeInterval(-1)
         let previousDay = currentInterval.start.addingTimeInterval(-1)
         let previousInterval = monthInterval(containing: previousDay)
-        let historyStart = calendar.date(byAdding: .month, value: -5, to: currentInterval.start) ?? currentInterval.start
-        let historyEnd = currentInterval.end
-        let historyInterval = DateInterval(start: historyStart, end: historyEnd)
+        // Derselbe Rückblick wie in „Wiederkehrend" (letzte reale Zahlung).
+        let historyInterval = RecurringOccurrenceResolver.latestPaymentPeriod(
+            endingWith: currentInterval,
+            calendar: calendar
+        )
 
         do {
             let request = LoadDashboardRequest(
@@ -295,7 +300,6 @@ final class DashboardModel {
             // Zeitraum, Zahlen, Hinweise und Planung wechseln gemeinsam: Sonst
             // stünde beim Monatswechsel kurz der neue Titel über den alten
             // Werten, und die Seite würde mehrfach neu umbrechen.
-            errorMessage = nil
             lastImportBatch = newLastImportBatch
             hasAnyTransactions = newHasAnyTransactions
             fxSnapshot = newFXSnapshot
@@ -336,12 +340,9 @@ final class DashboardModel {
                 uniqueKeysWithValues: result.categories.map { ($0.id, $0) }
             )
         } catch {
-            errorMessage = String(localized: "Die Auswertung konnte nicht geladen werden.")
+            failure = String(localized: "Die Auswertung konnte nicht geladen werden.")
         }
         PerfSignpost.signposter.endInterval("DashboardLoad", signpost)
-        isLoading = false
-        fxIsLoading = false
-        hasLoaded = true
         // Die Monatsansicht steht; die Zahl offener Prüfungen gilt für alle
         // Monate und liest den gesamten Bestand. Sie folgt danach, statt die
         // Übersicht bei großen Beständen um Sekunden zu verzögern.

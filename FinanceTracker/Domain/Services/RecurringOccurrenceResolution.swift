@@ -102,6 +102,15 @@ struct RecurringOccurrenceResolution: Sendable, Equatable {
 
 extension RecurringOccurrenceResolver {
 
+    /// Zeitraum, in dem die letzte reale Zahlung eines Zahlungsplans gesucht
+    /// wird: der Monat `month` und die fünf davor. Übersicht und
+    /// „Wiederkehrend" nutzen denselben Rückblick, damit beide dieselben
+    /// Termine zeigen.
+    static func latestPaymentPeriod(endingWith month: DateInterval, calendar: Calendar) -> DateInterval {
+        let start = calendar.date(byAdding: .month, value: -5, to: month.start) ?? month.start
+        return DateInterval(start: start, end: month.end)
+    }
+
     /// So viele Tage bleibt ein unbezahlter Termin nach seinem Fälligkeitstag
     /// noch als „überfällig" in der Vorschau sichtbar.
     static let overdueGraceDays = 7
