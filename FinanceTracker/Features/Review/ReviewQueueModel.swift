@@ -78,6 +78,7 @@ final class ReviewQueueModel {
     /// aus „Versicherung“ und „Versicherungen“ nicht zwei Kategorien werden.
     private(set) var newCategoryProposals: [Transaction.ID: NewCategoryProposal] = [:]
     private var adviceTask: Task<Void, Never>?
+    private var adviceRunID: UUID?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     /// MacUX-Audit: Transaktionen, für die eine Kategorie-Merkregel erstellt
@@ -250,7 +251,12 @@ final class ReviewQueueModel {
             !excluded.contains(parent.id) && categories.contains { $0.parentID == parent.id }
         }
         isAdvising = true
+        let runID = UUID()
+        adviceRunID = runID
         adviceTask = Task { [weak self] in
+            // Auch ein abgebrochener Lauf endet sichtbar; ein neuerer Lauf
+            // verwaltet das Flag selbst.
+            defer { if let self, self.adviceRunID == runID { self.isAdvising = false } }
             for entry in pending {
                 let advice = await advisor.adviseCategory(
                     merchantName: entry.name,
@@ -262,7 +268,6 @@ final class ReviewQueueModel {
                 self.adviceByMerchantKey[entry.key] = .some(advice)
                 self.applyCachedAdvice()
             }
-            self?.isAdvising = false
         }
     }
 

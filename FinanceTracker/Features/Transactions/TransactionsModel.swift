@@ -220,6 +220,9 @@ final class TransactionsModel {
         loadGeneration += 1
         let generation = loadGeneration
         isLoading = true
+        // Ein laufendes Nachladen ist damit überholt; sein Ende würde das
+        // Flag wegen der Generation nicht mehr zurücksetzen.
+        isLoadingPage = false
         errorMessage = nil
         defer {
             if generation == loadGeneration {

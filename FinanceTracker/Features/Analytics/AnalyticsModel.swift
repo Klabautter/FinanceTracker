@@ -216,7 +216,12 @@ final class AnalyticsModel {
         let generation = loadGeneration
         isLoading = true
         let signpost = PerfSignpost.signposter.beginInterval("AnalyticsLoad")
-        defer { PerfSignpost.signposter.endInterval("AnalyticsLoad", signpost) }
+        defer {
+            PerfSignpost.signposter.endInterval("AnalyticsLoad", signpost)
+            // Ein abgebrochener Load (Filterwechsel, View verschwindet) darf
+            // keinen Spinner hinterlassen; ein neuerer Load verwaltet ihn selbst.
+            if generation == loadGeneration { isLoading = false }
+        }
         errorMessage = nil
 
         let key = CacheKey(
