@@ -256,7 +256,7 @@ struct FixkostenTests {
         let model = FixkostenModel(dependencies: dependencies)
         await model.load()
 
-        #expect(model.errorMessage == nil)
+        #expect(model.actionError == nil)
         #expect(model.paidTransactionCounts[commitment.id] == 0)
         #expect(model.suggestions.isEmpty)
     }
@@ -344,7 +344,7 @@ struct FixkostenTests {
         let model = FixkostenModel(dependencies: dependencies)
         await model.load()
 
-        #expect(model.errorMessage == nil)
+        #expect(model.actionError == nil)
         let nextMonthly = try #require(model.nextExpectedDates[monthly.id])
         let nextYearly = try #require(model.nextExpectedDates[yearly.id])
         #expect(nextMonthly >= now)
