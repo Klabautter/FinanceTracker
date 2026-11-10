@@ -42,13 +42,14 @@ struct AccountDetailSheet: View {
     var body: some View {
         AdaptiveSheet(title: model.account.name) {
             Group {
-                if model.isLoading {
+                switch model.loadState {
+                case .idle, .loading:
                     LoadingStateView()
-                } else if let errorMessage = model.errorMessage {
+                case .failed(let errorMessage):
                     ErrorStateView(message: errorMessage) {
                         Task { await model.load() }
                     }
-                } else {
+                case .loaded:
                     content
                 }
             }
@@ -105,7 +106,7 @@ struct AccountDetailSheet: View {
                 if let lastSync {
                     LabeledContent(
                         "Letzte Aktualisierung",
-                        value: lastSync.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
+                        value: AppDateFormatter.relativeAge(lastSync)
                     )
                 }
             }

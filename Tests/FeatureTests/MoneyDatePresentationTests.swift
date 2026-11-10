@@ -139,4 +139,20 @@ struct DatePresentationTests {
         }.value
         #expect(!formatted.isEmpty)
     }
+
+    @Test("Alter eines Zeitpunkts: genaue Tage statt Kalenderwochen")
+    func relativeAgeUsesExactUnits() {
+        let now = Date(timeIntervalSince1970: 1_794_250_000)
+        func age(_ seconds: TimeInterval) -> String {
+            AppDateFormatter.relativeAge(now.addingTimeInterval(-seconds), relativeTo: now, locale: Self.deDE)
+        }
+        #expect(age(20) == "gerade eben")
+        #expect(age(-300) == "gerade eben")
+        #expect(age(5 * 60) == "vor 5 Min.")
+        #expect(age(7 * 3_600) == "vor 7 Std.")
+        #expect(age(8 * 86_400 + 7 * 3_600) == "vor 8 Tagen")
+        #expect(age(59 * 86_400) == "vor 59 Tagen")
+        let old = now.addingTimeInterval(-90 * 86_400)
+        #expect(AppDateFormatter.relativeAge(old, relativeTo: now, locale: Self.deDE) == AppDateFormatter.day(old, locale: Self.deDE))
+    }
 }
