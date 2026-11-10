@@ -94,6 +94,8 @@ struct BankConnectView: View {
                 codeExchange(authorizationID: authorizationID, institutionName: institutionName, authURL: authURL)
             case .success(let accountsCreated):
                 successSummary(accountsCreated: accountsCreated)
+            case .noAccounts(let institutionName):
+                noAccountsView(institutionName: institutionName)
             case .failed(let message, _):
                 failedView(message)
             }
@@ -169,7 +171,7 @@ struct BankConnectView: View {
             model.renewalPurpose == .reauthorize
                 ? (String(localized: "\(institutionName) neu autorisieren"), String(localized: "Verlängert den Lesezugriff auf die volle Dauer, die deine Bank erlaubt."))
                 : (String(localized: "\(institutionName) freigeben"), String(localized: "Melde dich bei deiner Bank an und gib den Lesezugriff frei."))
-        case .success:
+        case .success, .noAccounts:
             nil
         }
     }
@@ -657,6 +659,27 @@ struct BankConnectView: View {
                 institutionFooter
             }
 
+            if model.kind == .enablebanking {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                            Text("Neue Bank zuerst im Control Panel verknüpfen")
+                                .fontWeight(.medium)
+                            Text("Ohne Vertrag gibt Enable Banking nur Konten heraus, die du bei deiner bestehenden Anwendung verknüpft hast. Für jede weitere Bank dort „Konten verknüpfen“ wählen, keine neue Anwendung anlegen.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Link(destination: BankConnectModel.controlPanelURL) {
+                                Label("Control Panel öffnen", systemImage: "arrow.up.right.square")
+                                    .font(.caption)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(AppPalette.information)
+                    }
+                }
+            }
+
             Section {
                 DisclosureGroup("Erweitert") {
                     VStack(alignment: .leading, spacing: AppSpacing.m) {
@@ -1003,6 +1026,60 @@ struct BankConnectView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppPalette.canvas)
         .accessibilityElement(children: .contain)
+    }
+
+    /// Freigabe ohne Konten: erklärt, wo die Bank freigeschaltet wird, und
+    /// führt mit zwei Knöpfen zurück in denselben Ablauf.
+    private func noAccountsView(institutionName: String) -> some View {
+        VStack(spacing: AppSpacing.l) {
+            Spacer(minLength: 0)
+            Image(systemName: "tray")
+                .font(.system(size: 48))
+                .foregroundStyle(AppPalette.warning)
+                .accessibilityHidden(true)
+            VStack(spacing: AppSpacing.s) {
+                Text("\(institutionName) hat keine Konten freigegeben")
+                    .font(.title2.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                Text("Die Anmeldung bei \(institutionName) hat geklappt. Deine Enable-Banking-Anwendung gibt ohne Vertrag aber nur Konten heraus, die du dort im Control Panel verknüpft hast. Es wurde nichts gespeichert.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 460)
+            }
+            VStack(alignment: .leading, spacing: AppSpacing.s) {
+                setupHint(1, "Control Panel öffnen und deine bestehende Anwendung wählen. Keine neue Anwendung anlegen.")
+                setupHint(2, "Dort Konten verknüpfen, \(institutionName) wählen und dich anmelden.")
+                setupHint(3, "Hier „Erneut verbinden“ wählen.")
+            }
+            .frame(maxWidth: 460, alignment: .leading)
+            HStack(spacing: AppSpacing.m) {
+                Button("Control Panel öffnen", systemImage: "arrow.up.right.square") {
+                    openURL(BankConnectModel.controlPanelURL)
+                }
+                Button("Erneut verbinden") {
+                    Task { await model.retryAfterLinkingAccounts() }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            Button("Andere Bank wählen") {
+                model.chooseAnotherBank()
+            }
+            .buttonStyle(.link)
+            Spacer(minLength: 0)
+        }
+        .padding(AppSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func setupHint(_ number: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.s) {
+            Text("\(number).")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            Text(text)
+        }
+        .font(.callout)
     }
 
     private func failedView(_ message: String) -> some View {

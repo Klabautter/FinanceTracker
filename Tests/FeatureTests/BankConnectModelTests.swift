@@ -185,6 +185,61 @@ struct BankConnectModelTests {
         #expect(try await dependencies.transactionRepository.count() == 1)
     }
 
+    /// Eingeschränkte Enable-Banking-Anwendung, Bank nicht im Control Panel
+    /// verknüpft: Die Session hat keine Konten. Keine leere „Verbunden“-
+    /// Verbindung, sondern eine erklärte Seite mit „Erneut verbinden“.
+    @Test("Enable Banking: Freigabe ohne Konten verwirft die Verbindung und erklärt das Verknüpfen")
+    func enableBankingWithoutLinkedAccounts() async throws {
+        let dependencies = try makeDependencies()
+        let provider = MockBankDataProvider()
+        provider.identifier = ConnectionProvider.enablebanking.rawValue
+        provider.stubbedLinkedAccountIDs = []
+
+        let model = BankConnectModel(
+            kind: .enablebanking,
+            dependencies: dependencies,
+            enableBankingCredentialStore: InMemoryEnableBankingCredentialStore(applicationID: "app-1", privateKeyPEM: "test-key"),
+            providerFactory: StaticProviderFactory(provider: provider)
+        )
+        await model.startConnection(for: provider.stubbedInstitutions[0])
+        await model.finishWithRedirectURL("https://enablebanking.com/redirect?code=abc")
+
+        #expect(model.phase == .noAccounts(institutionName: "Sandbox Finance"))
+        #expect(try await dependencies.connectionRepository.connections().isEmpty)
+        #expect(try await dependencies.accountRepository.accounts().isEmpty)
+
+        // Nach dem Verknüpfen: dieselbe Bank erneut freigeben.
+        await model.retryAfterLinkingAccounts()
+        guard case .codeExchange(_, let name, _) = model.phase else {
+            Issue.record("Erwartet: Freigabe-Schritt, war \(model.phase)")
+            return
+        }
+        #expect(name == "Sandbox Finance")
+    }
+
+    @Test("Aktive Verbindung ohne Konten heißt nicht „Verbunden“ und verlangt Neu verbinden")
+    func connectionWithoutAccountsIsNotConnected() {
+        let connection = Connection(
+            id: UUID(),
+            userID: UUID(),
+            provider: .enablebanking,
+            providerConnectionID: "s",
+            institutionID: "LT|Revolut",
+            status: .active,
+            consentExpiresAt: Date().addingTimeInterval(90 * 86_400),
+            lastSuccessfulSyncAt: Date(),
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        let health = ConnectionHealthEvaluator().health(for: connection, now: Date())
+        #expect(ConnectionStatusPresentation.label(for: connection, health: health, accountCount: 0) == "Keine Konten freigegeben")
+        #expect(ConnectionStatusPresentation.needsReconnect(connection, health: health, accountCount: 0))
+        #expect(ConnectionStatusPresentation.label(for: connection, health: health, accountCount: 2) == "Verbunden")
+        #expect(!ConnectionStatusPresentation.needsReconnect(connection, health: health, accountCount: 2))
+        // Ohne Kontenzahl (andere Aufrufer) bleibt alles wie bisher.
+        #expect(ConnectionStatusPresentation.label(for: connection, health: health) == "Verbunden")
+    }
+
     /// Enable Banking: Redirect-URL ohne `code` → kontrollierter Fehler,
     /// kein stiller Abbruch (Rule 17).
     @Test("Enable Banking: Redirect-URL ohne Code → sichtbarer Fehler")
@@ -219,6 +274,9 @@ struct BankConnectModelTests {
     func applicationWarnings() {
         let production = BankApplicationInfo(name: "Prod", environment: .production, isActive: true, redirectURLs: ["https://enablebanking.com/redirect"], countries: ["DE"])
         #expect(BankConnectModel.applicationWarnings(production, redirectURL: "https://enablebanking.com/redirect").isEmpty)
+        // Nach einer Freigabe steht die Rücksprung-URL samt state/code im Feld.
+        #expect(BankConnectModel.applicationWarnings(production, redirectURL: "https://enablebanking.com/redirect?state=A&code=B").isEmpty)
+        #expect(BankConnectModel.applicationWarnings(production, redirectURL: "https://example.com/callback?code=B").count == 1)
 
         let sandbox = BankApplicationInfo(name: "Test", environment: .sandbox, isActive: false, redirectURLs: [], countries: [])
         let warnings = BankConnectModel.applicationWarnings(sandbox, redirectURL: "https://enablebanking.com/redirect")

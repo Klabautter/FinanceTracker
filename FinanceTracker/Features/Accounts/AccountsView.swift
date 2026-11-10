@@ -303,7 +303,12 @@ struct AccountsView: View {
                         Text(connection.displayName)
                             .fontWeight(.medium)
                     }
-                    if let last = connection.lastSuccessfulSyncAt {
+                    if model.connectionHasNoAccounts(connection) {
+                        Text("Die Bank ist bei Enable Banking nicht verknüpft. Im Control Panel „Konten verknüpfen“ wählen, dann neu verbinden.")
+                            .font(.caption)
+                            .foregroundStyle(AppPalette.warning)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if let last = connection.lastSuccessfulSyncAt {
                         Text("Zuletzt aktualisiert: \(AppDateFormatter.relativeAge(last))")
                             .font(.caption)
                             .foregroundStyle(.secondary)

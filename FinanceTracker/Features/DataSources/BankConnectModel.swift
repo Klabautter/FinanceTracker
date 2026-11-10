@@ -41,6 +41,10 @@ final class BankConnectModel {
         case codeExchange(authorizationID: String, institutionName: String, authURL: URL?)
         case checking
         case success(accountsCreated: Int)
+        /// Freigabe bei der Bank hat geklappt, Enable Banking hat aber keine
+        /// Konten herausgegeben: Ohne Vertrag liefert eine Anwendung nur
+        /// Konten, die im Control Panel verknüpft sind.
+        case noAccounts(institutionName: String)
         /// `retry` sagt, wo es nach „Erneut versuchen“ weitergeht, statt es
         /// aus Nebenzuständen zu erraten.
         case failed(String, retry: RetryTarget = .institutions)
@@ -398,11 +402,26 @@ final class BankConnectModel {
         if !info.isActive {
             warnings.append(String(localized: "Die Anwendung ist inaktiv. Im Control Panel „Activate by linking accounts“ für die eigenen Konten ausführen."))
         }
-        let trimmed = redirectURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty, !info.redirectURLs.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed }) {
-            warnings.append(String(localized: "Die Redirect-URL \(trimmed) ist in der Anwendung nicht hinterlegt, die Bank-Autorisierung würde scheitern."))
+        // Verglichen wird nur die Adresse ohne `?state=…&code=…`: Nach einer
+        // Freigabe steht im Feld die vollständige Rücksprung-URL der Bank.
+        if let base = redirectBase(redirectURL),
+           !info.redirectURLs.contains(where: { redirectBase($0) == base }) {
+            warnings.append(String(localized: "Die Redirect-URL \(base) ist in der Anwendung nicht hinterlegt, die Bank-Autorisierung würde scheitern."))
         }
         return warnings
+    }
+
+    /// Redirect-URL ohne Query, Fragment und abschließenden Schrägstrich;
+    /// `nil` für leere Eingaben.
+    static func redirectBase(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard var components = URLComponents(string: trimmed) else { return trimmed }
+        components.query = nil
+        components.fragment = nil
+        var base = components.string ?? trimmed
+        while base.hasSuffix("/") { base.removeLast() }
+        return base
     }
 
     var applicationWarnings: [String] {
@@ -663,6 +682,18 @@ final class BankConnectModel {
                 provider: provider,
                 dependencies: dependencies
             )
+            if result.accountsSynced == 0 {
+                // Keine leere Verbindung als „Verbunden“ stehen lassen; eine
+                // bestehende Verbindung derselben Bank bleibt unberührt.
+                BankSyncService.logger.info("Autorisierung: \(institution.name, privacy: .public) lieferte keine Konten, Verbindung verworfen")
+                try? await dependencies.connectionRepository.delete(id: connection.id)
+                pendingConnectionID = nil
+                renewalPurpose = nil
+                phase = .noAccounts(institutionName: institution.name)
+                dependencies.changeTracker.markChanged()
+                await loadConnections()
+                return
+            }
             historyNotice = Self.historyNotice(requestedStart: requestedStart, earliestDelivered: result.earliestBookingDate)
             await removeSupersededConnections(keeping: connection)
             consentValidUntil = try? await dependencies.connectionRepository.connections()
@@ -747,6 +778,15 @@ final class BankConnectModel {
         renewalPurpose = nil
         redirectURLInput = "https://enablebanking.com/redirect"
         phase = .institutions
+    }
+
+    /// Nach dem Verknüpfen im Control Panel dieselbe Bank erneut freigeben.
+    func retryAfterLinkingAccounts() async {
+        guard let institution = selectedInstitution else {
+            phase = .institutions
+            return
+        }
+        await startConnection(for: institution)
     }
 
     func retryAfterFailure() async {

@@ -22,7 +22,20 @@ enum ConnectionStatusPresentation {
         return connection.consentExpiresAt.map { $0 < now } ?? false
     }
 
-    static func label(for connection: Connection, health: ConnectionHealth, now: Date = Date()) -> String {
+    /// Aktive, schon abgerufene Verbindung ohne ein einziges Konto: Die
+    /// Bank ist bei Enable Banking nicht verknüpft. „Verbunden“ wäre falsch.
+    static func hasNoAccounts(_ connection: Connection, accountCount: Int?) -> Bool {
+        guard let accountCount else { return false }
+        return connection.status == .active && connection.lastSuccessfulSyncAt != nil && accountCount == 0
+    }
+
+    /// `accountCount`: Konten dieser Verbindung, wenn der Aufrufer sie kennt.
+    static func label(
+        for connection: Connection,
+        health: ConnectionHealth,
+        now: Date = Date(),
+        accountCount: Int? = nil
+    ) -> String {
         if isExpired(connection, health: health, now: now), health != .blocked {
             return String(localized: "Zustimmung abgelaufen")
         }
@@ -36,6 +49,9 @@ enum ConnectionStatusPresentation {
         case .noConsentInfo, .healthy, .expiring:
             break
         }
+        if hasNoAccounts(connection, accountCount: accountCount) {
+            return String(localized: "Keine Konten freigegeben")
+        }
         if isStale(connection, now: now) {
             return String(localized: "Daten veraltet")
         }
@@ -48,8 +64,14 @@ enum ConnectionStatusPresentation {
         }
     }
 
-    static func needsReconnect(_ connection: Connection, health: ConnectionHealth, now: Date = Date()) -> Bool {
+    static func needsReconnect(
+        _ connection: Connection,
+        health: ConnectionHealth,
+        now: Date = Date(),
+        accountCount: Int? = nil
+    ) -> Bool {
         if isExpired(connection, health: health, now: now) { return true }
+        if hasNoAccounts(connection, accountCount: accountCount) { return true }
         switch health {
         case .expired, .blocked: return true
         case .noConsentInfo, .healthy, .expiring: return connection.status != .active

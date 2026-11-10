@@ -218,8 +218,19 @@ final class AccountsModel {
         ConnectionStatusPresentation.label(
             for: connection,
             health: healthEvaluator.health(for: connection, now: now),
-            now: now
+            now: now,
+            accountCount: accountCount(for: connection)
         )
+    }
+
+    /// Konten dieser Verbindung, aktive wie getrennte.
+    func accountCount(for connection: Connection) -> Int {
+        (accounts + disconnectedAccounts).filter { $0.account.connectionID == connection.id }.count
+    }
+
+    /// Verbindung ohne freigegebene Konten (Bank nicht im Control Panel verknüpft).
+    func connectionHasNoAccounts(_ connection: Connection) -> Bool {
+        ConnectionStatusPresentation.hasNoAccounts(connection, accountCount: accountCount(for: connection))
     }
 
     /// Eine aktive Verbindung ohne erfolgreichen Abruf seit einer Woche.
@@ -228,7 +239,12 @@ final class AccountsModel {
     }
 
     func connectionNeedsReconnect(_ connection: Connection, now: Date = Date()) -> Bool {
-        ConnectionStatusPresentation.needsReconnect(connection, health: healthEvaluator.health(for: connection, now: now), now: now)
+        ConnectionStatusPresentation.needsReconnect(
+            connection,
+            health: healthEvaluator.health(for: connection, now: now),
+            now: now,
+            accountCount: accountCount(for: connection)
+        )
     }
 }
 
