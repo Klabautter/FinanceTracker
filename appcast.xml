@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.4.5</title>
-      <pubDate>Sun, 01 Nov 2026 23:20:05 +0000</pubDate>
-      <sparkle:version>11</sparkle:version>
-      <sparkle:shortVersionString>0.4.5</sparkle:shortVersionString>
+      <title>Version 0.5.0</title>
+      <pubDate>Tue, 10 Nov 2026 09:26:15 +0000</pubDate>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[Foreign currencies are now converted at the rate of the day, and imports keep each transaction's real currency.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.4.5/FinanceTracker-0.4.5.zip"
-                 sparkle:edSignature="mXD//sgZ9hsIspWdsePVLLADj/EMVWu2Ukj3wFuRW0BEKriEPtOIQkRZHz6wr21tXUS+PUH9E03UzgSoS3YtDQ==" length="15492358" type="application/octet-stream"/>
+      <description><![CDATA[Bank data refreshes on its own, pending card payments resolve correctly, and many smaller calculations were corrected.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.0/FinanceTracker-0.5.0.zip"
+                 sparkle:edSignature="WBcdPkytkZltUIDyPZJvF6KKy/Ags/jTy0Cu4jqEvOKHkU1NWTXbpuUG50wwLcNsft7Q0BoYdw3tatvFGrqnBA==" length="15850227" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
