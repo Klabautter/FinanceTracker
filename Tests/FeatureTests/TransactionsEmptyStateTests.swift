@@ -20,6 +20,6 @@ struct TransactionsEmptyStateTests {
         #expect(model.hasLoadedData, "hasLoadedData")
         #expect(!model.isLoading, "isLoading=\(model.isLoading)")
         #expect(model.transactions.isEmpty, "transactions=\(model.transactions.count)")
-        #expect(model.errorMessage == nil, "error=\(model.errorMessage ?? "nil")")
+        #expect(model.loadState.failureMessage == nil, "error=\(model.loadState.failureMessage ?? "nil")")
     }
 }

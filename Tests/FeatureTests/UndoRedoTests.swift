@@ -42,7 +42,7 @@ struct UndoRedoTests {
 
         // Ändern
         await model.changeCategory(model.transactions[0], to: nil)
-        #expect(model.errorMessage == nil)
+        #expect(model.actionError == nil)
         #expect(model.transactions[0].categoryID == nil, "direkt nach changeCategory")
 
         // Undo (deterministischer eigener Stack)

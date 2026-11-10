@@ -153,7 +153,7 @@ struct TransactionsRefreshSkipTests {
         let model = TransactionsModel(dependencies: dependencies)
         await model.load(transactionID: transaction.id)
 
-        #expect(model.errorMessage == nil)
+        #expect(model.loadState.failureMessage == nil)
         #expect(model.transactions.map(\.id) == [transaction.id])
         #expect(model.account(for: model.transactions[0])?.name == "Giro")
         #expect(!model.assignableCategories.isEmpty)
