@@ -234,4 +234,17 @@ struct PendingReconciliationTests {
         let rows = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
         #expect(rows.first { $0.amount.amount == -50 }?.status == .pending)
     }
+
+    @Test("Statuswechsel: vorgemerkt wird gebucht oder storniert, gebucht nie wieder vorgemerkt")
+    func statusTransitions() {
+        #expect(TransactionStatus.pending.canTransition(to: .booked))
+        #expect(TransactionStatus.pending.canTransition(to: .cancelled))
+        #expect(TransactionStatus.cancelled.canTransition(to: .booked))
+        #expect(TransactionStatus.cancelled.canTransition(to: .pending))
+        #expect(TransactionStatus.booked.canTransition(to: .reversed))
+        #expect(TransactionStatus.booked.canTransition(to: .booked))
+        #expect(!TransactionStatus.booked.canTransition(to: .pending))
+        #expect(!TransactionStatus.booked.canTransition(to: .cancelled))
+        #expect(!TransactionStatus.reversed.canTransition(to: .booked))
+    }
 }

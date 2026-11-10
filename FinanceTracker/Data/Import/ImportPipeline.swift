@@ -871,7 +871,10 @@ struct ImportPipeline: Sendable {
 
     private static func merged(target: Transaction, with draft: Transaction) -> Transaction {
         var updated = target
-        updated.status = draft.status
+        // Nur gültige Statuswechsel (z. B. gebucht → vorgemerkt gibt es nicht).
+        if target.status.canTransition(to: draft.status) {
+            updated.status = draft.status
+        }
         if let bookedAt = draft.bookedAt { updated.bookedAt = bookedAt }
         if let authorizedAt = draft.authorizedAt { updated.authorizedAt = authorizedAt }
         if draft.kind != .unknown && target.kind == .unknown { updated.kind = draft.kind }

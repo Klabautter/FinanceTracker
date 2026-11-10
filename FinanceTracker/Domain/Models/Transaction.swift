@@ -47,6 +47,23 @@ enum TransactionStatus: String, Codable, Sendable, CaseIterable {
         case .reversed, .cancelled: false
         }
     }
+
+    /// Erlaubte Statuswechsel beim Abgleich mit Bank oder Datei. Eine
+    /// Vormerkung wird gebucht, storniert oder zurückgebucht; eine vom
+    /// Abruf stornierte Vormerkung lebt wieder auf, wenn die Bank sie
+    /// erneut meldet oder bucht; eine Buchung kann nur zurückgebucht
+    /// werden. Alles andere ist ein Widerspruch der Quelle, keine Änderung.
+    func canTransition(to next: TransactionStatus) -> Bool {
+        if self == next { return true }
+        switch (self, next) {
+        case (.pending, .booked), (.pending, .cancelled), (.pending, .reversed),
+             (.cancelled, .pending), (.cancelled, .booked),
+             (.booked, .reversed):
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 enum TransactionKind: String, Codable, Sendable, CaseIterable {
