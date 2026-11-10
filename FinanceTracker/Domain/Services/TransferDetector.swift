@@ -40,7 +40,9 @@ struct TransferDetector: Sendable {
         let inflows = transactions.filter { transaction in
             transaction.status.isEffective
                 && transaction.amount.isPositive
-                && (transaction.categoryID == nil || transaction.categoryID == Category.transfers.id)
+                && (transaction.categoryID == nil
+                    || transaction.categoryID == Category.transfers.id
+                    || transaction.categoryID == Category.investments.id)
                 && transaction.amount.currency == baseCurrency
         }
 

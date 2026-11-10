@@ -285,6 +285,56 @@ struct CounterpartySyncTests {
         #expect(stored.first { $0.externalID == "OTHER" }?.kind == .purchase)
     }
 
+    @Test("Broker-Einzahlung wird mit der Gutschrift auf dem Broker-Konto verknüpft, bleibt aber Geldanlage")
+    func brokerDepositLinksWithBrokerCredit() async throws {
+        let dependencies = try await makeDependencies()
+        let provider = MockBankDataProvider()
+        provider.stubbedTransactions = [
+            txn("BROKER", "-1000.00", creditor: "Test User", remittance: "Sparplan IBAN: DE00123456789012345678 BIC: TRBKDEBBXXX"),
+            txn("SALARY", "1000.00", creditor: "Test User", debtor: "Arbeitgeber GmbH", remittance: "Gehalt")
+        ]
+        _ = try await sync(provider, dependencies)
+        var stored = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        #expect(stored.first { $0.externalID == "BROKER" }?.categoryID == Category.investments.id)
+        #expect(stored.first { $0.externalID == "BROKER" }?.kind == .purchase)
+
+        // Das Broker-Konto kommt per Datei dazu, mit der Gutschrift.
+        let broker = Account(name: "Trade Republic", type: .checking, currency: .eur, source: .csvImport)
+        try await dependencies.accountRepository.upsert([broker])
+        let incoming = ImportedTransaction(
+            externalID: "tr-1",
+            amount: Money(amount: 1000, currency: .eur),
+            bookedAt: calendar.date(from: DateComponents(year: 2026, month: 9, day: 16)),
+            rawDescription: "Einzahlung",
+            rawMerchantName: "Einzahlung"
+        )
+        let pipeline = ImportPipeline(
+            providers: [],
+            transactionRepository: dependencies.transactionRepository,
+            ruleRepository: dependencies.ruleRepository,
+            importBatchRepository: dependencies.importBatchRepository,
+            merchantRepository: dependencies.merchantRepository,
+            categoryRepository: dependencies.categoryRepository,
+            fallbackCurrency: .eur
+        )
+        _ = try await pipeline.commitParsedTransactions(
+            [incoming], source: .genericCSV, providerIdentifier: "test", into: broker.id
+        )
+
+        stored = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        let out = try #require(stored.first { $0.externalID == "BROKER" })
+        let into = try #require(stored.first { $0.externalID == "tr-1" })
+        #expect(out.kind == .transfer)
+        #expect(into.kind == .transfer)
+        // Die Kategorie bleibt sichtbar, die Bewegung ist neutral.
+        #expect(out.categoryID == Category.investments.id)
+        #expect(into.categoryID == Category.investments.id)
+        #expect(CashflowPolicy.shared.contribution(for: out) == .neutral)
+        #expect(CashflowPolicy.shared.contribution(for: into) == .neutral)
+        // Das Gehalt in gleicher Höhe bleibt Einnahme.
+        #expect(stored.first { $0.externalID == "SALARY" }?.kind == .income)
+    }
+
     @Test("Personen bekommen keine Händler-Rückfrage")
     func personNames() {
         #expect(PersonNameDetector.isPersonName("Anna Schmidt"))
