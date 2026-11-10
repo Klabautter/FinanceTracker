@@ -55,6 +55,14 @@ enum TransactionKindInference: Sendable {
         }
         if explicitTransfer { return true }
 
+        // Währungswechsel zwischen eigenen Töpfen derselben Bank (Revolut:
+        // „Exchanged to SEK" auf beiden Seiten). Keine Ausgabe, keine Einnahme.
+        let currencyExchange = ["EXCHANGED TO", "EXCHANGED FROM"].contains {
+            CategoryRuleEngine.containsTokenSequence(description, $0)
+                || CategoryRuleEngine.containsTokenSequence(merchant, $0)
+        }
+        if currencyExchange { return true }
+
         let isSavingsRate = CategoryRuleEngine.containsTokenSequence(description, "SPARRATE")
         let isOwnAccount = ["EIGENES KONTO", "EIGENES GIROKONTO", "EIGENES TAGESGELD"].contains {
             CategoryRuleEngine.containsTokenSequence(merchant, $0)

@@ -27,6 +27,35 @@ struct TransactionKindInferenceTests {
         )
     }
 
+    @Test("Währungswechsel zwischen eigenen Töpfen ist eine Umbuchung")
+    func currencyExchangeIsTransfer() {
+        #expect(TransactionKindInference.inferredKind(
+            for: Money(amount: -200, currency: .eur), current: .unknown,
+            rawDescription: "Exchanged to SEK", merchantName: "Exchanged to SEK"
+        ) == .transfer)
+        #expect(TransactionKindInference.inferredKind(
+            for: Money(amount: 2280, currency: CurrencyCode("SEK")), current: .unknown,
+            rawDescription: "Exchanged to SEK", merchantName: nil
+        ) == .transfer)
+        // Ein Händler, der nur „Exchange" im Namen trägt, bleibt ein Kauf.
+        #expect(TransactionKindInference.inferredKind(
+            for: Money(amount: -12, currency: .eur), current: .unknown,
+            rawDescription: "Book Exchange Café", merchantName: "Book Exchange Café"
+        ) == .purchase)
+    }
+
+    @Test("Währungswechsel landen per System-Regel in Umbuchungen")
+    func currencyExchangeCategory() {
+        let compiled = CategoryRuleEngine().compile(CategoryRule.defaultCatalog())
+        var exchange = Transaction(
+            accountID: UUID(), source: .openBanking, kind: .transfer,
+            amount: Money(amount: -200, currency: .eur), bookedAt: Date(),
+            rawDescription: "Exchanged to SEK", rawMerchantName: "Exchanged to SEK"
+        )
+        #expect(compiled.apply(to: &exchange))
+        #expect(exchange.categoryID == Category.transfers.id)
+    }
+
     @Test("Explizite Typen bleiben unverändert")
     func keepsExplicitKinds() {
         #expect(

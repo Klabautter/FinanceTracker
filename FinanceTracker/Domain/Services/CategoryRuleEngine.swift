@@ -362,6 +362,8 @@ extension CategoryRule {
         add(222, .descriptionContains("UMBUCHUNG"), "Umbuchungen")
         add(223, .descriptionContains("EIGENÜBERTRAG"), "Umbuchungen")
         add(224, .descriptionContains("EIGENUEBERTRAG"), "Umbuchungen")
+        add(231, .descriptionContains("EXCHANGED TO"), "Umbuchungen")
+        add(232, .descriptionContains("EXCHANGED FROM"), "Umbuchungen")
 
         return rules
     }

@@ -43,7 +43,9 @@ struct SystemCatalogSeeder {
     /// v10 (21.10.2026): Fixkosten übernehmen die verlängerten Händlernamen.
     /// v11 (21.10.2026): Internationale Ketten (UK, US, FR, ES, IT, NL) in
     /// der Händlerliste: offene Buchungen werden damit erneut zugeordnet.
-    static let catalogVersion = 11
+    /// v12 (10.11.2026): Währungswechsel zwischen eigenen Töpfen („Exchanged
+    /// to SEK", Revolut) sind Umbuchungen statt Ausgabe und Einnahme.
+    static let catalogVersion = 12
 
     let dependencies: AppDependencies
     private let defaults: UserDefaults
