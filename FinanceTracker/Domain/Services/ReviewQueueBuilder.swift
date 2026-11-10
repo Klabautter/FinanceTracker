@@ -39,9 +39,31 @@ struct ReviewSummary: Sendable, Equatable {
 struct ReviewQueueBuilder: Sendable {
     private let transferDetector = TransferDetector()
 
+    /// „Fremdwährung" ist ein Prüffall, wenn die Buchung nicht zur Währung
+    /// ihres Kontos passt oder kein Kurs in die Basiswährung vorliegt. Eine
+    /// Dollar-Buchung auf dem Dollar-Konto ist normal: sie zählt zum
+    /// Tageskurs mit (Nutzer-Entscheid 10.11.2026). Ohne Kontowährung gilt
+    /// die Basiswährung als Maßstab.
+    static func isUnusualCurrency(
+        _ transaction: Transaction,
+        baseCurrency: CurrencyCode,
+        accountCurrencies: [UUID: CurrencyCode],
+        converter: CurrencyConverter?
+    ) -> Bool {
+        let accountCurrency = accountCurrencies[transaction.accountID] ?? baseCurrency
+        if transaction.amount.currency != accountCurrency { return true }
+        if transaction.amount.currency != baseCurrency, let converter,
+           converter.rate(for: transaction, to: baseCurrency) == nil {
+            return true
+        }
+        return false
+    }
+
     func buildItems(
         transactions: [Transaction],
         baseCurrency: CurrencyCode,
+        accountCurrencies: [UUID: CurrencyCode] = [:],
+        converter: CurrencyConverter? = nil,
         calendar: Calendar = .current
     ) -> [ReviewItem] {
         let policy = CashflowPolicy.shared
@@ -58,7 +80,7 @@ struct ReviewQueueBuilder: Sendable {
                 items.append(ReviewItem(transaction: txn, reason: .unknownMerchant))
             }
 
-            if txn.amount.currency != baseCurrency {
+            if Self.isUnusualCurrency(txn, baseCurrency: baseCurrency, accountCurrencies: accountCurrencies, converter: converter) {
                 items.append(ReviewItem(transaction: txn, reason: .foreignCurrency))
             }
         }
@@ -90,6 +112,8 @@ struct ReviewQueueBuilder: Sendable {
     func buildSummary(
         transactions: [Transaction],
         baseCurrency: CurrencyCode,
+        accountCurrencies: [UUID: CurrencyCode] = [:],
+        converter: CurrencyConverter? = nil,
         calendar: Calendar = .current
     ) -> ReviewSummary {
         let policy = CashflowPolicy.shared
@@ -107,7 +131,7 @@ struct ReviewQueueBuilder: Sendable {
                 || (transaction.merchantID == nil && transaction.rawMerchantName == nil) {
                 unknownMerchantCount += 1
             }
-            if transaction.amount.currency != baseCurrency {
+            if Self.isUnusualCurrency(transaction, baseCurrency: baseCurrency, accountCurrencies: accountCurrencies, converter: converter) {
                 foreignCurrencyCount += 1
             }
         }

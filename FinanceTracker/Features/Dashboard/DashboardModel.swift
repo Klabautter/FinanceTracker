@@ -362,10 +362,16 @@ final class DashboardModel {
             )
             let baseCurrency = dependencies.baseCurrency
             let reviewCalendar = calendar
+            let accountCurrencies = Dictionary(
+                uniqueKeysWithValues: try await dependencies.accountRepository.accounts().map { ($0.id, $0.currency) }
+            )
+            let converter = await dependencies.fxRateProvider.converter()
             reviewSummary = await Task.detached(priority: .userInitiated) {
                 ReviewQueueBuilder().buildSummary(
                     transactions: lightEffective,
                     baseCurrency: baseCurrency,
+                    accountCurrencies: accountCurrencies,
+                    converter: converter,
                     calendar: reviewCalendar
                 )
             }.value

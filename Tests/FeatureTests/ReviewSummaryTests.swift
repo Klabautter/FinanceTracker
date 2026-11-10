@@ -70,6 +70,41 @@ struct ReviewSummaryTests {
         #expect(summary.totalCount == 5, "Auch die 2 alten offenen Reviews müssen zählen")
     }
 
+    @Test("Fremdwährung ist nur ein Prüffall, wenn sie nicht zum Konto passt oder kein Kurs vorliegt")
+    func foreignCurrencyOnlyWhenUnusual() async throws {
+        let dependencies = try makeDependencies()
+        let giro = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
+        let usdCard = Account(name: "US Card", type: .creditCard, currency: .usd, source: .manual)
+        try await dependencies.accountRepository.upsert([giro, usdCard])
+        let food = Category(name: "Essen", systemIconName: "fork.knife")
+        try await dependencies.categoryRepository.upsert([food])
+        // Alle kategorisiert, damit nur die Währung zählt.
+        let onUSDCard = txn(accountID: usdCard.id, merchant: "US Shop", daysAgo: 3, categoryID: food.id, currency: .usd)
+        let usdOnGiro = txn(accountID: giro.id, merchant: "Odd", daysAgo: 2, categoryID: food.id, currency: .usd)
+        let noRate = txn(accountID: usdCard.id, merchant: "Exotic", daysAgo: 1, categoryID: food.id, currency: CurrencyCode("XYZ"))
+        let accountCurrencies = [giro.id: CurrencyCode.eur, usdCard.id: CurrencyCode.usd]
+        let converter = CurrencyConverter(eurPerUnit: [CurrencyCode.usd: Decimal(string: "0.9")!])
+
+        let items = ReviewQueueBuilder().buildItems(
+            transactions: [onUSDCard, usdOnGiro, noRate],
+            baseCurrency: .eur,
+            accountCurrencies: accountCurrencies,
+            converter: converter
+        )
+        let flagged = Set(items.filter { $0.reason == .foreignCurrency }.map(\.transaction.id))
+        #expect(!flagged.contains(onUSDCard.id))
+        #expect(flagged.contains(usdOnGiro.id))
+        #expect(flagged.contains(noRate.id))
+
+        let summary = ReviewQueueBuilder().buildSummary(
+            transactions: [onUSDCard, usdOnGiro, noRate],
+            baseCurrency: .eur,
+            accountCurrencies: accountCurrencies,
+            converter: converter
+        )
+        #expect(summary.foreignCurrencyCount == 2)
+    }
+
     @Test("Dashboard-Summary und Queue-Items sind konsistent (§99/§104)")
     func summaryMatchesQueueItems() async throws {
         let dependencies = try makeDependencies()

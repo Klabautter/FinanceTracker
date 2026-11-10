@@ -146,10 +146,13 @@ final class ReviewQueueModel {
             let candidates = try await resolveAnnotations(for: try await candidatesTask)
             let fetchedCategories = try await categoriesTask
             let fetchedAccounts = try await accountsTask
+            let converter = await dependencies.fxRateProvider.converter()
 
             items = ReviewQueueBuilder().buildItems(
                 transactions: candidates,
-                baseCurrency: dependencies.baseCurrency
+                baseCurrency: dependencies.baseCurrency,
+                accountCurrencies: Dictionary(uniqueKeysWithValues: fetchedAccounts.map { ($0.id, $0.currency) }),
+                converter: converter
             )
             categories = fetchedCategories.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             accountsByID = Dictionary(uniqueKeysWithValues: fetchedAccounts.map { ($0.id, $0) })
