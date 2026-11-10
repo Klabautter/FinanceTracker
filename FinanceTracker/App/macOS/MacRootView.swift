@@ -86,6 +86,7 @@ struct MacRootView: View {
         .focusedSceneValue(\.selectSection, SelectSectionAction { section in
             navigationState.select(section)
         })
+        .focusedSceneValue(\.syncAllBanks, bankSyncAction)
         .sheet(isPresented: $showsCommandPalette) {
             CommandPaletteView(
                 dependencies: dependencies,
@@ -123,6 +124,15 @@ struct MacRootView: View {
             // MacUX-Audit: Cashflow-Klick → Monatstransaktionen.
             navigationState.select(.transactions)
             pendingRoute = route
+        }
+    }
+
+    /// Nur aktiv, wenn es etwas abzurufen gibt und kein Sammelabruf läuft.
+    private var bankSyncAction: SyncAllBanksAction? {
+        let coordinator = dependencies.bankSyncCoordinator
+        guard coordinator.syncableConnectionCount > 0, !coordinator.isSyncingAll else { return nil }
+        return SyncAllBanksAction { [dependencies] in
+            Task { await coordinator.syncAll(trigger: .manual, dependencies: dependencies) }
         }
     }
 

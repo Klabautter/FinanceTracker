@@ -223,6 +223,12 @@ struct SettingsView: View {
                     .accessibilityLabel("Konten und Verbindungen öffnen")
                     .accessibilityIdentifier("settings-show-accounts")
                 }
+                Toggle("Banken automatisch abrufen", isOn: $model.automaticBankSyncEnabled)
+                    .accessibilityLabel("Verbundene Banken automatisch abrufen")
+                    .accessibilityIdentifier("settings-automatic-bank-sync")
+                Text("Beim Öffnen der App und danach etwa alle sechs Stunden, solange sie läuft.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
     }
 

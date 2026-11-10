@@ -655,7 +655,14 @@ final class BankConnectModel {
                 providerRaw: .enablebanking
             )
             let requestedStart = historyRange.startDate(now: Date())
-            let result = try await service.sync(connection: connection, historyStart: requestedStart)
+            // Über den Koordinator: Der automatische Abruf darf die neue
+            // Verbindung nicht gleichzeitig abrufen.
+            let result = try await dependencies.bankSyncCoordinator.sync(
+                connection,
+                historyStart: requestedStart,
+                provider: provider,
+                dependencies: dependencies
+            )
             historyNotice = Self.historyNotice(requestedStart: requestedStart, earliestDelivered: result.earliestBookingDate)
             await removeSupersededConnections(keeping: connection)
             consentValidUntil = try? await dependencies.connectionRepository.connections()
@@ -718,7 +725,11 @@ final class BankConnectModel {
                 return
             }
 
-            let result = try await service.sync(connection: connection)
+            let result = try await dependencies.bankSyncCoordinator.sync(
+                connection,
+                provider: provider,
+                dependencies: dependencies
+            )
             phase = .success(accountsCreated: result.accountsSynced)
             dependencies.changeTracker.markChanged()
         } catch {
@@ -808,9 +819,7 @@ final class BankConnectModel {
         lastSyncNotice = nil
         defer { syncingConnectionID = nil }
         do {
-            let routed = dependencies.bankProviderFactory.makeBankDataProvider(for: connection)
-            let service = BankSyncService(dependencies: dependencies, provider: routed)
-            let result = try await service.sync(connection: connection)
+            let result = try await dependencies.bankSyncCoordinator.sync(connection, dependencies: dependencies)
             dependencies.changeTracker.markChanged()
             await loadConnections()
             lastSyncNotice = String(localized: "Sync fertig: \(result.importedCount) neu, \(result.updatedCount) aktualisiert.")

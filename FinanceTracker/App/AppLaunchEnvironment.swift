@@ -8,6 +8,8 @@ import Foundation
 /// - `-ui-testing-empty`  → garantiert leere Datenbank
 /// - `-ui-testing-error-storage` → Storage-Fehler simulieren
 /// - `-ui-testing-privacy-on` → Privacy Mode erzwingen
+/// - `-ui-testing` → Markierung jedes UI-Test-Starts (kein automatischer
+///   Bankabruf: Läufe gegen den Live-Store bleiben lesend)
 /// - `-screenshot-demo` → nur DEBUG: isolierter Store mit erfundenen
 ///   Demo-Daten für die README-Screenshots; der Live-Store bleibt unberührt
 struct AppLaunchEnvironment: Sendable {
@@ -53,6 +55,13 @@ struct AppLaunchEnvironment: Sendable {
             || isUITestingPrivacyMode || isUITestingPrivacyOffMode
             || arguments.contains("-ui-testing-window")
             || arguments.contains("-ui-testing-appearance")
+            || arguments.contains("-ui-testing")
+    }
+
+    /// Der automatische Bankabruf schreibt in den Store. Test- und
+    /// Demo-Läufe bleiben lesend und starten ihn deshalb nie.
+    var allowsAutomaticBankSync: Bool {
+        !hasAnyUITestingFlag && !requiresIsolatedStore
     }
 
     var isScreenshotDemoMode: Bool {

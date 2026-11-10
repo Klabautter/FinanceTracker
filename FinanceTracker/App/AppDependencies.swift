@@ -45,6 +45,9 @@ struct AppDependencies: @unchecked Sendable {
     let enableBankingCredentialStore: any EnableBankingCredentialStoring
     /// Bankliste je Land, damit der Verbinden-Dialog beim zweiten Mal sofort steht.
     let bankInstitutionCache: BankInstitutionCache
+    /// Eine Instanz pro App: reiht alle Bankabrufe (Knopf, „Alle
+    /// aktualisieren“, Automatik) hintereinander und hält ihren Zustand.
+    let bankSyncCoordinator: BankSyncCoordinator
 
     init(
         transactionRepository: any TransactionRepository,
@@ -74,7 +77,8 @@ struct AppDependencies: @unchecked Sendable {
         userDefaults: UserDefaults = .standard,
         categoryAdvisor: (any MerchantCategoryAdvisor)? = nil,
         enableBankingCredentialStore: any EnableBankingCredentialStoring = KeychainEnableBankingCredentialStore(),
-        bankInstitutionCache: BankInstitutionCache = BankInstitutionCache()
+        bankInstitutionCache: BankInstitutionCache = BankInstitutionCache(),
+        bankSyncCoordinator: BankSyncCoordinator = BankSyncCoordinator()
     ) {
         self.transactionRepository = transactionRepository
         self.transactionAnnotationRepository = transactionAnnotationRepository
@@ -104,6 +108,7 @@ struct AppDependencies: @unchecked Sendable {
         self.categoryAdvisor = categoryAdvisor
         self.enableBankingCredentialStore = enableBankingCredentialStore
         self.bankInstitutionCache = bankInstitutionCache
+        self.bankSyncCoordinator = bankSyncCoordinator
     }
 
     static func live() throws -> AppDependencies {

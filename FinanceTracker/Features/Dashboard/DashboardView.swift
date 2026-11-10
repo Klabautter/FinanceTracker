@@ -98,9 +98,31 @@ struct DashboardView: View {
                 .accessibilityIdentifier("screen-ready-dashboard")
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            // Ohne Übersicht (erster Start, noch keine Buchungen) gibt es
+            // keinen Status-Kopf: Das Ergebnis eines Abrufs steht dann hier.
+            if !showsDashboardContent, let summary = visibleBankSyncSummary {
+                bankSyncNotice(summary)
+                    .padding(.horizontal, AppSpacing.l)
+                    .padding(.top, AppSpacing.m)
+            }
+            // Neuladen fehlgeschlagen, alte Zahlen bleiben stehen: Hinweis
+            // statt Fehlerseite über den Daten.
+            if model.snapshot != nil, let failure = model.loadState.failureMessage {
+                HStack(spacing: AppSpacing.m) {
+                    InlineNotice(message: failure, tone: .warning)
+                    Button("Erneut laden") { Task { await model.load() } }
+                }
+                .padding(.horizontal, AppSpacing.l)
+                .padding(.top, AppSpacing.m)
+            }
+        }
         .workspaceNavigationTitle(String(localized: "Übersicht"))
         .workspaceToolbar {
             ToolbarItemGroup {
+                if bankSync.syncableConnectionCount > 0 {
+                    syncAllBanksButton
+                }
                 Button { activeSheet = .addDataSource } label: { Label("Daten hinzufügen", systemImage: "plus") }
                     .accessibilityIdentifier("dashboard-add-data")
                     .help("Bank verbinden, Datei importieren oder Transaktion erfassen")
@@ -119,6 +141,7 @@ struct DashboardView: View {
                 guard !Task.isCancelled else { return }
             }
             await model.load()
+            await bankSync.refreshAvailability(dependencies: dependencies)
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -332,9 +355,14 @@ struct DashboardView: View {
     @ViewBuilder
     private func sharedStatusHeader(_ snapshot: AnalyticsSnapshot) -> some View {
         let showsFX = snapshot.convertedForeignTransactionCount > 0 || snapshot.excludedForeignTransactionCount > 0
-        let hasContent = (model.lastImportBatch?.failedCount ?? 0) > 0 || showsFX || model.planningDataWarning != nil
+        let syncSummary = visibleBankSyncSummary
+        let hasContent = (model.lastImportBatch?.failedCount ?? 0) > 0 || showsFX
+            || model.planningDataWarning != nil || syncSummary != nil
         if hasContent {
             VStack(alignment: .leading, spacing: AppSpacing.s) {
+                if let syncSummary {
+                    bankSyncNotice(syncSummary)
+                }
                 if let batch = model.lastImportBatch, batch.failedCount > 0 {
                     InlineNotice(
                         message: String(localized: "Der letzte Import wurde nicht vollständig übernommen."),
@@ -357,6 +385,71 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("dashboard-shared-status")
         }
+    }
+
+    private var bankSync: BankSyncCoordinator { dependencies.bankSyncCoordinator }
+
+    /// Die volle Übersicht mit Status-Kopf wird gezeigt (siehe `body`).
+    private var showsDashboardContent: Bool {
+        if model.isLoading, model.snapshot == nil { return false }
+        if model.loadState.failureMessage != nil, model.snapshot == nil { return false }
+        if !model.hasAnyTransactions, model.hasLoaded { return false }
+        return model.snapshot != nil
+    }
+
+    /// Ruft alle verbundenen Banken auf einmal ab, unabhängig vom
+    /// Mindestabstand des automatischen Abrufs.
+    @ViewBuilder
+    private var syncAllBanksButton: some View {
+        if bankSync.isSyncingAll {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Bankdaten werden abgerufen")
+                .accessibilityIdentifier("dashboard-sync-all-progress")
+        } else {
+            Button {
+                Task { await bankSync.syncAll(trigger: .manual, dependencies: dependencies) }
+            } label: {
+                Label("Alle aktualisieren", systemImage: "arrow.clockwise")
+            }
+            .accessibilityLabel("Alle verbundenen Banken jetzt abrufen")
+            .accessibilityIdentifier("dashboard-sync-all")
+            .help("Umsätze und Kontostände aller verbundenen Banken jetzt abrufen")
+        }
+    }
+
+    /// Ein stiller, erfolgreicher Automatik-Abruf braucht keine Meldung:
+    /// gezeigt werden Probleme und das Ergebnis eines eigenen Klicks.
+    private var visibleBankSyncSummary: BankSyncRunSummary? {
+        guard let summary = bankSync.lastSummary,
+              summary.hasProblems || summary.trigger == .manual else { return nil }
+        return summary
+    }
+
+    private func bankSyncNotice(_ summary: BankSyncRunSummary) -> some View {
+        HStack(alignment: .center, spacing: AppSpacing.s) {
+            InlineNotice(
+                message: summary.message,
+                title: summary.hasProblems
+                    ? String(localized: "Bankabruf unvollständig")
+                    : String(localized: "Bankabruf fertig"),
+                tone: summary.hasProblems ? .warning : .positive
+            )
+            if summary.hasProblems, let onShowAccounts {
+                Button("Konten öffnen", action: onShowAccounts)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("dashboard-sync-open-accounts")
+            }
+            Button {
+                bankSync.dismissSummary()
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Meldung zum Bankabruf schließen")
+            .accessibilityIdentifier("dashboard-sync-dismiss")
+        }
+        .accessibilityIdentifier("dashboard-sync-notice")
     }
 
     /// WP12 (§91): Drilldown routet die Kategorie-ID; Namen sind kein

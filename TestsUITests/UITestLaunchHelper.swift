@@ -15,6 +15,11 @@ enum UITestLaunch {
         _ app: XCUIApplication,
         windowTimeout: TimeInterval = 15
     ) {
+        // Jeder UI-Test-Start ist markiert: Die App ruft dann keine
+        // Bankdaten von selbst ab (Live-Store bleibt lesend).
+        if !app.launchArguments.contains("-ui-testing") {
+            app.launchArguments.append("-ui-testing")
+        }
         app.launch()
         _ = app.windows.firstMatch.waitForExistence(timeout: windowTimeout)
         if !app.windows.firstMatch.exists {

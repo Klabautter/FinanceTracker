@@ -78,6 +78,8 @@ struct FinanceTrackerApp: App {
     @State private var updateChecker = UpdateChecker()
     #endif
     @State private var bootstrapper = AppBootstrapper()
+    /// Katalog und Migrationen des Starts sind durch.
+    @State private var startupFinished = false
     @State private var privacyState = PrivacyPresentationState(
         forcedHidesAmounts: AppLaunchEnvironment.live.forcedPrivacyHidesAmounts
     )
@@ -105,6 +107,15 @@ struct FinanceTrackerApp: App {
                                 accountRepository: dependencies.accountRepository,
                                 transactionRepository: dependencies.transactionRepository
                             ).run()
+                            await runAutomaticBankSync(dependencies)
+                        }
+                        .onReceive(NotificationCenter.default.publisher(for: Self.didBecomeActiveNotification)) { _ in
+                            // Zurück in der App: sofort prüfen, statt auf die
+                            // nächste Zeitprüfung zu warten.
+                            guard startupFinished, Self.allowsAutomaticBankSync else { return }
+                            Task {
+                                await dependencies.bankSyncCoordinator.syncAll(trigger: .automatic, dependencies: dependencies)
+                            }
                         }
 
                 case .failed(let message):
@@ -136,6 +147,32 @@ struct FinanceTrackerApp: App {
             settingsContent
                 .environment(privacyState)
         }
+        #endif
+    }
+
+    /// Verbundene Banken von selbst abrufen: gleich nach dem Start und
+    /// danach, solange die App läuft, sobald der letzte Abruf alt genug ist
+    /// (`BankSyncPolicy`). Erst nach Katalog und Migrationen, damit neue
+    /// Umsätze sofort richtig eingeordnet werden.
+    private func runAutomaticBankSync(_ dependencies: AppDependencies) async {
+        startupFinished = true
+        guard Self.allowsAutomaticBankSync else { return }
+        while !Task.isCancelled {
+            await dependencies.bankSyncCoordinator.syncAll(trigger: .automatic, dependencies: dependencies)
+            try? await Task.sleep(for: .seconds(30 * 60))
+        }
+    }
+
+    /// Test- und Demo-Läufe bleiben lesend.
+    private static var allowsAutomaticBankSync: Bool {
+        AppLaunchEnvironment.live.allowsAutomaticBankSync && AppDataDirectory.unitTestRoot() == nil
+    }
+
+    private static var didBecomeActiveNotification: Notification.Name {
+        #if os(macOS)
+        NSApplication.didBecomeActiveNotification
+        #else
+        UIApplication.didBecomeActiveNotification
         #endif
     }
 

@@ -332,7 +332,21 @@ struct BankSyncService: Sendable {
         totalDuplicates = totals.2
         syncedAccounts = totals.3
 
-        var updatedConnection = connection
+        // Aktuellen Stand lesen und nur die Felder des Abrufs setzen: Wurde
+        // die Verbindung währenddessen getrennt, legt der Abruf sie nicht
+        // wieder an; andere Änderungen (z. B. der Bankname) bleiben.
+        guard var updatedConnection = try await dependencies.connectionRepository.connection(id: connection.id) else {
+            await MainActor.run { dependencies.changeTracker.markChanged() }
+            Self.logger.info("Sync \(Self.short(connection.id), privacy: .public): Verbindung inzwischen getrennt, Stand nicht gespeichert")
+            return BankSyncResult(
+                connectionID: connection.id,
+                accountsSynced: syncedAccounts,
+                importedCount: totalImported,
+                updatedCount: totalUpdated,
+                duplicateCount: totalDuplicates,
+                earliestBookingDate: totals.5
+            )
+        }
         updatedConnection.status = .active
         // Verbindungen von vor der Namensspeicherung bekommen ihren Banknamen.
         if updatedConnection.institutionName == nil, let institutionID = updatedConnection.institutionID {

@@ -16,8 +16,11 @@ final class AccountsModel {
     private(set) var connections: [Connection] = []
     /// Gesamtstand über alle aktiven Konten mit bekanntem Stand.
     private(set) var liquidity: LiquidityOverview?
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden (AGENTS #37); Speicher-, Lösch- und Eingabefehler stehen
+    /// getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
 
     var dataRevision: Int { dependencies.changeTracker.revision }
 
@@ -55,10 +58,10 @@ final class AccountsModel {
     func load() async {
         guard !isLoading else { return }
         let signpost = PerfSignpost.signposter.beginInterval("AccountsLoad")
-        isLoading = true
-        errorMessage = nil
+        loadState = .loading
+        var failure: String?
         defer {
-            isLoading = false
+            loadState = failure.map { .failed($0) } ?? .loaded
             PerfSignpost.signposter.endInterval("AccountsLoad", signpost)
         }
 
@@ -83,26 +86,24 @@ final class AccountsModel {
             ).overview(of: balances.active)
             liquidity = overview.shares.isEmpty ? nil : overview
         } catch {
-            errorMessage = String(localized: "Die Konten konnten nicht geladen werden.")
+            failure = String(localized: "Die Konten konnten nicht geladen werden.")
         }
     }
 
     func sync(connection: Connection) async -> String? {
         do {
-            // WP-MacUX: Provider-Routing nach Connection.provider:
-            // Eine Enable-Banking-Connection darf nicht gegen die
-            // GoCardless-API synchronisieren.
-            let provider = dependencies.bankProviderFactory.makeBankDataProvider(for: connection)
-            let service = BankSyncService(dependencies: dependencies, provider: provider)
-            let result = try await service.sync(connection: connection)
+            // Über den Koordinator: Provider-Routing nach
+            // Connection.provider, und nie zwei Abrufe gleichzeitig (z. B.
+            // Klick während des automatischen Abrufs).
+            let result = try await dependencies.bankSyncCoordinator.sync(connection, dependencies: dependencies)
             dependencies.changeTracker.markChanged()
             await load()
             return String(localized: "Sync fertig: \(result.importedCount) neu, \(result.updatedCount) aktualisiert.")
         } catch let error as BankProviderError {
-            errorMessage = String(localized: "Sync fehlgeschlagen: \(Self.providerFailureMessage(for: error))")
+            actionError = String(localized: "Sync fehlgeschlagen: \(Self.providerFailureMessage(for: error))")
             return nil
         } catch {
-            errorMessage = String(localized: "Sync fehlgeschlagen: \(error.localizedDescription)")
+            actionError = String(localized: "Sync fehlgeschlagen: \(error.localizedDescription)")
             return nil
         }
     }
@@ -137,7 +138,7 @@ final class AccountsModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Verbindung konnte nicht getrennt werden.")
+            actionError = String(localized: "Verbindung konnte nicht getrennt werden.")
         }
     }
 
@@ -183,7 +184,7 @@ final class AccountsModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Das Konto konnte nicht gelöscht werden.")
+            actionError = String(localized: "Das Konto konnte nicht gelöscht werden.")
         }
     }
 
@@ -198,7 +199,7 @@ final class AccountsModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Der Kontostand konnte nicht gespeichert werden.")
+            actionError = String(localized: "Der Kontostand konnte nicht gespeichert werden.")
         }
     }
 
@@ -269,8 +270,9 @@ final class AccountDetailModel {
     var balance: Decimal? { balanceResult?.amount }
     private(set) var transactionCount = 0
     private(set) var foreignCurrencies: Set<CurrencyCode> = []
-    private(set) var isLoading = true
-    private(set) var errorMessage: String?
+    /// Beginnt ladend, damit das Detail nie kurz leer aufblitzt (AGENTS #37).
+    private(set) var loadState: LoadState = .loading
+    var isLoading: Bool { loadState.isLoading }
     private var categoriesByID: [UUID: Category] = [:]
 
     init(account: Account, dependencies: AppDependencies) {
@@ -283,9 +285,9 @@ final class AccountDetailModel {
     }
 
     func load() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
         do {
             if let fresh = try await dependencies.accountRepository.account(id: account.id) {
                 account = fresh
@@ -315,7 +317,7 @@ final class AccountDetailModel {
             )
             transactions = EffectiveTransactionResolver().applying(annotations: annotations, to: latest)
         } catch {
-            errorMessage = String(localized: "Konto-Daten konnten nicht geladen werden.")
+            failure = String(localized: "Konto-Daten konnten nicht geladen werden.")
         }
     }
 }

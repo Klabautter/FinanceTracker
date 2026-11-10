@@ -50,6 +50,22 @@ extension FocusedValues {
     }
 }
 
+/// Ruft alle verbundenen Banken ab (⇧⌘R).
+struct SyncAllBanksAction {
+    let sync: () -> Void
+}
+
+private struct SyncAllBanksKey: FocusedValueKey {
+    typealias Value = SyncAllBanksAction
+}
+
+extension FocusedValues {
+    var syncAllBanks: SyncAllBanksAction? {
+        get { self[SyncAllBanksKey.self] }
+        set { self[SyncAllBanksKey.self] = newValue }
+    }
+}
+
 /// Fokussiert die Suche im fokussierten Screen (⌘F).
 struct FocusSearchAction {
     let focus: () -> Void
@@ -138,6 +154,7 @@ struct FinanceCommands: Commands {
     @FocusedValue(\.openReviewQueue) private var openReviewQueue: OpenReviewQueueAction?
     @FocusedValue(\.refreshActiveScreen) private var refreshActiveScreen: RefreshActiveScreenAction?
     @FocusedValue(\.focusSearch) private var focusSearch: FocusSearchAction?
+    @FocusedValue(\.syncAllBanks) private var syncAllBanks: SyncAllBanksAction?
     @FocusedValue(\.transactionQuickActions) private var quickActions: TransactionQuickActions?
     @FocusedValue(\.transactionUndoActions) private var undoActions: TransactionUndoActions?
     @FocusedValue(\.selectSection) private var selectSection: SelectSectionAction?
@@ -183,6 +200,12 @@ struct FinanceCommands: Commands {
             }
             .keyboardShortcut("r", modifiers: .command)
             .disabled(refreshActiveScreen == nil)
+
+            Button("Alle Banken aktualisieren") {
+                syncAllBanks?.sync()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(syncAllBanks == nil)
 
             Button("Suchen") {
                 focusSearch?.focus()

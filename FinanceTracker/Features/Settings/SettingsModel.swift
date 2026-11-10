@@ -78,7 +78,11 @@ final class SettingsModel {
                 try data.write(to: target, options: .atomic)
             }.value
             safetyURL = target
-            try await service.replace(with: preparedRestore, attachmentsDirectory: attachments)
+            // Kein Bankabruf währenddessen: Er schriebe alte Buchungen in
+            // den wiederhergestellten Bestand.
+            try await dependencies.bankSyncCoordinator.runExclusively {
+                try await service.replace(with: preparedRestore, attachmentsDirectory: attachments)
+            }
             dependencies.changeTracker.markChanged()
             await refreshLocalNotifications()
             lastSafetyBackupURL = target
@@ -117,6 +121,18 @@ final class SettingsModel {
         self.notificationService = notificationService
         self.notificationsEnabled = defaults.bool(forKey: Self.notificationsEnabledKey)
         self.cashWithdrawalTargetAccountID = dependencies.preferences.cashWithdrawalTargetAccountID
+        self.automaticBankSyncEnabled = dependencies.preferences.automaticBankSyncEnabled
+    }
+
+    // MARK: - Automatischer Bankabruf
+
+    /// Verbundene Banken von selbst abrufen; Änderungen landen sofort in
+    /// den Einstellungen.
+    var automaticBankSyncEnabled: Bool {
+        didSet {
+            guard automaticBankSyncEnabled != oldValue else { return }
+            dependencies.preferences.setAutomaticBankSyncEnabled(automaticBankSyncEnabled)
+        }
     }
 
     // MARK: - Bargeld-Automatik

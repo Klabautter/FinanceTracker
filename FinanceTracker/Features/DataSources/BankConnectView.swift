@@ -241,7 +241,7 @@ struct BankConnectView: View {
         let issue = model.syncIssue(for: connection)
         let issueMessage = model.syncIssueMessage(for: connection)
         let lastSync = connection.lastSuccessfulSyncAt
-            .map { String(localized: "Abgerufen \($0.formatted(.relative(presentation: .named, unitsStyle: .abbreviated).locale(.current)))") }
+            .map { String(localized: "Abgerufen \(AppDateFormatter.relativeAge($0))") }
             ?? String(localized: "Noch nie abgerufen")
         let expiry = connection.consentExpiresAt
             .map { String(localized: "Freigabe bis \($0.formatted(date: .abbreviated, time: .omitted))") }
@@ -276,7 +276,10 @@ struct BankConnectView: View {
 
             HStack(spacing: AppSpacing.s) {
                 Spacer(minLength: 0)
-                if model.syncingConnectionID == connection.id {
+                // Auch der automatische Abruf zeigt sich hier: Währenddessen
+                // sind Trennen und Abrufen nicht anklickbar.
+                if model.syncingConnectionID == connection.id
+                    || dependencies.bankSyncCoordinator.isSyncing(connection) {
                     ProgressView()
                         .controlSize(.small)
                         .accessibilityLabel("Umsätze von \(connection.displayName) werden abgerufen")

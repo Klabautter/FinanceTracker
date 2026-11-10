@@ -98,7 +98,7 @@ struct AccountsView: View {
         Group {
             if model.isLoading, model.accounts.isEmpty {
                 LoadingStateView()
-            } else if let errorMessage = model.errorMessage,
+            } else if let errorMessage = model.loadState.failureMessage,
                       model.accounts.isEmpty,
                       model.connections.isEmpty {
                 ErrorStateView(message: errorMessage) {
@@ -216,8 +216,11 @@ struct AccountsView: View {
     private var accountsContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.l) {
-                if let errorMessage = model.errorMessage {
+                if let errorMessage = model.loadState.failureMessage {
                     InlineNotice(message: errorMessage, tone: .warning)
+                }
+                if let actionError = model.actionError {
+                    InlineNotice(message: actionError, tone: .warning)
                 }
                 if let liquidity = model.liquidity {
                     liquidityHero(liquidity)
@@ -286,7 +289,9 @@ struct AccountsView: View {
     }
 
     private func connectionRow(_ connection: Connection) -> some View {
+        // Auch der automatische Abruf und „Alle aktualisieren“ zeigen sich hier.
         let isSyncing = syncingConnectionID == connection.id
+            || model.dependencies.bankSyncCoordinator.isSyncing(connection)
         let warning = model.consentWarning(for: connection)
         let needsReconnect = model.connectionNeedsReconnect(connection)
 
@@ -299,7 +304,7 @@ struct AccountsView: View {
                             .fontWeight(.medium)
                     }
                     if let last = connection.lastSuccessfulSyncAt {
-                        Text("Zuletzt aktualisiert: \(last.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated).locale(.current)))")
+                        Text("Zuletzt aktualisiert: \(AppDateFormatter.relativeAge(last))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
