@@ -163,26 +163,39 @@ struct CategoriesView: View {
             }
         }
         .overlay {
-            if model.isLoading, model.groups.isEmpty {
+            switch ScreenState(load: model.loadState, hasContent: !model.groups.isEmpty) {
+            case .loading:
                 LoadingStateView()
-            } else if model.groups.isEmpty && model.errorMessage == nil && !model.isLoading {
+            case .empty:
                 EmptyStateView(
                     title: String(localized: "Keine Kategorien"),
                     message: String(localized: "Es sind noch keine Kategorien vorhanden."),
                     systemImage: "tag"
                 )
                 .accessibilityIdentifier("screen-ready-categories")
+            case .failed, .content:
+                EmptyView()
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let errorMessage = model.errorMessage {
-                HStack(spacing: AppSpacing.m) {
-                    InlineNotice(message: errorMessage, title: String(localized: "Kategorien konnten nicht geladen werden"), tone: .critical)
-                    Button("Erneut versuchen") { Task { await model.load() } }
+            VStack(spacing: AppSpacing.s) {
+                if let errorMessage = model.loadState.failureMessage {
+                    HStack(spacing: AppSpacing.m) {
+                        InlineNotice(message: errorMessage, title: String(localized: "Kategorien konnten nicht geladen werden"), tone: .critical)
+                        Button("Erneut versuchen") { Task { await model.load() } }
+                    }
                 }
-                .padding(.horizontal, AppLayout.pageHorizontalPadding)
-                .padding(.bottom, AppSpacing.s)
+                // Eingabe-, Speicher- und Löschfehler: eigener Hinweis, nie
+                // als „konnte nicht geladen werden“.
+                if let actionError = model.actionError {
+                    HStack(spacing: AppSpacing.m) {
+                        InlineNotice(message: actionError, tone: .critical)
+                        Button("OK") { model.dismissActionError() }
+                    }
+                }
             }
+            .padding(.horizontal, AppLayout.pageHorizontalPadding)
+            .padding(.bottom, AppSpacing.s)
         }
         .alert(
             "Kategorie wird noch verwendet",

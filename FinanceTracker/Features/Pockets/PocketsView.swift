@@ -30,16 +30,17 @@ struct PocketsView: View {
 
     var body: some View {
         Group {
-            if model.isLoading, model.items.isEmpty {
+            switch ScreenState(load: model.loadState, hasContent: !model.items.isEmpty) {
+            case .loading:
                 LoadingStateView(label: String(localized: "Lade Sammlungen…"))
-            } else if let errorMessage = model.errorMessage, model.items.isEmpty {
+            case .failed(let errorMessage):
                 ErrorStateView(message: errorMessage) {
                     Task { await model.load() }
                 }
                 .accessibilityIdentifier("screen-ready-pockets")
-            } else if model.items.isEmpty {
+            case .empty:
                 emptyState
-            } else {
+            case .content:
                 #if os(macOS)
                 macWorkspace
                 #else
@@ -55,8 +56,13 @@ struct PocketsView: View {
         )
         .workspaceCanvas()
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let errorMessage = model.errorMessage, !model.items.isEmpty {
+            // Nachladefehler trotz Inhalt und Aktionsfehler als Hinweis,
+            // nie als Fehlerseite über den Sammlungen.
+            if !model.items.isEmpty, let errorMessage = model.loadState.failureMessage {
                 errorBanner(errorMessage)
+            }
+            if let actionError = model.actionError {
+                errorBanner(actionError)
             }
         }
         .workspaceToolbar {

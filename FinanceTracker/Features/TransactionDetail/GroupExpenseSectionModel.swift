@@ -21,9 +21,12 @@ final class GroupExpenseSectionModel {
     private let resolver = GroupExpenseResolver()
 
     private(set) var shares: [SharedExpenseShare] = []
-    private(set) var isLoading = false
+    /// Laden der Anteile (AGENTS #37); Eingabe- und Speicherfehler stehen
+    /// getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
     private(set) var isSaving = false
-    private(set) var errorMessage: String?
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
     /// Wählbare Zielkonten für den Ausgleich (#15: manuell, kein
     /// Auto-Versand). Best-effort geladen, bleibt bei Fehlern leer und
     /// der Ausgleich fällt auf das Transaktionskonto zurück.
@@ -78,18 +81,17 @@ final class GroupExpenseSectionModel {
     }
 
     func load() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
         do {
             let loaded = try await shareRepository.shares(transactionID: transaction.id)
             shares = loaded.sorted {
                 if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
                 return $0.id.uuidString < $1.id.uuidString
             }
+            loadState = .loaded
         } catch {
-            shares = []
-            errorMessage = String(localized: "Anteile konnten nicht geladen werden.")
+            // Vorhandene Anteile bleiben sichtbar; der Fehler wird gemeldet.
+            loadState = .failed(String(localized: "Anteile konnten nicht geladen werden."))
         }
         // Konten für den Ausgleichs-Picker (best-effort, #15): Ein Fehler
         // hier blockiert nicht die Anteile, Fallback ist Transaktionskonto.
@@ -103,26 +105,26 @@ final class GroupExpenseSectionModel {
     }
 
     /// Fügt einen Anteil hinzu. Liefert true bei Erfolg, sonst false mit
-    /// sichtbarer `errorMessage` (kein stiller Fallback, #17/#18).
+    /// sichtbarem `actionError` (kein stiller Fallback, #17/#18).
     @discardableResult
     func addShare(paidBy: String, owedBy: String, amountText: String, currency: CurrencyCode) async -> Bool {
         guard !isSaving else { return false }
         isSaving = true
-        errorMessage = nil
+        actionError = nil
         defer { isSaving = false }
 
         guard let amount = DecimalParser.parse(amountText), amount > 0 else {
-            errorMessage = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
+            actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
             return false
         }
         let payer = paidBy.trimmingCharacters(in: .whitespacesAndNewlines)
         let ower = owedBy.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !payer.isEmpty, !ower.isEmpty else {
-            errorMessage = String(localized: "Bitte Zahler und Schuldner mit Namen angeben.")
+            actionError = String(localized: "Bitte Zahler und Schuldner mit Namen angeben.")
             return false
         }
         guard payer != ower else {
-            errorMessage = String(localized: "Zahler und Schuldner müssen unterschiedlich sein.")
+            actionError = String(localized: "Zahler und Schuldner müssen unterschiedlich sein.")
             return false
         }
         // Mehr als die Ausgabe selbst kann niemand schulden.
@@ -131,7 +133,7 @@ final class GroupExpenseSectionModel {
                 .filter { $0.shareCurrency == currency }
                 .reduce(Decimal(0)) { $0 + $1.shareAmount }
             guard alreadyShared + amount <= abs(transaction.amount.amount) else {
-                errorMessage = String(localized: "Die Anteile dürfen zusammen nicht mehr als den Betrag der Buchung ergeben.")
+                actionError = String(localized: "Die Anteile dürfen zusammen nicht mehr als den Betrag der Buchung ergeben.")
                 return false
             }
         }
@@ -146,14 +148,14 @@ final class GroupExpenseSectionModel {
                 shareCurrency: currency
             )
         } catch let validation as GroupExpenseValidationError {
-            errorMessage = switch validation {
+            actionError = switch validation {
             case .emptyParticipant: String(localized: "Bitte Zahler und Schuldner mit Namen angeben.")
             case .samePayerAndOwer: String(localized: "Zahler und Schuldner müssen unterschiedlich sein.")
             case .nonPositiveShare: String(localized: "Bitte einen positiven Anteil eingeben.")
             }
             return false
         } catch {
-            errorMessage = String(localized: "Anteil konnte nicht angelegt werden.")
+            actionError = String(localized: "Anteil konnte nicht angelegt werden.")
             return false
         }
 
@@ -167,7 +169,7 @@ final class GroupExpenseSectionModel {
             changeTracker.markChanged()
             return true
         } catch {
-            errorMessage = String(localized: "Anteil konnte nicht gespeichert werden.")
+            actionError = String(localized: "Anteil konnte nicht gespeichert werden.")
             return false
         }
     }
@@ -180,7 +182,7 @@ final class GroupExpenseSectionModel {
             changeTracker.markChanged()
         } catch {
             shares.insert(removed, at: min(index, shares.count))
-            errorMessage = String(localized: "Anteil konnte nicht gelöscht werden.")
+            actionError = String(localized: "Anteil konnte nicht gelöscht werden.")
         }
     }
 
@@ -198,7 +200,7 @@ final class GroupExpenseSectionModel {
             var reverted = updated
             reverted.settled = !settled
             shares[index] = reverted
-            errorMessage = String(localized: "Status konnte nicht gespeichert werden.")
+            actionError = String(localized: "Status konnte nicht gespeichert werden.")
         }
     }
 
@@ -222,7 +224,7 @@ final class GroupExpenseSectionModel {
     func bookSettlement(_ transfer: SettlementTransfer, accountID: UUID? = nil) async -> Bool {
         guard !isSaving else { return false }
         isSaving = true
-        errorMessage = nil
+        actionError = nil
         defer { isSaving = false }
         do {
             let booking = settlementTransaction(for: transfer, accountID: accountID)
@@ -230,12 +232,12 @@ final class GroupExpenseSectionModel {
             changeTracker.markChanged()
             return true
         } catch {
-            errorMessage = String(localized: "Ausgleich konnte nicht als Transfer gebucht werden.")
+            actionError = String(localized: "Ausgleich konnte nicht als Transfer gebucht werden.")
             return false
         }
     }
 
     func clearError() {
-        errorMessage = nil
+        actionError = nil
     }
 }

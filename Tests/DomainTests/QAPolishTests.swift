@@ -168,7 +168,7 @@ struct GroupShareLimitTests {
         await model.load()
 
         #expect(await model.addShare(paidBy: "Alex", owedBy: "Mara", amountText: "100", currency: .eur) == false)
-        #expect(model.errorMessage != nil)
+        #expect(model.actionError != nil)
         #expect(await model.addShare(paidBy: "Alex", owedBy: "Mara", amountText: "20", currency: .eur))
         #expect(await model.addShare(paidBy: "Alex", owedBy: "Tom", amountText: "30", currency: .eur) == false)
         #expect(await model.addShare(paidBy: "Alex", owedBy: "Tom", amountText: "25,67", currency: .eur))

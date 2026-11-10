@@ -106,7 +106,7 @@ struct PocketEditorSheet: View {
                             if await model.save(input: input, replacing: editing) {
                                 dismiss()
                             } else {
-                                localError = model.errorMessage
+                                localError = model.actionError
                             }
                         }
                     }

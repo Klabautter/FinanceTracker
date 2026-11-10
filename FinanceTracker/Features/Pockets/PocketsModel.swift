@@ -14,12 +14,15 @@ final class PocketsModel {
     private(set) var excludedTransactionsByCollectionID: [UUID: [Transaction]] = [:]
     private(set) var overridesByCollectionID: [UUID: [TransactionCollectionOverride]] = [:]
     private(set) var candidateRows: [PocketTransactionRow] = []
-    private(set) var isLoading = false
+    /// Laden der Sammlungen (AGENTS #37); Speicher-, Lösch- und
+    /// Zuordnungsfehler stehen getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
     private(set) var isLoadingCandidates = false
     private(set) var isSaving = false
     private(set) var isMutating = false
-    private(set) var errorMessage: String?
+    private(set) var actionError: String?
     private var candidateLoadID: UUID?
+    var isLoading: Bool { loadState.isLoading }
     private var accountNamesByID: [UUID: String] = [:]
     private var categoryNamesByID: [UUID: String] = [:]
     private var overrideMapsByCollectionID: [UUID: [UUID: TransactionCollectionOverride]] = [:]
@@ -68,9 +71,9 @@ final class PocketsModel {
 
     func load(now: Date = Date()) async {
         guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         do {
             async let collectionsTask = dependencies.transactionCollectionRepository.collections()
@@ -107,7 +110,7 @@ final class PocketsModel {
                 selectedCollectionID = items.first?.id
             }
         } catch {
-            errorMessage = String(localized: "Sammlungen konnten nicht geladen werden.")
+            failure = String(localized: "Sammlungen konnten nicht geladen werden.")
         }
     }
 
@@ -117,7 +120,7 @@ final class PocketsModel {
     ) async -> Bool {
         guard !isSaving else { return false }
         isSaving = true
-        errorMessage = nil
+        actionError = nil
         defer { isSaving = false }
 
         do {
@@ -133,10 +136,10 @@ final class PocketsModel {
             try await refresh(collection: collection, overrides: overrides)
             return true
         } catch let error as PocketEditorValidationError {
-            errorMessage = error.message
+            actionError = error.message
             return false
         } catch {
-            errorMessage = String(localized: "Sammlung konnte nicht gespeichert werden.")
+            actionError = String(localized: "Sammlung konnte nicht gespeichert werden.")
             return false
         }
     }
@@ -158,7 +161,7 @@ final class PocketsModel {
                 selectedCollectionID = items.first?.id
             }
         } catch {
-            errorMessage = String(localized: "Sammlung konnte nicht gelöscht werden.")
+            actionError = String(localized: "Sammlung konnte nicht gelöscht werden.")
         }
     }
 
@@ -190,7 +193,7 @@ final class PocketsModel {
             }
             try await refresh(collection: collection, overrides: overrides)
         } catch {
-            errorMessage = String(localized: "Die automatische Zuordnung konnte nicht wiederhergestellt werden.")
+            actionError = String(localized: "Die automatische Zuordnung konnte nicht wiederhergestellt werden.")
         }
     }
 
@@ -199,6 +202,8 @@ final class PocketsModel {
         let loadID = UUID()
         candidateLoadID = loadID
         isLoadingCandidates = true
+        // Auch ein abgebrochenes Laden endet sichtbar (kein hängender Spinner).
+        defer { if candidateLoadID == loadID { isLoadingCandidates = false } }
         candidateRows = []
 
         do {
@@ -244,16 +249,13 @@ final class PocketsModel {
             }
         } catch {
             if candidateLoadID == loadID, !Task.isCancelled {
-                errorMessage = String(localized: "Verfügbare Transaktionen konnten nicht geladen werden.")
+                actionError = String(localized: "Verfügbare Transaktionen konnten nicht geladen werden.")
             }
-        }
-        if candidateLoadID == loadID {
-            isLoadingCandidates = false
         }
     }
 
     func clearError() {
-        errorMessage = nil
+        actionError = nil
     }
 
     private func setOverride(
@@ -284,7 +286,7 @@ final class PocketsModel {
             overrides.append(override)
             try await refresh(collection: collection, overrides: overrides)
         } catch {
-            errorMessage = decision == .include
+            actionError = decision == .include
                 ? String(localized: "Transaktion konnte nicht hinzugefügt werden.")
                 : String(localized: "Transaktion konnte nicht ausgeschlossen werden.")
         }

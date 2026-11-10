@@ -25,8 +25,11 @@ final class CategoriesModel {
     private(set) var categoryNamesByID: [UUID: String] = [:]
     /// Händlernamen für Regeln, die an einem erkannten Händler hängen.
     private(set) var merchantNamesByID: [UUID: String] = [:]
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    /// Laden der Kategorien (AGENTS #37); Eingabe-, Speicher- und
+    /// Löschfehler stehen getrennt in `actionError`.
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    var isLoading: Bool { loadState.isLoading }
     /// Hinweis, warum eine Kategorie gerade nicht gelöscht werden kann.
     private(set) var deletionBlockedMessage: String?
     private(set) var isApplyingRules = false
@@ -40,9 +43,9 @@ final class CategoriesModel {
 
     func load() async {
         guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        loadState = .loading
+        var failure: String?
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
 
         do {
             async let categoriesTask = dependencies.categoryRepository.categories()
@@ -62,7 +65,7 @@ final class CategoriesModel {
             categoryNamesByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0.name) })
             rules = CategoryRuleEngine().orderedRules(fetchedRules)
         } catch {
-            errorMessage = String(localized: "Die Kategorien konnten nicht geladen werden.")
+            failure = String(localized: "Die Kategorien konnten nicht geladen werden.")
         }
     }
 
@@ -95,7 +98,7 @@ final class CategoriesModel {
             rules.removeAll { $0.id == rule.id }
             dependencies.changeTracker.markChanged()
         } catch {
-            errorMessage = String(localized: "Die Regel konnte nicht gelöscht werden.")
+            actionError = String(localized: "Die Regel konnte nicht gelöscht werden.")
         }
     }
 
@@ -104,7 +107,7 @@ final class CategoriesModel {
     func createCategory(name: String, icon: String, color: CategoryColorToken, parentID: UUID?) async {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else {
-            errorMessage = String(localized: "Bitte einen Namen eingeben.")
+            actionError = String(localized: "Bitte einen Namen eingeben.")
             return
         }
         let category = Category(
@@ -118,7 +121,7 @@ final class CategoriesModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Kategorie konnte nicht erstellt werden.")
+            actionError = String(localized: "Kategorie konnte nicht erstellt werden.")
         }
     }
 
@@ -128,7 +131,7 @@ final class CategoriesModel {
             dependencies.changeTracker.markChanged()
             await load()
         } catch {
-            errorMessage = String(localized: "Kategorie konnte nicht gespeichert werden.")
+            actionError = String(localized: "Kategorie konnte nicht gespeichert werden.")
         }
     }
 
@@ -138,7 +141,7 @@ final class CategoriesModel {
         if category.parentID == nil {
             let hasChildren = groups.contains { $0.parent.id == category.id && !$0.children.isEmpty }
             if hasChildren {
-                errorMessage = String(localized: "Bitte erst Unterkategorien verschieben oder löschen.")
+                actionError = String(localized: "Bitte erst Unterkategorien verschieben oder löschen.")
                 return
             }
         }
@@ -157,12 +160,16 @@ final class CategoriesModel {
                 ? String(localized: "„\(category.name)“ ist die einzige Kategorie des Budgets \(names). Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst das Budget.")
                 : String(localized: "„\(category.name)“ ist die einzige Kategorie der Budgets \(names). Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst die Budgets.")
         } catch {
-            errorMessage = String(localized: "Kategorie konnte nicht gelöscht werden.")
+            actionError = String(localized: "Kategorie konnte nicht gelöscht werden.")
         }
     }
 
     func dismissDeletionBlocked() {
         deletionBlockedMessage = nil
+    }
+
+    func dismissActionError() {
+        actionError = nil
     }
 
     func transactionCount(for category: Category) -> Int {
@@ -204,7 +211,7 @@ final class CategoriesModel {
                 rules[index] = rule
             }
         } catch {
-            errorMessage = String(localized: "Die Regel konnte nicht gespeichert werden.")
+            actionError = String(localized: "Die Regel konnte nicht gespeichert werden.")
         }
     }
 

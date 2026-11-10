@@ -77,7 +77,7 @@ struct CategoryDeletionReferencesTests {
 
         await fixture.model.delete(fixture.doomed, reassignTo: nil)
 
-        #expect(fixture.model.errorMessage == nil)
+        #expect(fixture.model.actionError == nil)
         #expect(try await fixture.dependencies.categoryRepository.category(id: fixture.doomed.id) == nil)
         #expect(try await splitLineCategory(fixture) == nil)
         #expect(try await fixture.dependencies.recurringCommitmentRepository.commitment(id: fixture.commitmentID)?.categoryID == nil)
@@ -94,7 +94,7 @@ struct CategoryDeletionReferencesTests {
 
         await fixture.model.delete(fixture.doomed, reassignTo: fixture.other.id)
 
-        #expect(fixture.model.errorMessage == nil)
+        #expect(fixture.model.actionError == nil)
         #expect(try await splitLineCategory(fixture) == fixture.other.id)
         #expect(try await fixture.dependencies.recurringCommitmentRepository.commitment(id: fixture.commitmentID)?.categoryID == fixture.other.id)
         #expect(try await fixture.dependencies.budgetRepository.budget(id: fixture.budgetID)?.categoryIDs == [fixture.other.id])
@@ -113,7 +113,7 @@ struct CategoryDeletionReferencesTests {
         // oder, im Gehaltszyklus, alles): nichts wird still umgedeutet.
         let message = try #require(fixture.model.deletionBlockedMessage)
         #expect(message.contains("Unterhaltung"))
-        #expect(fixture.model.errorMessage == nil)
+        #expect(fixture.model.actionError == nil)
         #expect(try await fixture.dependencies.categoryRepository.category(id: fixture.doomed.id) != nil)
         #expect(try await fixture.dependencies.budgetRepository.budget(id: fixture.budgetID)?.categoryIDs == [fixture.doomed.id])
         #expect(try await splitLineCategory(fixture) == fixture.doomed.id)

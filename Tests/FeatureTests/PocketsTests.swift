@@ -262,7 +262,7 @@ struct PocketsTests {
         print("PERF Pockets: 100 Collections / 10k Transactions: \(duration)")
 
         #expect(model.items.count == 100)
-        #expect(model.errorMessage == nil)
+        #expect(model.actionError == nil)
         // Debug-Gesamtläufe schwanken auf dem CI-/Entwicklungsrechner. Die
         // 10-s-Grenze fängt eine Rückkehr zum Collection-N+1-Pfad weiterhin
         // deutlich ab, ohne bei normaler Parallel-Last zu flaken.

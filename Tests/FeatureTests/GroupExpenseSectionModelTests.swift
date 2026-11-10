@@ -33,7 +33,7 @@ struct GroupExpenseSectionModelTests {
         await model.load()
 
         #expect(await model.addShare(paidBy: " ", owedBy: "Mara", amountText: "10", currency: .eur) == false)
-        #expect(model.errorMessage != nil)
+        #expect(model.actionError != nil)
         #expect(model.shares.isEmpty)
 
         let samePerson = await model.addShare(paidBy: "Alex", owedBy: "Alex", amountText: "10", currency: .eur)

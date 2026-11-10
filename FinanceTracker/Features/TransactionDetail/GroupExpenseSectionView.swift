@@ -55,13 +55,14 @@ struct GroupExpenseSectionView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if model.isLoading && model.shares.isEmpty {
+            switch ScreenState(load: model.loadState, hasContent: !model.shares.isEmpty) {
+            case .loading:
                 // Laden dauert nur einen Augenblick: ruhiger Platzhalter in
                 // Knopfhöhe statt eines aufblitzenden Ladekreises.
                 Color.clear
                     .frame(height: 24)
                     .accessibilityHidden(true)
-            } else if let error = model.errorMessage, model.shares.isEmpty {
+            case .failed(let error):
                 InlineNotice(
                     message: error,
                     title: String(localized: "Anteile konnten nicht geladen werden"),
@@ -72,7 +73,7 @@ struct GroupExpenseSectionView: View {
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Anteile erneut laden")
-            } else if model.shares.isEmpty {
+            case .empty:
                 // Schmale Detailspalte: Knopf unter den Hinweis statt
                 // den Text Buchstabe für Buchstabe umzubrechen.
                 ViewThatFits(in: .horizontal) {
@@ -86,7 +87,7 @@ struct GroupExpenseSectionView: View {
                         addFirstShareButton
                     }
                 }
-            } else {
+            case .content:
                 sharesList
                 Divider()
                 balancesPreview
@@ -99,7 +100,12 @@ struct GroupExpenseSectionView: View {
                     .accessibilityLabel("Ausgleich gebucht: \(bookingNotice)")
             }
 
-            if let error = model.errorMessage, !model.shares.isEmpty {
+            // Fehler beim Nachladen trotz vorhandener Anteile, oder beim
+            // Speichern/Löschen: Hinweis, nie die Fehlerseite.
+            if !model.shares.isEmpty, let error = model.loadState.failureMessage {
+                InlineNotice(message: error, tone: .critical)
+            }
+            if let error = model.actionError {
                 InlineNotice(message: error, tone: .critical)
             }
         }
@@ -120,7 +126,7 @@ struct GroupExpenseSectionView: View {
                     )
                     return ok
                 },
-                failureMessage: { model.errorMessage }
+                failureMessage: { model.actionError }
             )
         }
         .confirmationDialog(
