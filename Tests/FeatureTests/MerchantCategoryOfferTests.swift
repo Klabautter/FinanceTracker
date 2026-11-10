@@ -137,6 +137,38 @@ struct MerchantCategoryOfferTests {
         #expect(model.merchantCategoryOffer == nil)
     }
 
+    @Test("Wiederkehrender Händler ohne Regel: einmal fragen, danach wird er von selbst zugeordnet")
+    func offerForRepeatMerchantWithoutRule() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        try await dependencies.categoryRepository.upsert(Catalog.defaultCatalog())
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([account])
+        // Frühere Buchung ist schon zugeordnet, die neue kam ohne Kategorie.
+        let earlier = transaction("Hundesalon Bello", amount: -35, account: account, category: Catalog.health.id)
+        let new = transaction("Hundesalon Bello", amount: -35, account: account, category: nil)
+        try await dependencies.transactionRepository.upsert([earlier, new])
+        let model = TransactionsModel(dependencies: dependencies)
+        await model.refresh()
+
+        await model.changeCategory(try #require(model.transaction(withID: new.id)), to: Catalog.health.id)
+
+        let offer = try #require(model.merchantCategoryOffer)
+        #expect(offer.otherCount == 0)
+        #expect(offer.message == "„Hundesalon Bello“ künftig immer als Gesundheit zuordnen?")
+
+        await model.applyMerchantCategoryOffer()
+        let rules = try await dependencies.ruleRepository.rules()
+        #expect(rules.contains { $0.origin == .user && $0.categoryID == Catalog.health.id })
+
+        // Mit der Regel fragt dieselbe Zuordnung nicht noch einmal.
+        let next = transaction("Hundesalon Bello", amount: -35, account: account, category: nil)
+        try await dependencies.transactionRepository.upsert([next])
+        await model.refresh()
+        await model.changeCategory(try #require(model.transaction(withID: next.id)), to: Catalog.health.id)
+        #expect(model.merchantCategoryOffer == nil)
+    }
+
     @Test("Detailansicht mit „merken“: offene Buchungen werden sofort zugeordnet, die Rückfrage nennt nur die abweichenden")
     func offerAfterRememberedChange() async throws {
         let fixture = try await makeFixture()

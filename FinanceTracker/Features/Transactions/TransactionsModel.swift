@@ -736,6 +736,22 @@ final class TransactionsModel {
             .filter { $0.id != transaction.id && $0.categoryID != categoryID && compiled.firstMatch(for: $0) != nil }
     }
 
+    /// Der Händler hat weitere Buchungen, aber weder Regeln noch Branchenwort
+    /// würden eine neue Buchung von ihm so einordnen.
+    private func isRepeatMerchantWithoutAutomaticCategory(
+        _ transaction: Transaction,
+        matching rule: CategoryRule,
+        categoryID: Category.ID
+    ) async throws -> Bool {
+        var probe = transaction
+        probe.categoryID = nil
+        CategoryRuleEngine().apply(try await dependencies.ruleRepository.rules(), to: &probe)
+        guard probe.categoryID != categoryID else { return false }
+        let compiled = CategoryRuleEngine().compile([rule])
+        return try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+            .contains { $0.id != transaction.id && compiled.firstMatch(for: $0) != nil }
+    }
+
     private func prepareMerchantCategoryOffer(for transaction: Transaction) async {
         merchantCategoryOffer = nil
         guard let categoryID = transaction.categoryID,
@@ -749,7 +765,18 @@ final class TransactionsModel {
             // Ohne weitere Buchungen lohnt die Frage nur, wenn eine
             // bestehende Händler-Regel sonst weiter falsch zuordnen würde.
             let contradictsRule = existing.map { $0.categoryID != categoryID && $0.enabled } ?? false
-            guard !siblings.isEmpty || contradictsRule else { return }
+            // Händler mit weiteren Buchungen, den noch nichts von selbst so
+            // zuordnet: einmal fragen. Sonst kommt jede neue Buchung wieder
+            // ohne Kategorie, obwohl die früheren längst zugeordnet sind.
+            var repeatsUnlearned = false
+            if siblings.isEmpty, !contradictsRule, existing == nil {
+                repeatsUnlearned = try await isRepeatMerchantWithoutAutomaticCategory(
+                    transaction,
+                    matching: rule,
+                    categoryID: categoryID
+                )
+            }
+            guard !siblings.isEmpty || contradictsRule || repeatsUnlearned else { return }
             merchantCategoryOffer = MerchantCategoryOffer(
                 transactionID: transaction.id,
                 merchantName: transaction.effectiveMerchantName,
