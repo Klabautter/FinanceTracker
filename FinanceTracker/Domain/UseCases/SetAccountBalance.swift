@@ -22,7 +22,7 @@ struct SetAccountBalance: Sendable {
         query.accountIDs = [account.id]
         query.dateInterval = DateInterval(start: dayStart, end: dayEnd)
         let dayMovements = try await transactionRepository.transactions(matching: query)
-            .filter { $0.status != .reversed && $0.status != .cancelled && $0.amount.currency == account.currency }
+            .filter { $0.status.isEffective && $0.amount.currency == account.currency }
             .reduce(Decimal(0)) { $0 + $1.amount.amount }
 
         var updated = account

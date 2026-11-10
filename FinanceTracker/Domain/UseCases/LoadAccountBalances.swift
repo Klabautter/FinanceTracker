@@ -52,7 +52,7 @@ struct LoadAccountBalances: Sendable {
         let accountsByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
         for row in movements {
             guard let status = TransactionStatus(rawValue: row.statusRaw),
-                  status != .reversed && status != .cancelled else { continue }
+                  status.isEffective else { continue }
             guard let amount = Decimal(string: row.amountValue),
                   let account = accountsByID[row.accountID] else { continue }
 

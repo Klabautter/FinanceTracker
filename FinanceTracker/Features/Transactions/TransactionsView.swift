@@ -799,7 +799,7 @@ private struct MacTransactionsTable: View {
     /// Auswertung, in der Liste sind sie durchgestrichen und abgeblendet,
     /// sonst sähen sie aus wie eine doppelte Abbuchung.
     private func isVoided(_ txn: Transaction) -> Bool {
-        txn.status == .cancelled || txn.status == .reversed
+        !txn.status.isEffective
     }
 
     private func amountCell(_ txn: Transaction) -> some View {

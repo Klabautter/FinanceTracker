@@ -18,8 +18,7 @@ struct CrossSourceDuplicateMatcher: Sendable {
         candidates
             .filter { candidate in
                 candidate.accountID == incoming.accountID
-                    && candidate.status != .cancelled
-                    && candidate.status != .reversed
+                    && candidate.status.isEffective
                     && candidate.amount.currency == incoming.amount.currency
                     && candidate.amount.amount == incoming.amount.amount
                     && distance(candidate, incoming) <= Self.dateTolerance

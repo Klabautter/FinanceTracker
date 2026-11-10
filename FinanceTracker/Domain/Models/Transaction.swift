@@ -37,6 +37,16 @@ enum TransactionStatus: String, Codable, Sendable, CaseIterable {
         case .cancelled: String(localized: "Storniert")
         }
     }
+
+    /// Zählt die Buchung als reale Bewegung? Storniert und zurückgebucht
+    /// nicht; vorgemerkt und gebucht ja. Die EINE Regel für Kontostand,
+    /// Analyse, Budgets, Forecast und Prüfliste (AGENTS #28).
+    var isEffective: Bool {
+        switch self {
+        case .pending, .booked: true
+        case .reversed, .cancelled: false
+        }
+    }
 }
 
 enum TransactionKind: String, Codable, Sendable, CaseIterable {

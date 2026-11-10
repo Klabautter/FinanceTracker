@@ -313,7 +313,7 @@ final class AccountDetailModel {
             async let categoriesTask = dependencies.categoryRepository.categories()
             let rows = try await rowsTask
             let categories = try await categoriesTask
-            let active = rows.filter { $0.status != .reversed && $0.status != .cancelled }
+            let active = rows.filter { $0.status.isEffective }
             transactionCount = active.count
             let ownCurrency = active.filter { $0.amount.currency == account.currency }
             netMovement = ownCurrency.reduce(Decimal(0)) { $0 + $1.amount.amount }

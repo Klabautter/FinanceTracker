@@ -31,14 +31,14 @@ struct TransferDetector: Sendable {
 
         let policy = CashflowPolicy.shared
         let outflows = transactions.filter {
-            $0.status != .reversed && $0.status != .cancelled
+            $0.status.isEffective
                 && policy.contribution(for: $0).isSpendingLike
                 && $0.amount.isNegative
         }
         .sorted(by: debitComesBefore)
 
         let inflows = transactions.filter { transaction in
-            transaction.status != .reversed && transaction.status != .cancelled
+            transaction.status.isEffective
                 && transaction.amount.isPositive
                 && (transaction.categoryID == nil || transaction.categoryID == Category.transfers.id)
                 && transaction.amount.currency == baseCurrency

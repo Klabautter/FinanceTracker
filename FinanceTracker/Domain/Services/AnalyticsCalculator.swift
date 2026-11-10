@@ -114,7 +114,7 @@ struct AnalyticsCalculator: Sendable {
                 continue
             }
             ratesByTransactionID[txn.id] = rate
-            if txn.status != .reversed && txn.status != .cancelled
+            if txn.status.isEffective
                 && !policy.isExcluded(txn) {
                 convertedCount += 1
                 convertedCurrencies.insert(txn.amount.currency)
@@ -365,8 +365,7 @@ struct AnalyticsCalculator: Sendable {
 
     private func relevantTransactions(_ transactions: [Transaction]) -> [Transaction] {
         transactions.filter { txn in
-            txn.status != .reversed
-                && txn.status != .cancelled
+            txn.status.isEffective
                 && !policy.isExcluded(txn)
         }
     }

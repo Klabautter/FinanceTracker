@@ -12,7 +12,7 @@ enum CashWithdrawalDetector {
 
     static func isWithdrawal(_ transaction: Transaction) -> Bool {
         guard transaction.amount.isNegative else { return false }
-        guard transaction.status != .reversed, transaction.status != .cancelled else { return false }
+        guard transaction.status.isEffective else { return false }
         let haystack = " " + [transaction.rawDescription, transaction.rawMerchantName, transaction.merchantDisplayName]
             .compactMap { $0 }
             .joined(separator: " ")

@@ -174,7 +174,7 @@ enum RecurringPaymentMatcher {
         return transactions.filter { txn in
             guard commitment.matchingAccountID == nil || txn.accountID == commitment.matchingAccountID else { return false }
             guard txn.amount.currency == commitment.currency else { return false }
-            guard txn.status == .booked || txn.status == .pending else { return false }
+            guard txn.status.isEffective else { return false }
             guard !cashflowPolicy.isExcluded(txn) else { return false }
 
             // Richtung

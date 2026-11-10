@@ -94,8 +94,7 @@ struct BudgetContributionCalculator: Sendable {
 
         /// Alle Nicht-Währungs-Bedingungen eines Budget-Treffers.
         func passesNonCurrencyScope(_ txn: Transaction) -> Bool {
-            txn.status != .reversed
-                && txn.status != .cancelled
+            txn.status.isEffective
                 && !policy.isExcluded(txn)
                 && period.containsHalfOpen(txn.displayDate)
                 && (accountScope.isEmpty || accountScope.contains(txn.accountID))

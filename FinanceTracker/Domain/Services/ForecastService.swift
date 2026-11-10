@@ -116,8 +116,7 @@ struct ForecastService: Sendable {
         // „Realisiert" heißt: bis heute. Zukunftsbuchungen (z. B. Gehalt am
         // Monatsende) fließen über expectedIncome/expectedFixedCosts ein.
         let monthTxns = transactions.filter { txn in
-            txn.status != .reversed
-                && txn.status != .cancelled
+            txn.status.isEffective
                 && period.containsHalfOpen(txn.displayDate)
                 && txn.displayDate <= now
         }

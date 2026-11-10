@@ -55,8 +55,7 @@ final class MerchantDetailModel {
             let baseCurrency = dependencies.baseCurrency
             let matchingSpending = effective.filter { transaction in
                 normalizedMerchantName(transaction.effectiveMerchantName) == targetName
-                    && transaction.status != .reversed
-                    && transaction.status != .cancelled
+                    && transaction.status.isEffective
                     && !cashflowPolicy.isExcluded(transaction)
                     && cashflowPolicy.countsTowardBreakdowns(transaction)
             }

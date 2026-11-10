@@ -30,7 +30,7 @@ struct MirrorCashWithdrawal: Sendable {
     /// anderen Konto sein; Erkennungs-Stichwörter sind hier nicht nötig.
     func mirror(_ source: Transaction, into cash: Account, sourceAccountName: String) async throws -> Outcome {
         guard source.amount.isNegative, source.accountID != cash.id,
-              source.status != .reversed, source.status != .cancelled else { return .notEligible }
+              source.status.isEffective else { return .notEligible }
         guard source.amount.currency == cash.currency else { return .currencyMismatch }
 
         let externalID = Self.mirrorExternalID(for: source)

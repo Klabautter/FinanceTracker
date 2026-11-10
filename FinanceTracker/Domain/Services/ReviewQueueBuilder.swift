@@ -47,7 +47,7 @@ struct ReviewQueueBuilder: Sendable {
         let policy = CashflowPolicy.shared
         var items: [ReviewItem] = []
 
-        for txn in transactions where txn.status == .booked || txn.status == .pending {
+        for txn in transactions where txn.status.isEffective {
             guard !txn.reviewed else { continue }
 
             if policy.countsTowardBreakdowns(txn), txn.categoryID == nil {
@@ -98,7 +98,7 @@ struct ReviewQueueBuilder: Sendable {
         var foreignCurrencyCount = 0
 
         for transaction in transactions where
-            (transaction.status == .booked || transaction.status == .pending)
+            transaction.status.isEffective
                 && !transaction.reviewed {
             if policy.countsTowardBreakdowns(transaction), transaction.categoryID == nil {
                 uncategorizedCount += 1

@@ -50,6 +50,19 @@ struct CashflowPolicyTests {
         #expect(policy.contribution(for: txn(kind: .income, amount: -50)) == .income(-50))
     }
 
+    @Test("isEffective: vorgemerkt und gebucht zählen, storniert und zurückgebucht nicht")
+    func effectiveStatuses() {
+        #expect(TransactionStatus.pending.isEffective)
+        #expect(TransactionStatus.booked.isEffective)
+        #expect(!TransactionStatus.cancelled.isEffective)
+        #expect(!TransactionStatus.reversed.isEffective)
+        // Die Analyse folgt derselben Regel wie Kontostand und Budgets.
+        #expect(policy.isRelevantForAnalytics(txn(kind: .purchase, amount: -10), baseCurrency: .eur))
+        var cancelled = txn(kind: .purchase, amount: -10)
+        cancelled.status = .cancelled
+        #expect(!policy.isRelevantForAnalytics(cancelled, baseCurrency: .eur))
+    }
+
     @Test("Transfer zählt weder als Ausgabe noch als Einnahme")
     func transferIsNeutral() {
         let transactions = [

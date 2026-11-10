@@ -57,7 +57,6 @@ struct CashflowPolicy: Sendable {
     }
 
     func isRelevantForAnalytics(_ transaction: Transaction, baseCurrency: CurrencyCode) -> Bool {
-        transaction.status != .reversed
-            && transaction.status != .cancelled
+        transaction.status.isEffective
     }
 }
