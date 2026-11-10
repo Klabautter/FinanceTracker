@@ -50,10 +50,8 @@ Screenshots show made-up demo data.
 1. Download the latest `FinanceTracker-x.y.z.zip` from
    [Releases](https://github.com/Klabautter/FinanceTracker/releases) and move
    the app to *Applications*.
-2. The app is signed with a self-signed certificate, not with an Apple
-   Developer ID. On first launch macOS will refuse to open it: right-click the
-   app and choose *Open*, or allow it under *System Settings → Privacy &
-   Security*.
+2. Open it. Since 0.5.1 the app is signed with an Apple Developer ID and
+   notarized by Apple, so macOS opens it without a warning.
 3. Updates are offered inside the app afterwards.
 
 Requires macOS 15 or later.
