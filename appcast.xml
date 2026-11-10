@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.5.1</title>
-      <pubDate>Tue, 10 Nov 2026 13:33:24 +0000</pubDate>
-      <sparkle:version>13</sparkle:version>
-      <sparkle:shortVersionString>0.5.1</sparkle:shortVersionString>
+      <title>Version 0.5.2</title>
+      <pubDate>Tue, 10 Nov 2026 23:15:11 +0000</pubDate>
+      <sparkle:version>14</sparkle:version>
+      <sparkle:shortVersionString>0.5.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[The app is now notarized by Apple and opens without a warning; open recurring payments and the period comparison are more accurate.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.1/FinanceTracker-0.5.1.zip"
-                 sparkle:edSignature="jk+ri0CIF/XyQdQ/6z9ooEAcNVkYdW/LE4xUzb/LjOC1lgXijp1uG/EmfQa4mBhIsKnOUxiDvGFroYZAA3/tCg==" length="15911539" type="application/octet-stream"/>
+      <description><![CDATA[More banks connect cleanly, currency exchanges no longer count as spending, and the app reminds you before a bank's access expires.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.2/FinanceTracker-0.5.2.zip"
+                 sparkle:edSignature="qPievwTbF0nm4LafC7Gzt/d4zVthzPOpxDylZTA2Gf2KTp2JXM3izWLVVNt/V5Er1Rk+dhLBZ0VWakyrCyciBw==" length="16014165" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
