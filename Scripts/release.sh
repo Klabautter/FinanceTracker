@@ -179,7 +179,8 @@ rm -f "$NOTARY_ZIP"
 ditto -c -k --keepParent "$APP" "$NOTARY_ZIP"
 NOTARY_OUT="$(xcrun notarytool submit "$NOTARY_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1)" || true
 rm -f "$NOTARY_ZIP"
-echo "$NOTARY_OUT" | grep -E "^\s*(id|status):" | sed 's/^/   /' || true
+# notarytool meldet die ID bei jedem Zwischenstand erneut: nur einmal zeigen.
+grep -E "^\s*(id|status):" <<<"$NOTARY_OUT" | sed 's/^ *//' | awk '!seen[$0]++' | sed 's/^/   /' || true
 if ! grep -qE "^\s*status: Accepted" <<<"$NOTARY_OUT"; then
     SUBMISSION_ID="$(echo "$NOTARY_OUT" | sed -n 's/^ *id: //p' | head -1)"
     echo "Notarisierung nicht akzeptiert." >&2
