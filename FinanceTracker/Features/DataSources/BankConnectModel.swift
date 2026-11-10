@@ -41,7 +41,16 @@ final class BankConnectModel {
         case codeExchange(authorizationID: String, institutionName: String, authURL: URL?)
         case checking
         case success(accountsCreated: Int)
-        case failed(String)
+        /// `retry` sagt, wo es nach „Erneut versuchen“ weitergeht, statt es
+        /// aus Nebenzuständen zu erraten.
+        case failed(String, retry: RetryTarget = .institutions)
+    }
+
+    enum RetryTarget: Equatable {
+        /// Zugangsdaten erneut eingeben.
+        case credentials
+        /// Bankliste erneut laden bzw. Bank erneut wählen.
+        case institutions
     }
 
     private let dependencies: AppDependencies
@@ -71,7 +80,8 @@ final class BankConnectModel {
 
     private var selectedInstitution: BankInstitution?
     private var pendingConnectionID: String?
-    private var pendingAuthorizationURL: URL?
+    /// Eingabefehler der Zugangsdaten: bleiben im Formular, kein Fehlerschritt.
+    private(set) var credentialsValidationMessage: String?
     private let provider: any BankDataProvider
 
     // MARK: - Consent-Health (P1, PSD2 read-only)
@@ -413,9 +423,10 @@ final class BankConnectModel {
             let trimmedID = secretIDInput.trimmingCharacters(in: .whitespaces)
             let trimmedKey = secretKeyInput.trimmingCharacters(in: .whitespaces)
             guard !trimmedID.isEmpty, !trimmedKey.isEmpty else {
-                phase = .failed(String(localized: "Bitte beide Felder ausfüllen."))
+                credentialsValidationMessage = String(localized: "Bitte beide Felder ausfüllen.")
                 return
             }
+            credentialsValidationMessage = nil
             do {
                 try credentialStore.save(secretID: trimmedID, secretKey: trimmedKey)
                 secretIDInput = ""
@@ -423,22 +434,23 @@ final class BankConnectModel {
                 phase = .institutions
                 await loadInstitutions()
             } catch {
-                phase = .failed(String(localized: "Die Zugangsdaten konnten nicht gespeichert werden."))
+                phase = .failed(String(localized: "Die Zugangsdaten konnten nicht gespeichert werden."), retry: .credentials)
             }
 
         case .enablebanking:
             let trimmedAppID = applicationIDInput.trimmingCharacters(in: .whitespacesAndNewlines)
             let trimmedKey = privateKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedAppID.isEmpty, !trimmedKey.isEmpty else {
-                phase = .failed(String(localized: "Bitte Application ID und privaten Schlüssel einfügen."))
+                credentialsValidationMessage = String(localized: "Bitte Application ID und privaten Schlüssel einfügen.")
                 return
             }
+            credentialsValidationMessage = nil
             // Schlüssel validieren BEVOR er gespeichert wird: ein kaputter
             // PEM soll nicht erst beim Auth-Aufruf auffallen.
             do {
                 _ = try EnableBankingJWTSigner.loadPrivateKey(pem: trimmedKey)
             } catch {
-                phase = .failed(String(localized: "Der private Schlüssel konnte nicht gelesen werden. Bitte die komplette .pem-Datei (inkl. BEGIN/END-Zeilen) einfügen."))
+                credentialsValidationMessage = String(localized: "Der private Schlüssel konnte nicht gelesen werden. Bitte die komplette .pem-Datei (inkl. BEGIN/END-Zeilen) einfügen.")
                 return
             }
             do {
@@ -449,7 +461,7 @@ final class BankConnectModel {
                 await loadInstitutions()
                 await checkApplication()
             } catch {
-                phase = .failed(String(localized: "Die Zugangsdaten konnten nicht gespeichert werden."))
+                phase = .failed(String(localized: "Die Zugangsdaten konnten nicht gespeichert werden."), retry: .credentials)
             }
         }
     }
@@ -474,6 +486,10 @@ final class BankConnectModel {
         privateKeyInput = ""
         secretIDInput = ""
         secretKeyInput = ""
+        credentialsValidationMessage = nil
+        selectedInstitution = nil
+        pendingConnectionID = nil
+        renewalPurpose = nil
         phase = .credentials
     }
 
@@ -577,7 +593,6 @@ final class BankConnectModel {
         do {
             let result = try await provider.createConnection(institutionID: institution.id, redirectURL: nil)
             pendingConnectionID = result.connectionID
-            pendingAuthorizationURL = result.authorizationURL
             switch kind {
             case .gocardless:
                 phase = .waitingForAuthorization(url: result.authorizationURL, institutionName: institution.name)
@@ -716,13 +731,23 @@ final class BankConnectModel {
     func chooseAnotherBank() {
         selectedInstitution = nil
         pendingConnectionID = nil
-        pendingAuthorizationURL = nil
+        // Eine abgebrochene Erneuerung ist keine mehr: die nächste Wahl
+        // ist eine normale Verbindung.
+        renewalPurpose = nil
         redirectURLInput = "https://enablebanking.com/redirect"
         phase = .institutions
     }
 
-    func retryAfterFailure() {
-        phase = selectedInstitution != nil ? .institutions : .credentials
+    func retryAfterFailure() async {
+        guard case .failed(_, let retry) = phase else { return }
+        renewalPurpose = nil
+        switch retry {
+        case .credentials:
+            phase = .credentials
+        case .institutions:
+            phase = .institutions
+            if institutions.isEmpty { await loadInstitutions() }
+        }
     }
 
     // MARK: - Consent-Health: Laden, Einstufen, Erneuern
@@ -765,23 +790,11 @@ final class BankConnectModel {
     }
 
     func statusLabel(for connection: Connection, now: Date = Date()) -> String {
-        if let expires = connection.consentExpiresAt, expires < now {
-            return String(localized: "Zustimmung abgelaufen")
-        }
-        return switch connection.status {
-        case .active: String(localized: "Verbunden")
-        case .pendingAuthorization: String(localized: "Autorisierung offen")
-        case .expired: String(localized: "Abgelaufen")
-        case .revoked: String(localized: "Zugriff widerrufen")
-        case .disconnected: String(localized: "Getrennt")
-        }
+        ConnectionStatusPresentation.label(for: connection, health: health(for: connection, now: now), now: now)
     }
 
     func needsReconnect(_ connection: Connection, now: Date = Date()) -> Bool {
-        switch health(for: connection, now: now) {
-        case .expired, .blocked: true
-        case .noConsentInfo, .healthy, .expiring: connection.status != .active
-        }
+        ConnectionStatusPresentation.needsReconnect(connection, health: health(for: connection, now: now), now: now)
     }
 
     /// Erneuter Sync einer bestehenden Connection (read-only: kein neuer

@@ -214,37 +214,20 @@ final class AccountsModel {
     }
 
     func connectionStatusLabel(for connection: Connection, now: Date = Date()) -> String {
-        if let expires = connection.consentExpiresAt, expires < now {
-            return String(localized: "Zustimmung abgelaufen")
-        }
-
-        if connectionDataIsStale(connection, now: now) {
-            return String(localized: "Daten veraltet")
-        }
-
-        return switch connection.status {
-        case .active: String(localized: "Verbunden")
-        case .pendingAuthorization: String(localized: "Autorisierung offen")
-        case .expired: String(localized: "Abgelaufen")
-        case .revoked: String(localized: "Zugriff widerrufen")
-        case .disconnected: String(localized: "Getrennt")
-        }
+        ConnectionStatusPresentation.label(
+            for: connection,
+            health: healthEvaluator.health(for: connection, now: now),
+            now: now
+        )
     }
 
-    /// Eine aktive Verbindung, deren letzter erfolgreicher Abruf länger als
-    /// eine Woche zurückliegt, zeigt keinen aktuellen Stand mehr; „Verbunden"
-    /// in Grün wäre dann irreführend.
+    /// Eine aktive Verbindung ohne erfolgreichen Abruf seit einer Woche.
     func connectionDataIsStale(_ connection: Connection, now: Date = Date()) -> Bool {
-        guard connection.status == .active,
-              let last = connection.lastSuccessfulSyncAt else { return false }
-        return now.timeIntervalSince(last) > 7 * 24 * 60 * 60
+        ConnectionStatusPresentation.isStale(connection, now: now)
     }
 
     func connectionNeedsReconnect(_ connection: Connection, now: Date = Date()) -> Bool {
-        if let expires = connection.consentExpiresAt, expires < now {
-            return true
-        }
-        return connection.status != .active
+        ConnectionStatusPresentation.needsReconnect(connection, health: healthEvaluator.health(for: connection, now: now), now: now)
     }
 }
 
