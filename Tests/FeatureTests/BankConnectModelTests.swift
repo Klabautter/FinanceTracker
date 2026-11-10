@@ -217,6 +217,16 @@ struct BankConnectModelTests {
         #expect(name == "Sandbox Finance")
     }
 
+    @Test("Nach einer Erneuerung beginnt der Abruf eine Woche vor dem letzten Abruf")
+    func resumeStartAfterRenewal() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Europe/Berlin"))
+        let last = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 9)))
+        let expected = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 3, hour: 9)))
+        #expect(BankConnectModel.resumeStart(afterLastSync: last, calendar: calendar) == expected)
+        #expect(BankConnectModel.resumeStart(afterLastSync: nil, calendar: calendar) == nil)
+    }
+
     @Test("Aktive Verbindung ohne Konten heißt nicht „Verbunden“ und verlangt Neu verbinden")
     func connectionWithoutAccountsIsNotConnected() {
         let connection = Connection(

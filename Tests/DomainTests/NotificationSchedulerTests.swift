@@ -181,3 +181,30 @@ struct NotificationSchedulerTests {
         #expect(first.map(\.id) == second.map(\.id))
     }
 }
+
+extension NotificationSchedulerTests {
+    @Test("Ablauf-Erinnerung sieben Tage vorher und am Ablauftag, nur künftige Termine")
+    func consentReminders() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Europe/Berlin"))
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 12)))
+        let expiry = try #require(calendar.date(from: DateComponents(year: 2027, month: 2, day: 8, hour: 18)))
+        func connection(expiresAt: Date?, status: ConnectionStatus = .active) -> Connection {
+            Connection(id: UUID(), userID: UUID(), provider: .enablebanking, providerConnectionID: "s",
+                       institutionID: "DE|Trade Republic", status: status, consentExpiresAt: expiresAt,
+                       lastSuccessfulSyncAt: now, createdAt: now, updatedAt: now)
+        }
+        let reminders = NotificationScheduler().consentReminders(for: [connection(expiresAt: expiry)], now: now, calendar: calendar)
+        #expect(reminders.map(\.fireDate) == [
+            calendar.date(from: DateComponents(year: 2027, month: 2, day: 1, hour: 10)),
+            calendar.date(from: DateComponents(year: 2027, month: 2, day: 8, hour: 10))
+        ])
+        #expect(reminders.allSatisfy { $0.kind == .consentExpiring && $0.id.hasPrefix(NotificationScheduler.consentReminderIDPrefix) })
+
+        // Drei Tage vor Ablauf: nur noch die Erinnerung am Ablauftag.
+        let soon = try #require(calendar.date(byAdding: .day, value: 3, to: now))
+        #expect(NotificationScheduler().consentReminders(for: [connection(expiresAt: soon)], now: now, calendar: calendar).count == 1)
+        // Ohne Ablaufdatum oder getrennt: keine Erinnerung.
+        #expect(NotificationScheduler().consentReminders(for: [connection(expiresAt: nil), connection(expiresAt: expiry, status: .disconnected)], now: now, calendar: calendar).isEmpty)
+    }
+}

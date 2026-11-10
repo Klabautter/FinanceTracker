@@ -159,8 +159,19 @@ struct FinanceTrackerApp: App {
         guard Self.allowsAutomaticBankSync else { return }
         while !Task.isCancelled {
             await dependencies.bankSyncCoordinator.syncAll(trigger: .automatic, dependencies: dependencies)
+            await scheduleConsentReminders(dependencies)
             try? await Task.sleep(for: .seconds(30 * 60))
         }
+    }
+
+    /// Erinnerungen vor dem Ablauf eines Bankzugangs als terminierte
+    /// Mitteilungen; macOS stellt sie auch zu, wenn die App nicht läuft.
+    /// Nur mit eingeschalteten Hinweisen, ohne andere Hinweise zu wiederholen.
+    private func scheduleConsentReminders(_ dependencies: AppDependencies) async {
+        guard UserDefaults.standard.bool(forKey: SettingsModel.notificationsEnabledKey),
+              let connections = try? await dependencies.connectionRepository.connections() else { return }
+        let reminders = dependencies.notificationScheduler.consentReminders(for: connections)
+        await LocalNotificationService().replaceConsentReminders(reminders)
     }
 
     /// Test- und Demo-Läufe bleiben lesend.

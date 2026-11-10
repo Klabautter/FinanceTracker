@@ -182,6 +182,8 @@ final class BankConnectModel {
     }
 
     private(set) var renewalPurpose: RenewalPurpose?
+    /// Letzter erfolgreicher Abruf der Verbindung, die gerade erneuert wird.
+    private var renewedLastSync: Date?
 
     /// Bis wann die Bank den Lesezugriff nach dem Verbinden erlaubt.
     private(set) var consentValidUntil: Date?
@@ -226,6 +228,7 @@ final class BankConnectModel {
               let name = institutionID.split(separator: "|", maxSplits: 1).last.map(String.init),
               !name.isEmpty else { return }
         renewalPurpose = purpose
+        renewedLastSync = connection.lastSuccessfulSyncAt
         if purpose == .olderTransactions, historyRange == .bankDefault { historyRange = .oneYear }
         let institution = institutions.first { $0.id == institutionID }
             ?? BankInstitution(id: institutionID, name: name, bic: nil, transactionTotalDays: nil)
@@ -674,11 +677,17 @@ final class BankConnectModel {
                 providerRaw: .enablebanking
             )
             let requestedStart = historyRange.startDate(now: Date())
+            // Nach einer Erneuerung ab dem letzten Abruf weiter (sieben Tage
+            // Überlappung, Dubletten fängt der Abgleich), statt den ganzen
+            // Zeitraum der Bank erneut zu laden.
+            let resumeStart = requestedStart == nil && renewalPurpose == .reauthorize
+                ? Self.resumeStart(afterLastSync: renewedLastSync)
+                : nil
             // Über den Koordinator: Der automatische Abruf darf die neue
             // Verbindung nicht gleichzeitig abrufen.
             let result = try await dependencies.bankSyncCoordinator.sync(
                 connection,
-                historyStart: requestedStart,
+                historyStart: requestedStart ?? resumeStart,
                 provider: provider,
                 dependencies: dependencies
             )
@@ -708,6 +717,11 @@ final class BankConnectModel {
             BankSyncService.logger.error("Autorisierung fehlgeschlagen: \(BankSyncService.describe(error), privacy: .public)")
             phase = .failed(Self.authorizationFailureMessage(error))
         }
+    }
+
+    /// Abrufbeginn nach einer Erneuerung: letzter Abruf minus Überlappung.
+    nonisolated static func resumeStart(afterLastSync lastSync: Date?, calendar: Calendar = .current) -> Date? {
+        lastSync.flatMap { calendar.date(byAdding: .day, value: -7, to: $0) }
     }
 
     static func authorizationFailureMessage(_ error: Error) -> String {

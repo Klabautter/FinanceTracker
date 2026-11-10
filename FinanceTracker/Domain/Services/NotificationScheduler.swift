@@ -7,6 +7,7 @@ enum LocalNotificationKind: String, Sendable, Hashable, CaseIterable {
     case budgetExceeded100
     case commitmentDueSoon
     case syncIssue
+    case consentExpiring
 }
 
 /// Rein berechnete, noch nicht übermittelte Mitteilung. Die Übermittlung
@@ -17,6 +18,8 @@ struct PendingLocalNotification: Sendable, Hashable, Identifiable {
     let kind: LocalNotificationKind
     let title: String
     let body: String
+    /// Zustellzeitpunkt; `nil` = sofort.
+    var fireDate: Date? = nil
 }
 
 /// Leichter Sync-Hinweis (kein Bank-Call, nur lokale Einstufung, z. B.
@@ -122,6 +125,43 @@ struct NotificationScheduler: Sendable {
                 title: title,
                 body: body
             )
+        }
+    }
+
+    // MARK: - Bankzugang läuft ab
+
+    /// ID-Präfix aller Ablauf-Erinnerungen, damit sie sich gezielt neu
+    /// planen lassen, ohne andere Hinweise anzufassen.
+    static let consentReminderIDPrefix = "consent-"
+
+    /// Terminierte Erinnerungen vor dem Ablauf der Bank-Zustimmung: sieben
+    /// Tage vorher und am Ablauftag, jeweils um 10 Uhr. Nur künftige
+    /// Termine; ein bereits abgelaufener Zugang läuft über `syncIssue`.
+    func consentReminders(
+        for connections: [Connection],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [PendingLocalNotification] {
+        connections.flatMap { connection -> [PendingLocalNotification] in
+            guard connection.status == .active, let expiry = connection.consentExpiresAt else { return [] }
+            let expiryDay = calendar.startOfDay(for: expiry)
+            let name = connection.displayName
+            let candidates: [(days: Int, body: String)] = [
+                (7, String(localized: "Der Lesezugriff auf „\(name)“ läuft in 7 Tagen ab. Erneuere ihn in FinanceTracker unter Konten, damit der Abruf weiterläuft.")),
+                (0, String(localized: "Der Lesezugriff auf „\(name)“ läuft heute ab. Erneuere ihn in FinanceTracker unter Konten."))
+            ]
+            return candidates.compactMap { candidate in
+                guard let day = calendar.date(byAdding: .day, value: -candidate.days, to: expiryDay),
+                      let fireDate = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: day),
+                      fireDate > now, fireDate < expiry || candidate.days == 0 else { return nil }
+                return PendingLocalNotification(
+                    id: "\(Self.consentReminderIDPrefix)\(connection.id.uuidString)-\(candidate.days)",
+                    kind: .consentExpiring,
+                    title: String(localized: "Bankzugang läuft ab"),
+                    body: candidate.body,
+                    fireDate: fireDate
+                )
+            }
         }
     }
 

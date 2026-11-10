@@ -43,13 +43,28 @@ struct LocalNotificationService: LocalNotificationScheduling, Sendable {
             content.sound = .default
             content.badge = nil
             #endif
+            var trigger: UNNotificationTrigger?
+            if let fireDate = notification.fireDate, fireDate > Date() {
+                let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+                trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            }
             let request = UNNotificationRequest(
                 identifier: notification.id,
                 content: content,
-                trigger: nil
+                trigger: trigger
             )
             try? await center.add(request)
         }
+    }
+
+    /// Plant nur die Ablauf-Erinnerungen neu (alte mit demselben Präfix
+    /// fallen weg), ohne andere Hinweise erneut zuzustellen.
+    func replaceConsentReminders(_ reminders: [PendingLocalNotification]) async {
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests()
+        let stale = pending.map(\.identifier).filter { $0.hasPrefix(NotificationScheduler.consentReminderIDPrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: stale)
+        await schedule(reminders)
     }
 
     func clearAll() async {

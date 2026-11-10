@@ -265,7 +265,7 @@ final class SettingsModel {
                 syncIssues: syncIssues,
                 now: now,
                 calendar: calendar
-            )
+            ) + dependencies.notificationScheduler.consentReminders(for: connections, now: now, calendar: calendar)
             await notificationService.clearAll()
             await notificationService.schedule(pending)
         } catch {
