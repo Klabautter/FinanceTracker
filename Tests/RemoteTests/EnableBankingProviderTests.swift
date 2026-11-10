@@ -342,10 +342,40 @@ struct EnableBankingProviderTests {
         #expect(await transport.transactionQueries().isEmpty)
     }
 
-    @Test("Mapping: ungültige Beträge werden vollständig abgelehnt", arguments: ["5oops", "-5.00", "5,00", "", "NaN", #"5.00\n"#])
+    @Test("Mapping: ungültige Beträge werden vollständig abgelehnt", arguments: ["5oops", "--5.00", "5,00", "", "NaN", #"5.00\n"#])
     func invalidAmountsRejected(_ amount: String) throws {
         let dto = try decode(Self.validTransaction.replacingOccurrences(of: "5.00", with: amount))
         #expect(EnableBankingBankDataProvider.map(transaction: dto, accountUID: "account") == nil)
+    }
+
+    /// Trade Republic schickt Belastungen mit Minuszeichen UND DBIT
+    /// (Beispiel aus einem echten Abruf: "-70.000000", DBIT, BOOK).
+    @Test("Mapping: Belastung mit Minuszeichen und DBIT wird einmal negativ")
+    func signedDebitAccepted() throws {
+        let dto = try decode(#"{"entry_reference":"tr-1","transaction_amount":{"amount":"-70.000000","currency":"EUR"},"credit_debit_indicator":"DBIT","status":"BOOK","booking_date":"2026-10-02","creditor":null,"debtor":null,"remittance_information":null}"#)
+        let mapped = try #require(EnableBankingBankDataProvider.map(transaction: dto, accountUID: "account"))
+        #expect(mapped.amount == Money(amount: -70, currency: .eur))
+        #expect(mapped.state == .booked)
+        #expect(EnableBankingBankDataProvider.rejectionReason(dto) == nil)
+    }
+
+    @Test("Mapping: Gutschrift mit Minuszeichen ist widersprüchlich und wird abgelehnt")
+    func negativeCreditRejected() throws {
+        let dto = try decode(Self.validTransaction
+            .replacingOccurrences(of: "5.00", with: "-5.00")
+            .replacingOccurrences(of: "DBIT", with: "CRDT"))
+        #expect(EnableBankingBankDataProvider.map(transaction: dto, accountUID: "account") == nil)
+        #expect(EnableBankingBankDataProvider.rejectionReason(dto)?.hasPrefix("credit_debit_indicator") == true)
+    }
+
+    @Test("Abruf: leerer Seiten-Schlüssel beendet die Liste")
+    func emptyContinuationKeyEndsPaging() async throws {
+        let transport = PageTransport(pages: [
+            "{\"transactions\":[\(Self.validTransaction)],\"continuation_key\":\"\"}"
+        ])
+        let result = try await provider(transport).fetchAccountData(accountID: "account", dateFrom: nil)
+        #expect(result.transactions.count == 1)
+        #expect(await transport.transactionQueries().count == 1)
     }
 
     @Test("Mapping: unbekannte, stornierte und abgelehnte Status sind keine Buchungen", arguments: ["CNCL", "RJCT", "OTHR", "UNKNOWN"])

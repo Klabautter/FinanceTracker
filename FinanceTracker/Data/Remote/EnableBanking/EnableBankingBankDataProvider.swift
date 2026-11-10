@@ -272,13 +272,17 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
                 // Kein Teilimport: fehlerhafte Finanzdaten müssen den Abruf
                 // sichtbar scheitern lassen, statt unbemerkt zu fehlen.
                 guard let transaction = Self.map(transaction: dto, accountUID: accountID) else {
+                    let reason = Self.rejectionReason(dto) ?? "unbekannt"
+                    BankSyncService.logger.error("Buchung nicht lesbar bei \(endpoint, privacy: .public): Feld \(reason, privacy: .public)")
                     throw BankProviderError.invalidResponse(endpoint: endpoint)
                 }
                 transactions.append(transaction)
             }
-            continuationKey = response.continuationKey
+            // Ein leerer Schlüssel heißt wie ein fehlender: keine weitere Seite.
+            continuationKey = response.continuationKey.flatMap { $0.isEmpty ? nil : $0 }
             if let continuationKey {
-                guard !continuationKey.isEmpty, seenKeys.insert(continuationKey).inserted else {
+                guard seenKeys.insert(continuationKey).inserted else {
+                    BankSyncService.logger.error("Seitenabruf bei \(endpoint, privacy: .public): Fortsetzungsschlüssel wiederholt sich")
                     throw BankProviderError.invalidResponse(endpoint: endpoint)
                 }
             }
@@ -357,16 +361,18 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
     // MARK: - Mapping
 
     static func map(transaction dto: EnableBankingTransaction, accountUID: String) -> RemoteBankTransaction? {
+        guard rejectionReason(dto) == nil else { return nil }
         let rawAmount = dto.transactionAmount.amount
-        guard rawAmount.range(of: #"\A[0-9]+(?:\.[0-9]+)?\z"#, options: .regularExpression) != nil,
-              let amount = Decimal(string: rawAmount, locale: Locale(identifier: "en_US_POSIX")),
-              Self.isCurrencyCode(dto.transactionAmount.currency) else { return nil }
-        // CRDT = Gutschrift (positiv), DBIT = Belastung (negativ).
-        // Ungültige Pflichtwerte lassen den gesamten Abruf sichtbar scheitern.
-        guard let indicator = dto.creditDebitIndicator?.uppercased() else { return nil }
+        let isNegative = rawAmount.hasPrefix("-")
+        let unsigned = rawAmount.hasPrefix("-") || rawAmount.hasPrefix("+") ? String(rawAmount.dropFirst()) : rawAmount
+        guard let amount = Decimal(string: unsigned, locale: Locale(identifier: "en_US_POSIX")),
+              let indicator = dto.creditDebitIndicator?.uppercased() else { return nil }
+        // CRDT = Gutschrift (positiv), DBIT = Belastung (negativ). Manche
+        // Banken (Trade Republic) schicken Belastungen zusätzlich mit
+        // Minuszeichen; das zählt nur, wenn es zur Richtung passt.
         let signedAmount: Decimal
         switch indicator {
-        case "CRDT": signedAmount = amount
+        case "CRDT" where !isNegative: signedAmount = amount
         case "DBIT": signedAmount = -amount
         default: return nil
         }
@@ -406,6 +412,30 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
             debtorIBAN: dto.debtorAccount?.iban,
             debtorBIC: dto.debtorAgent?.bicFi
         )
+    }
+
+    /// Warum eine Buchung nicht übernommen werden kann, als Feldname ohne
+    /// Werte (für Logs). `nil` = Pflichtfelder gültig. Ungültige Pflichtwerte
+    /// lassen den gesamten Abruf sichtbar scheitern (Rule 17).
+    static func rejectionReason(_ dto: EnableBankingTransaction) -> String? {
+        let rawAmount = dto.transactionAmount.amount
+        guard rawAmount.range(of: #"\A[+-]?[0-9]+(?:\.[0-9]+)?\z"#, options: .regularExpression) != nil else {
+            return "transaction_amount.amount"
+        }
+        guard isCurrencyCode(dto.transactionAmount.currency) else { return "transaction_amount.currency" }
+        switch dto.creditDebitIndicator?.uppercased() {
+        case "DBIT": break
+        case "CRDT":
+            if rawAmount.hasPrefix("-") { return "credit_debit_indicator (CRDT mit negativem Betrag)" }
+        case nil: return "credit_debit_indicator (fehlt)"
+        default: return "credit_debit_indicator"
+        }
+        switch dto.status?.uppercased() {
+        case "PDNG", "HOLD", "SCHD", "BOOK": break
+        case nil: return "status (fehlt)"
+        default: return "status"
+        }
+        return nil
     }
 
     static func date(fromString raw: String?) -> Date? {
