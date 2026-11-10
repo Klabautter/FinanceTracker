@@ -160,10 +160,14 @@ CS=(codesign --force --timestamp --options runtime --sign "$IDENTITY")
 # App zuletzt; Entitlements (Sandbox usw.) bleiben wie von Xcode gesetzt.
 "${CS[@]}" --preserve-metadata=entitlements,requirements,flags "$APP"
 codesign --verify --deep --strict "$APP"
-codesign -dvv "$APP" 2>&1 | grep -q "TeamIdentifier=$TEAM_ID" || {
+# Ausgaben erst einsammeln: grep -q in einer Pipe beendet sie vorzeitig,
+# und mit pipefail gälte die Prüfung dann als fehlgeschlagen.
+SIGN_INFO="$(codesign -dvv "$APP" 2>&1)"
+[[ "$SIGN_INFO" == *"TeamIdentifier=$TEAM_ID"* ]] || {
     echo "App trägt nicht die Team-ID $TEAM_ID." >&2; exit 1; }
 # Debug-Berechtigung: die Notarisierung lehnt sie ab.
-if codesign -d --entitlements - --xml "$APP" 2>/dev/null | grep -q "get-task-allow"; then
+APP_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$APP" 2>/dev/null)"
+if [[ "$APP_ENTITLEMENTS" == *"get-task-allow"* ]]; then
     echo "App enthält com.apple.security.get-task-allow, Notarisierung würde scheitern." >&2
     exit 1
 fi
@@ -176,7 +180,7 @@ ditto -c -k --keepParent "$APP" "$NOTARY_ZIP"
 NOTARY_OUT="$(xcrun notarytool submit "$NOTARY_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1)" || true
 rm -f "$NOTARY_ZIP"
 echo "$NOTARY_OUT" | grep -E "^\s*(id|status):" | sed 's/^/   /' || true
-if ! echo "$NOTARY_OUT" | grep -qE "^\s*status: Accepted"; then
+if ! grep -qE "^\s*status: Accepted" <<<"$NOTARY_OUT"; then
     SUBMISSION_ID="$(echo "$NOTARY_OUT" | sed -n 's/^ *id: //p' | head -1)"
     echo "Notarisierung nicht akzeptiert." >&2
     [ -n "$SUBMISSION_ID" ] && echo "Details: xcrun notarytool log $SUBMISSION_ID --keychain-profile $NOTARY_PROFILE" >&2
