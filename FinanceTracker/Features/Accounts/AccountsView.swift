@@ -7,6 +7,7 @@ struct AccountsView: View {
     @State private var syncMessage: String?
     @State private var connectionPendingDisconnect: Connection?
     @State private var accountPendingDeletion: AccountSummary?
+    @State private var showsHiddenAccounts = false
     @Environment(PrivacyPresentationState.self) private var privacyState
     /// WP24: Ausstehende Palette-Route (Konto-Detail).
     var pendingRoute: Binding<PaletteRoute?>
@@ -238,15 +239,31 @@ struct AccountsView: View {
                         }
                     }
                 }
-                if !model.accounts.isEmpty {
+                if !model.visibleAccounts.isEmpty {
                     PageSection(String(localized: "Deine Konten")) {
                         VStack(spacing: 0) {
-                            ForEach(model.accounts) { summary in
+                            ForEach(model.visibleAccounts) { summary in
                                 row(for: summary)
-                                if summary.id != model.accounts.last?.id { Divider().padding(.leading, 52) }
+                                if summary.id != model.visibleAccounts.last?.id { Divider().padding(.leading, 52) }
                             }
                         }
                     }
+                }
+                if !model.hiddenAccounts.isEmpty {
+                    DisclosureGroup(isExpanded: $showsHiddenAccounts) {
+                        VStack(spacing: 0) {
+                            ForEach(model.hiddenAccounts) { summary in
+                                row(for: summary)
+                                if summary.id != model.hiddenAccounts.last?.id { Divider().padding(.leading, 52) }
+                            }
+                        }
+                        .padding(.top, AppSpacing.s)
+                    } label: {
+                        Text("Ausgeblendete Konten (\(model.hiddenAccounts.count))")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("accounts-hidden-group")
                 }
                 if !model.disconnectedAccounts.isEmpty {
                     PageSection(String(localized: "Getrennte Konten"), subtitle: String(localized: "Ohne Verbindung: Ihre Buchungen zählen weiter in Übersicht, Analyse und Budgets mit")) {

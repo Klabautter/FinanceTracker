@@ -66,6 +66,9 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
     /// Gesamtstand und Reichweite lassen das Konto aus (z. B. ein Depot-
     /// Verrechnungskonto oder Geld, das nicht dem Nutzer gehört).
     var excludedFromTotal: Bool
+    /// „In der Kontenliste ausblenden", z. B. ein nicht mehr genutzter
+    /// Währungstopf. Nur die Liste; Stand, Gesamtstand und Buchungen bleiben.
+    var isHiddenInList: Bool
 
     init(
         id: UUID = UUID(),
@@ -82,7 +85,8 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         openingBalance: Decimal? = nil,
         openingBalanceDate: Date? = nil,
         reportedBalance: ReportedBalance? = nil,
-        excludedFromTotal: Bool = false
+        excludedFromTotal: Bool = false,
+        isHiddenInList: Bool = false
     ) {
         self.id = id
         self.connectionID = connectionID
@@ -99,12 +103,13 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         self.openingBalanceDate = openingBalanceDate
         self.reportedBalance = reportedBalance
         self.excludedFromTotal = excludedFromTotal
+        self.isHiddenInList = isHiddenInList
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, connectionID, institutionID, name, type, currency, maskedIdentifier, ibanLast4
         case providerAccountID, source, isActive, openingBalance, openingBalanceDate, reportedBalance
-        case excludedFromTotal
+        case excludedFromTotal, isHiddenInList
     }
 
     /// Ältere Backups kennen die Einstellung nicht: dann zählt das Konto mit.
@@ -125,6 +130,7 @@ struct Account: Identifiable, Hashable, Codable, Sendable {
         openingBalanceDate = try container.decodeIfPresent(Date.self, forKey: .openingBalanceDate)
         reportedBalance = try container.decodeIfPresent(ReportedBalance.self, forKey: .reportedBalance)
         excludedFromTotal = try container.decodeIfPresent(Bool.self, forKey: .excludedFromTotal) ?? false
+        isHiddenInList = try container.decodeIfPresent(Bool.self, forKey: .isHiddenInList) ?? false
     }
 }
 

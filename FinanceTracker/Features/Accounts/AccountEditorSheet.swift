@@ -81,6 +81,14 @@ struct AccountEditorSheet: View {
                     Text("Der Stand bleibt beim Konto sichtbar, zählt aber auch nicht zur Reichweite.")
                 }
 
+                Section {
+                    Toggle("In der Kontenliste ausblenden", isOn: $draft.isHiddenInList)
+                        .accessibilityLabel("Konto in der Kontenliste ausblenden")
+                        .accessibilityIdentifier("account-editor-hide-in-list")
+                } footer: {
+                    Text("Für Konten, die du nicht mehr nutzt. Buchungen, Stand und Gesamtstand bleiben unverändert; ausgeblendete Konten findest du unten in der Kontenliste.")
+                }
+
                 if let errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle")

@@ -363,6 +363,17 @@ enum FinanceTrackerSchemaV15: VersionedSchema {
     }
 }
 
+/// V16: Anzeige-Einstellung je Konto („In der Kontenliste ausblenden"),
+/// neue 1:1-Sidecar-Tabelle `SDAccountVisibilityEntity`. Rein additiv →
+/// lightweight.
+enum FinanceTrackerSchemaV16: VersionedSchema {
+    static let versionIdentifier = Schema.Version(16, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        FinanceTrackerSchemaV15.models + [SDAccountVisibilityEntity.self]
+    }
+}
+
 enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -380,7 +391,8 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             FinanceTrackerSchemaV12.self,
             FinanceTrackerSchemaV13.self,
             FinanceTrackerSchemaV14.self,
-            FinanceTrackerSchemaV15.self
+            FinanceTrackerSchemaV15.self,
+            FinanceTrackerSchemaV16.self
         ]
     }
 
@@ -441,6 +453,10 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: FinanceTrackerSchemaV14.self,
                 toVersion: FinanceTrackerSchemaV15.self
+            ),
+            .lightweight(
+                fromVersion: FinanceTrackerSchemaV15.self,
+                toVersion: FinanceTrackerSchemaV16.self
             )
         ]
     }

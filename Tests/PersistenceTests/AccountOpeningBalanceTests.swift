@@ -55,6 +55,29 @@ struct AccountOpeningBalanceTests {
         #expect(try context.fetch(FetchDescriptor<SDAccountSettingsEntity>()).isEmpty)
     }
 
+    @Test("„In der Kontenliste ausblenden“ überlebt Roundtrip und Backup, ältere Backups zeigen das Konto")
+    func hiddenInListRoundTrip() async throws {
+        let store = try SwiftDataStore(inMemory: true)
+        let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
+        var account = Account(name: "Revolut DKK", type: .checking, currency: CurrencyCode("DKK"), source: .openBanking, isHiddenInList: true)
+        try await dependencies.accountRepository.upsert([account])
+        #expect(try await dependencies.accountRepository.account(id: account.id)?.isHiddenInList == true)
+
+        var legacyObject = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(account)) as? [String: Any]
+        )
+        legacyObject.removeValue(forKey: "isHiddenInList")
+        let legacy = try JSONSerialization.data(withJSONObject: legacyObject)
+        #expect(try JSONDecoder().decode(Account.self, from: legacy).isHiddenInList == false)
+        #expect(try JSONDecoder().decode(Account.self, from: JSONEncoder().encode(account)).isHiddenInList == true)
+
+        account.isHiddenInList = false
+        try await dependencies.accountRepository.upsert([account])
+        #expect(try await dependencies.accountRepository.account(id: account.id)?.isHiddenInList == false)
+        let context = ModelContext(store.container)
+        #expect(try context.fetch(FetchDescriptor<SDAccountVisibilityEntity>()).isEmpty)
+    }
+
     @Test("V13 führt die Sidecar-Tabelle, V12 nicht")
     func schemaContainsSidecar() {
         let v13 = FinanceTrackerSchemaV13.models.map { String(describing: $0) }

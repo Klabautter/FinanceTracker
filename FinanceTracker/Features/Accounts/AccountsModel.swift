@@ -13,6 +13,11 @@ final class AccountsModel {
     /// zählen weiter in allen Auswertungen mit, deshalb bleiben sie sichtbar
     /// und lassen sich hier samt Buchungen löschen.
     private(set) var disconnectedAccounts: [AccountSummary] = []
+
+    /// Aktive Konten ohne die vom Nutzer ausgeblendeten.
+    var visibleAccounts: [AccountSummary] { accounts.filter { !$0.account.isHiddenInList } }
+    /// Ausgeblendete aktive Konten (eingeklappt unter der Liste).
+    var hiddenAccounts: [AccountSummary] { accounts.filter(\.account.isHiddenInList) }
     private(set) var connections: [Connection] = []
     /// Gesamtstand über alle aktiven Konten mit bekanntem Stand.
     private(set) var liquidity: LiquidityOverview?

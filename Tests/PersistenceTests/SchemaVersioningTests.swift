@@ -32,8 +32,12 @@ struct SchemaVersioningTests {
         #expect(FinanceTrackerSchemaV15.versionIdentifier == Schema.Version(15, 0, 0))
         #expect(FinanceTrackerSchemaV15.models.contains { $0 == SDAccountSettingsEntity.self })
         #expect(!FinanceTrackerSchemaV14.models.contains { $0 == SDAccountSettingsEntity.self })
-        #expect(FinanceTrackerMigrationPlan.schemas.count == 15)
-        #expect(FinanceTrackerMigrationPlan.stages.count == 14)
+        // V16 = Anzeige-Einstellung je Konto (Sidecar): „In der Kontenliste ausblenden".
+        #expect(FinanceTrackerSchemaV16.versionIdentifier == Schema.Version(16, 0, 0))
+        #expect(FinanceTrackerSchemaV16.models.contains { $0 == SDAccountVisibilityEntity.self })
+        #expect(!FinanceTrackerSchemaV15.models.contains { $0 == SDAccountVisibilityEntity.self })
+        #expect(FinanceTrackerMigrationPlan.schemas.count == 16)
+        #expect(FinanceTrackerMigrationPlan.stages.count == 15)
     }
 
     @Test("V2 umfasst alle Entitäten inklusive User-Metadaten")
