@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.5.3</title>
-      <pubDate>Wed, 11 Nov 2026 00:11:06 +0000</pubDate>
-      <sparkle:version>15</sparkle:version>
-      <sparkle:shortVersionString>0.5.3</sparkle:shortVersionString>
+      <title>Version 0.5.4</title>
+      <pubDate>Wed, 11 Nov 2026 13:31:57 +0000</pubDate>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>0.5.4</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[macOS no longer asks for keychain access to your Enable Banking key after updates.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.3/FinanceTracker-0.5.3.zip"
-                 sparkle:edSignature="yXcDTRdkasK2eTqirXF95W8q7wBZXOQCepVfOi2A/MunOZe+bKH4bBIu0+qDwVzHTxKi+fInbTQ++hkGeex/Aw==" length="16022689" type="application/octet-stream"/>
+      <description><![CDATA[Fixes a problem in 0.5.3 that could remove the Enable Banking key after a restart.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.4/FinanceTracker-0.5.4.zip"
+                 sparkle:edSignature="0zh3uUvnXY9g3xQTBkLx4ItoSjv0k0m5WDrVnVzlLltI6wab63Dllkoyv7bEBzmKWoooQMj2TZDWqPILfXgWCg==" length="16022407" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
