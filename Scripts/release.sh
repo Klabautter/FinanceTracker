@@ -50,6 +50,10 @@ cd "$ROOT"
 REPO="${FT_REPO:-Klabautter/FinanceTracker}"
 SPARKLE_ACCOUNT="financetracker"
 NOTARY_PROFILE="${FT_NOTARY_PROFILE:-financetracker-notary}"
+# Developer-ID-Provisioning-Profil (Name im Developer-Portal). Es gibt der App
+# ihre Kennung und die Schlüsselbund-Gruppe, ohne die macOS bei jedem Zugriff
+# auf den Enable-Banking-Schlüssel fragt.
+PROVISIONING_PROFILE="${FT_PROVISIONING_PROFILE:-FinanceTracker Developer ID}"
 DERIVED="${FT_DERIVED_DATA:-$ROOT/build/release}"
 NOTES_FILE="$ROOT/RELEASE_NOTES.md"
 DRY_RUN=0
@@ -131,7 +135,20 @@ xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 ||
     echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <Apple-ID> --team-id $TEAM_ID" >&2
     exit 1
 }
-echo "   Signatur: $IDENTITY, Notary-Profil: $NOTARY_PROFILE"
+PROFILE_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+PROFILE_FOUND=0
+for profile in "$PROFILE_DIR"/*.provisionprofile; do
+    [ -f "$profile" ] || continue
+    name="$(security cms -D -i "$profile" 2>/dev/null | plutil -extract Name raw -o - - 2>/dev/null || true)"
+    if [ "$name" = "$PROVISIONING_PROFILE" ]; then PROFILE_FOUND=1; break; fi
+done
+[ "$PROFILE_FOUND" = 1 ] || {
+    echo "Provisioning-Profil \"$PROVISIONING_PROFILE\" fehlt in $PROFILE_DIR." >&2
+    echo "developer.apple.com → Profiles → + → Developer ID → App-ID de.klabautter.FinanceTracker," >&2
+    echo "herunterladen und als <UUID>.provisionprofile in diesen Ordner kopieren." >&2
+    exit 1
+}
+echo "   Signatur: $IDENTITY, Profil: $PROVISIONING_PROFILE, Notary-Profil: $NOTARY_PROFILE"
 
 # --- 2. Bauen, signieren, notarisieren, packen ------------------------------
 
@@ -140,6 +157,7 @@ xcodegen generate >/dev/null
 xcodebuild build -project FinanceTracker.xcodeproj -scheme FinanceTracker \
     -configuration Release -derivedDataPath "$DERIVED" \
     CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$IDENTITY" "DEVELOPMENT_TEAM=$TEAM_ID" \
+    "PROVISIONING_PROFILE_SPECIFIER=$PROVISIONING_PROFILE" \
     "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO 2>&1 \
     | grep -E " error: |BUILD (SUCCEEDED|FAILED)" || true
 
@@ -171,6 +189,10 @@ if [[ "$APP_ENTITLEMENTS" == *"get-task-allow"* ]]; then
     echo "App enthält com.apple.security.get-task-allow, Notarisierung würde scheitern." >&2
     exit 1
 fi
+# Ohne eingebettetes Profil startet eine App mit Schlüsselbund-Gruppe nicht.
+[ -f "$APP/Contents/embedded.provisionprofile" ] \
+    && [[ "$APP_ENTITLEMENTS" == *"$TEAM_ID.de.klabautter.FinanceTracker"* ]] || {
+    echo "Provisioning-Profil oder App-Kennung fehlt in der App." >&2; exit 1; }
 
 echo "→ Notarisiere bei Apple (dauert meist wenige Minuten) …"
 NOTARY_ZIP="$ROOT/build/FinanceTracker-notarize.zip"
