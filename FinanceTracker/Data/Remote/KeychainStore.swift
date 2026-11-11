@@ -67,7 +67,7 @@ struct KeychainStore: Sendable {
         SecItemDelete(query(account: account, dataProtection: false) as CFDictionary)
     }
 
-    private func query(
+    func query(
         account: String,
         dataProtection: Bool,
         returnData: Bool = false
@@ -81,9 +81,11 @@ struct KeychainStore: Sendable {
             query[kSecReturnData as String] = true
             query[kSecMatchLimit as String] = kSecMatchLimitOne
         }
-        if dataProtection {
-            query[kSecUseDataProtectionKeychain as String] = true
-        }
+        // Immer ausdrücklich setzen: Ohne die Angabe wirken SecItemDelete
+        // und Co. bei einer App mit eigener Kennung (Provisioning-Profil)
+        // auf BEIDE Schlüsselbunde. Das Löschen des alten Eintrags nach dem
+        // Umzug hätte sonst auch die neue Kopie entfernt (0.5.3).
+        query[kSecUseDataProtectionKeychain as String] = dataProtection
         return query
     }
 
@@ -96,8 +98,13 @@ struct KeychainStore: Sendable {
         dpAdd[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         SecItemDelete(query(account: account, dataProtection: true) as CFDictionary)
         guard SecItemAdd(dpAdd as CFDictionary, nil) == errSecSuccess else { return }
-        // DP-Ablage erfolgreich → Legacy-Eintrag ausräumen, damit keine
-        // zweite Quelle bestehen bleibt.
+        // Erst wenn die neue Kopie lesbar ist, den alten Eintrag ausräumen,
+        // und zwar nur im klassischen Schlüsselbund.
+        var check = query(account: account, dataProtection: true, returnData: true)
+        check[kSecMatchLimit as String] = kSecMatchLimitOne
+        var copied: AnyObject?
+        guard SecItemCopyMatching(check as CFDictionary, &copied) == errSecSuccess,
+              let data = copied as? Data, String(data: data, encoding: .utf8) == value else { return }
         SecItemDelete(query(account: account, dataProtection: false) as CFDictionary)
     }
 }
