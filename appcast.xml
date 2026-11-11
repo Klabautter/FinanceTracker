@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.5.2</title>
-      <pubDate>Tue, 10 Nov 2026 23:15:11 +0000</pubDate>
-      <sparkle:version>14</sparkle:version>
-      <sparkle:shortVersionString>0.5.2</sparkle:shortVersionString>
+      <title>Version 0.5.3</title>
+      <pubDate>Wed, 11 Nov 2026 00:11:06 +0000</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>0.5.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[More banks connect cleanly, currency exchanges no longer count as spending, and the app reminds you before a bank's access expires.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.2/FinanceTracker-0.5.2.zip"
-                 sparkle:edSignature="qPievwTbF0nm4LafC7Gzt/d4zVthzPOpxDylZTA2Gf2KTp2JXM3izWLVVNt/V5Er1Rk+dhLBZ0VWakyrCyciBw==" length="16014165" type="application/octet-stream"/>
+      <description><![CDATA[macOS no longer asks for keychain access to your Enable Banking key after updates.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.3/FinanceTracker-0.5.3.zip"
+                 sparkle:edSignature="yXcDTRdkasK2eTqirXF95W8q7wBZXOQCepVfOi2A/MunOZe+bKH4bBIu0+qDwVzHTxKi+fInbTQ++hkGeex/Aw==" length="16022689" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
