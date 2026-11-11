@@ -1,3 +1,3 @@
-macOS no longer asks for keychain access to your Enable Banking key after updates.
+Fixes a problem in 0.5.3 that could remove the Enable Banking key after a restart.
 
-- **No more keychain prompts:** The app now has its own Apple-issued identity and keeps your Enable Banking key in the modern keychain, where access belongs to the app itself. On the first start after this update the key moves over by itself; macOS may ask one last time, choose "Always Allow". After that, starts and updates no longer ask. You do not need to enter the key again.
+- **Enable Banking key:** 0.5.3 moved the key to the modern keychain but then removed the new copy together with the old one, so after a restart bank refreshes failed with missing credentials. The move now keeps the new copy. If bank refresh stopped working after 0.5.3, load your Enable Banking key file once more under Konten → Datenquelle hinzufügen → Bankkonto verbinden; your bank connections stay as they are.
