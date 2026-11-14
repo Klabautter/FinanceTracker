@@ -650,22 +650,18 @@ struct BankConnectView: View {
                 }
             }
 
-            Section {
-                bankSearchField
-                institutionRows
-            } header: {
-                model.isSearching ? Text("Suchergebnisse") : Text("Bank hinzufügen")
-            } footer: {
-                institutionFooter
-            }
-
+            // Vor der Liste: Ohne Verknüpfung im Control Panel läuft die
+            // Bankanmeldung durch, liefert aber keine Konten.
             if model.kind == .enablebanking {
                 Section {
                     Label {
                         VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("Neue Bank zuerst im Control Panel verknüpfen")
+                            Text("Neue Bank? Zuerst bei Enable Banking verknüpfen")
                                 .fontWeight(.medium)
-                            Text("Ohne Vertrag gibt Enable Banking nur Konten heraus, die du bei deiner bestehenden Anwendung verknüpft hast. Für jede weitere Bank dort „Konten verknüpfen“ wählen, keine neue Anwendung anlegen.")
+                            Text("1. Im Control Panel bei deiner bestehenden Anwendung unten Land und Bank wählen und „Link“ klicken. Keine neue Anwendung anlegen.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("2. Danach die Bank hier auswählen. Ohne Schritt 1 klappt die Anmeldung, es kommen aber keine Konten an.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Link(destination: BankConnectModel.controlPanelURL) {
@@ -677,7 +673,18 @@ struct BankConnectView: View {
                         Image(systemName: "info.circle")
                             .foregroundStyle(AppPalette.information)
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("bank-connect-link-first-hint")
                 }
+            }
+
+            Section {
+                bankSearchField
+                institutionRows
+            } header: {
+                model.isSearching ? Text("Suchergebnisse") : Text("Bank hinzufügen")
+            } footer: {
+                institutionFooter
             }
 
             Section {
