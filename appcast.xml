@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.5.4</title>
-      <pubDate>Wed, 11 Nov 2026 13:31:57 +0000</pubDate>
-      <sparkle:version>16</sparkle:version>
-      <sparkle:shortVersionString>0.5.4</sparkle:shortVersionString>
+      <title>Version 0.5.5</title>
+      <pubDate>Sat, 14 Nov 2026 10:41:28 +0000</pubDate>
+      <sparkle:version>17</sparkle:version>
+      <sparkle:shortVersionString>0.5.5</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[Fixes a problem in 0.5.3 that could remove the Enable Banking key after a restart.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.4/FinanceTracker-0.5.4.zip"
-                 sparkle:edSignature="0zh3uUvnXY9g3xQTBkLx4ItoSjv0k0m5WDrVnVzlLltI6wab63Dllkoyv7bEBzmKWoooQMj2TZDWqPILfXgWCg==" length="16022407" type="application/octet-stream"/>
+      <description><![CDATA[Connecting a new bank now tells you up front to link it in the Enable Banking control panel first.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.5/FinanceTracker-0.5.5.zip"
+                 sparkle:edSignature="cmQta9pSUr+0hby57tKQUTItB0gPqXPmU38/iq5OfAZvoMxPI1Nbgidr+mWKlIUg0rwonM9wdIzBLQyQkf3ABA==" length="16025175" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
