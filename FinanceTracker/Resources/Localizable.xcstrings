@@ -21127,6 +21127,16 @@
         }
       }
     },
+    "Schritt %lld, erledigt: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step %lld, done: %@."
+          }
+        }
+      }
+    },
     "Schritt %lld: %@. %@" : {
       "localizations" : {
         "de" : {
@@ -25799,6 +25809,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose your bank. The app only reads. Payments aren’t possible."
+          }
+        }
+      }
+    },
+    "Wähle die heruntergeladene .pem-Datei oder ziehe sie hierher." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the downloaded .pem file or drag it here."
           }
         }
       }

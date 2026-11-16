@@ -338,7 +338,10 @@ struct BankConnectView: View {
                 setupStep(
                     1,
                     "Anwendung anlegen",
-                    "Melde dich bei Enable Banking an und lege eine neue Anwendung an. Wähle als Umgebung Production. Eine Sandbox-Anwendung liefert nur Testdaten."
+                    "Melde dich bei Enable Banking an und lege eine neue Anwendung an. Wähle als Umgebung Production. Eine Sandbox-Anwendung liefert nur Testdaten.",
+                    // Die Application ID steht im Namen der Schlüsseldatei:
+                    // ist sie da, gibt es die Anwendung.
+                    done: !model.applicationIDInput.trimmingCharacters(in: .whitespaces).isEmpty
                 )
                 copyRow("Als Redirect-URL eintragen", BankConnectModel.setupRedirectURL)
                 if let privacy = BankConnectModel.privacyPolicyURL, let terms = BankConnectModel.termsURL {
@@ -366,7 +369,7 @@ struct BankConnectView: View {
             }
 
             Section {
-                setupStep(3, "Schlüssel laden", "Wähle die heruntergeladene .pem-Datei.")
+                setupStep(3, "Schlüssel laden", "Wähle die heruntergeladene .pem-Datei oder ziehe sie hierher.", done: model.privateKeyInputIsValid)
                 HStack(spacing: AppSpacing.s) {
                     Button {
                         importsKeyFile = true
@@ -464,14 +467,22 @@ struct BankConnectView: View {
         return types
     }()
 
-    private func setupStep(_ number: Int, _ title: LocalizedStringResource, _ detail: LocalizedStringResource) -> some View {
+    /// `done`: der Schritt ist nachweislich erledigt (Häkchen statt Nummer).
+    private func setupStep(_ number: Int, _ title: LocalizedStringResource, _ detail: LocalizedStringResource, done: Bool = false) -> some View {
         HStack(alignment: .top, spacing: AppSpacing.m) {
-            Text("\(number)")
-                .font(.callout.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(Circle().fill(AppPalette.brand))
-                .accessibilityHidden(true)
+            Group {
+                if done {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                } else {
+                    Text("\(number)")
+                        .font(.callout.weight(.bold))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 22, height: 22)
+            .background(Circle().fill(done ? AppPalette.positive : AppPalette.brand))
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
                 Text(detail)
@@ -481,7 +492,9 @@ struct BankConnectView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Schritt \(number): \(String(localized: title)). \(String(localized: detail))")
+        .accessibilityLabel(done
+            ? "Schritt \(number), erledigt: \(String(localized: title))."
+            : "Schritt \(number): \(String(localized: title)). \(String(localized: detail))")
     }
 
     /// Wert zum Eintragen im Control Panel, mit Kopieren-Knopf.
