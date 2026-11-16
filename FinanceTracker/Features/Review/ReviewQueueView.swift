@@ -125,7 +125,6 @@ struct ReviewQueueView: View {
     }
 
     private var reviewSummaryText: String {
-        let issueCount = model.items.count
         let suggested = model.suggestedCategorizeEntries.count
         guard suggested > 0 else { return "" }
         return String(localized: "Davon \(suggested) mit Kategorie-Vorschlag.")

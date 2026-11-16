@@ -307,7 +307,7 @@ struct ImportPipeline: Sendable {
         let fileHash = ImportBatch.fileHash(of: Data("\(batchID.uuidString)|\(importedTransactions.count)".utf8))
 
         var occurrencesByBaseFingerprint: [String: Int] = [:]
-        for (rowOffset, imported) in importedTransactions.enumerated() {
+        for imported in importedTransactions {
             let bookingDate = imported.bookedAt ?? imported.authorizedAt
             let baseFingerprint = TransactionFingerprinter.fingerprint(
                 source: source,
@@ -959,7 +959,6 @@ struct ImportPipeline: Sendable {
 
     }
 
-    @discardableResult
     /// Übernimmt aus einer Datei nur den Kontostand, ohne Buchungen und ohne
     /// Eintrag im Importverlauf (z. B. ein Auszug nur für den Stand, wenn
     /// die Buchungen schon aus einem anderen Export stammen).
