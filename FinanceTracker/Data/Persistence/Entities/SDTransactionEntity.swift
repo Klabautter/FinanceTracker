@@ -3,6 +3,9 @@ import SwiftData
 
 @Model
 final class SDTransactionEntity {
+    // V17: Datumsbereiche, Konto + Datum, Import-Rückgängig und Bank-Abgleich
+    // laufen über diese Indizes statt über einen Tabellen-Scan.
+    #Index<SDTransactionEntity>([\.effectiveDateValue], [\.accountID, \.effectiveDateValue], [\.importBatchID], [\.externalID])
     @Attribute(.unique) var id: UUID
 
     var accountID: UUID
@@ -20,7 +23,8 @@ final class SDTransactionEntity {
     var bookedAt: Date?
     var authorizedAt: Date?
     var valueDate: Date?
-    var effectiveDateValue: Date?
+    // Hash-Modifier: macht V17 von V16 unterscheidbar (nur wegen der Indizes).
+    @Attribute(hashModifier: "v17-indexed") var effectiveDateValue: Date?
 
     var rawDescription: String?
     var rawMerchantName: String?

@@ -1,0 +1,226 @@
+SDAccountEntity
+  connectionID: Optional<UUID>?
+  currencyRaw: String
+  ibanLast4: Optional<String>?
+  id: UUID unique
+  institutionID: Optional<String>?
+  isActive: Bool
+  maskedIdentifier: Optional<String>?
+  name: String
+  providerAccountID: Optional<String>?
+  sourceRaw: String
+  typeRaw: String
+SDAccountOpeningBalanceEntity
+  accountID: UUID unique
+  amountValue: String
+  date: Optional<Date>?
+  updatedAt: Date
+SDAccountReportedBalanceEntity
+  accountID: UUID unique
+  amountValue: String
+  asOf: Date
+  currencyRaw: String
+  sourceRaw: String
+  updatedAt: Date
+SDAccountSettingsEntity
+  accountID: UUID unique
+  excludedFromTotal: Bool
+  updatedAt: Date
+SDAccountVisibilityEntity
+  accountID: UUID unique
+  hiddenInList: Bool
+  updatedAt: Date
+SDBudget2Entity
+  accountIDsJSON: Optional<Data>?
+  amountValue: String
+  categoryIDsJSON: Data
+  createdAt: Date
+  currencyRaw: String
+  enabled: Bool
+  id: UUID unique
+  includeInForecast: Bool
+  name: String
+  periodPolicyRaw: String
+  rolloverRaw: String
+  salaryIncomeID: Optional<UUID>?
+  startDay: Int
+  systemIconName: String
+  tagIDsJSON: Optional<Data>?
+  updatedAt: Date
+SDBudgetAmountHistoryEntity
+  amountValue: String
+  budgetID: UUID
+  createdAt: Date
+  currencyRaw: String
+  id: UUID unique
+  periodStart: Date
+SDBudgetEntity
+  categoryID: UUID
+  enabled: Bool
+  id: UUID unique
+  monthlyLimitValue: String
+SDBudgetGoalEntity
+  budgetID: UUID unique
+  createdAt: Date
+  targetAmountValue: Optional<String>?
+  targetDate: Optional<Date>?
+  updatedAt: Date
+SDCategoryEntity
+  colorTokenRaw: Optional<String>?
+  id: UUID unique
+  name: String
+  parentID: Optional<UUID>?
+  systemIconName: String
+SDConnectionEntity
+  consentExpiresAt: Optional<Date>?
+  createdAt: Date
+  id: UUID unique
+  institutionID: Optional<String>?
+  institutionName: Optional<String>?
+  lastSuccessfulSyncAt: Optional<Date>?
+  linkedAccountIDs: Array<String>
+  providerConnectionID: Optional<String>?
+  providerRaw: String
+  statusRaw: String
+  updatedAt: Date
+SDImportBatchEntity
+  completedAt: Date
+  duplicateCount: Int
+  failedCount: Int
+  fileHashSHA256: String
+  fileName: Optional<String>?
+  id: UUID unique
+  importedCount: Int
+  mutationsJSON: Optional<Data>?
+  providerIdentifier: String
+  sourceRaw: String
+  startedAt: Date
+  totalRows: Int
+  updatedCount: Int
+SDMerchantEntity
+  aliases: Array<String>
+  displayName: String
+  id: UUID unique
+SDRecurringCommitmentEntity
+  amountPolicyRaw: String
+  cadenceRaw: String
+  categoryID: Optional<UUID>?
+  createdAt: Date
+  currencyRaw: String
+  directionRaw: String
+  expectedAmountValue: String
+  id: UUID unique
+  merchantKey: Optional<String>?
+  name: String
+  nextExpectedDate: Optional<Date>?
+  originRaw: String
+  statusRaw: String
+  updatedAt: Date
+SDRecurringOccurrenceEntity
+  commitmentID: UUID
+  createdAt: Date
+  id: UUID unique
+  transactionID: UUID
+SDRuleEntity
+  categoryID: UUID
+  conditionTypeRaw: String
+  conditionValue: String
+  enabled: Bool
+  id: UUID unique
+  originRaw: Optional<String>?
+  priority: Int
+SDSharedExpenseShareEntity
+  createdAt: Date
+  id: UUID unique
+  owedBy: String
+  paidBy: String
+  settled: Bool
+  shareAmountValue: String
+  shareCurrencyRaw: String
+  transactionID: UUID
+  updatedAt: Date
+SDTagEntity
+  colorTokenRaw: String
+  id: UUID unique
+  name: String
+SDTransactionAnnotationEntity
+  createdAt: Date
+  excludedFromAnalytics: Bool
+  id: UUID
+  manualKindOverrideRaw: Optional<String>?
+  note: Optional<String>?
+  reviewed: Bool
+  tagIDsJSON: Optional<Data>?
+  transactionID: UUID unique
+  updatedAt: Date
+SDTransactionAttachmentEntity
+  createdAt: Date
+  fileName: String
+  id: UUID unique
+  localRelativePath: String
+  mimeType: String
+  transactionID: UUID
+SDTransactionCollectionEntity
+  accountIDsJSON: Data
+  createdAt: Date
+  endDateExclusive: Date
+  id: UUID unique
+  name: String
+  startDate: Date
+  systemIconName: String
+  updatedAt: Date
+SDTransactionCollectionOverrideEntity
+  collectionID: UUID
+  compositeKey: String unique
+  createdAt: Date
+  decisionRaw: String
+  transactionID: UUID
+  updatedAt: Date
+SDTransactionEntity
+  accountID: UUID
+  amountCurrencyRaw: String
+  amountValue: String
+  authorizedAt: Optional<Date>?
+  bookedAt: Optional<Date>?
+  cashbackAmountValue: Optional<String>?
+  cashbackCurrencyRaw: Optional<String>?
+  categoryID: Optional<UUID>?
+  createdAt: Date
+  cryptoAmountValue: Optional<String>?
+  cryptoAsset: Optional<String>?
+  effectiveDateValue: Optional<Date>?
+  excludedFromAnalytics: Optional<Bool>?
+  externalID: Optional<String>?
+  id: UUID unique
+  importBatchID: Optional<UUID>?
+  kindRaw: Optional<String>?
+  merchantDisplayName: Optional<String>?
+  merchantID: Optional<UUID>?
+  note: Optional<String>?
+  originalAmountValue: Optional<String>?
+  originalCurrencyRaw: Optional<String>?
+  paymentMethodRaw: Optional<String>?
+  rawDescription: Optional<String>?
+  rawMerchantName: Optional<String>?
+  reviewed: Optional<Bool>?
+  searchableText: Optional<String>?
+  sourceFingerprint: Optional<String>?
+  sourceRaw: String
+  statusRaw: String
+  tagIDsJSON: Optional<Data>?
+  updatedAt: Date
+  valueDate: Optional<Date>?
+SDTransactionSearchEntity
+  searchableText: String
+  transactionID: UUID unique
+SDTransactionSplitLineEntity
+  amountValue: String
+  categoryID: Optional<UUID>?
+  createdAt: Date
+  id: UUID unique
+  note: Optional<String>?
+  parentTransactionID: UUID
+SDTransactionTagEntity
+  id: UUID unique
+  tagID: UUID
+  transactionID: UUID

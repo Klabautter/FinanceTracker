@@ -176,7 +176,9 @@ final class LocalTransactionRepository: TransactionRepository {
     }
 
     func purgeOrphanedDependents() async throws -> Int {
-        try await persistence.purgeOrphanedTransactionDependents()
+        // Mit der Reparatur beim Start: fehlende Sortierdaten nachtragen.
+        let backfilled = try await persistence.backfillMissingSortDates()
+        return try await persistence.purgeOrphanedTransactionDependents() + backfilled
     }
 
     func count() async throws -> Int {

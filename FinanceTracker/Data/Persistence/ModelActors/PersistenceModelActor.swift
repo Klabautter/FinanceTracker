@@ -8,8 +8,8 @@ actor PersistenceModelActor {
     func loadTransactions(intervalStart: Date, intervalEnd: Date) throws -> [Transaction] {
         var descriptor = FetchDescriptor<SDTransactionEntity>()
         descriptor.predicate = #Predicate { entity in
-            (entity.effectiveDateValue ?? entity.createdAt) >= intervalStart
-                && (entity.effectiveDateValue ?? entity.createdAt) < intervalEnd
+            entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
         }
         let rows = try modelContext.fetch(descriptor)
         return try rows.map { try $0.toDomain() }
@@ -73,8 +73,8 @@ actor PersistenceModelActor {
         var descriptor = FetchDescriptor<SDTransactionEntity>()
         descriptor.predicate = #Predicate { entity in
             entity.accountID == accountID
-                && (entity.effectiveDateValue ?? entity.createdAt) >= intervalStart
-                && (entity.effectiveDateValue ?? entity.createdAt) < intervalEnd
+                && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
         }
         let rows = try modelContext.fetch(descriptor)
         return try rows.map { try $0.toDomain() }
@@ -90,8 +90,8 @@ actor PersistenceModelActor {
         descriptor.predicate = #Predicate { entity in
             entity.accountID == accountID
                 && entity.sourceRaw == sourceRaw
-                && (entity.effectiveDateValue ?? entity.createdAt) >= intervalStart
-                && (entity.effectiveDateValue ?? entity.createdAt) < intervalEnd
+                && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
         }
         let rows = try modelContext.fetch(descriptor)
         return try rows.map { try $0.toDomain() }
@@ -106,8 +106,8 @@ actor PersistenceModelActor {
         var descriptor = FetchDescriptor<SDTransactionEntity>()
         descriptor.predicate = #Predicate { entity in
             accountIDs.contains(entity.accountID)
-                && (entity.effectiveDateValue ?? entity.createdAt) >= intervalStart
-                && (entity.effectiveDateValue ?? entity.createdAt) < intervalEnd
+                && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
         }
         return try modelContext.fetch(descriptor).map { try $0.toDomain() }
     }
@@ -123,8 +123,8 @@ actor PersistenceModelActor {
         descriptor.predicate = #Predicate { entity in
             accountIDs.contains(entity.accountID)
                 && entity.sourceRaw == sourceRaw
-                && (entity.effectiveDateValue ?? entity.createdAt) >= intervalStart
-                && (entity.effectiveDateValue ?? entity.createdAt) < intervalEnd
+                && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
         }
         return try modelContext.fetch(descriptor).map { try $0.toDomain() }
     }
@@ -137,8 +137,8 @@ actor PersistenceModelActor {
         var descriptor = FetchDescriptor<SDTransactionEntity>()
         let source = sourceRaw
         descriptor.predicate = #Predicate { entity in
-            (entity.effectiveDateValue ?? entity.createdAt) >= intervalStart
-                && (entity.effectiveDateValue ?? entity.createdAt) < intervalEnd
+            entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
                 && entity.sourceRaw == source
         }
         let rows = try modelContext.fetch(descriptor)
@@ -193,8 +193,8 @@ actor PersistenceModelActor {
         // Sichere SQL-Vorfilter: Datum, Konto und Quelle. Kategorien werden
         // nach Splitzuordnung geprüft; Tags/Suche über ihre ID-Mengen.
         descriptor.predicate = #Predicate { entity in
-            (entity.effectiveDateValue ?? entity.createdAt) >= start
-                && (entity.effectiveDateValue ?? entity.createdAt) < end
+            entity.effectiveDateValue != nil && entity.effectiveDateValue! >= start
+                && entity.effectiveDateValue! < end
                 && (!hasAccountFilter || accounts.contains(entity.accountID))
                 && (!hasSourceFilter || sources.contains(entity.sourceRaw))
         }
@@ -257,8 +257,8 @@ actor PersistenceModelActor {
                 var chunkDescriptor = descriptor
                 chunkDescriptor.predicate = #Predicate { entity in
                     ids.contains(entity.id)
-                        && (entity.effectiveDateValue ?? entity.createdAt) >= start
-                        && (entity.effectiveDateValue ?? entity.createdAt) < end
+                        && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= start
+                        && entity.effectiveDateValue! < end
                 }
                 collected += try modelContext.fetch(chunkDescriptor).filter {
                     matchesAccountAndSource($0) && matchesCategory($0)
@@ -412,8 +412,8 @@ actor PersistenceModelActor {
                 let endCopy = end
                 chunkDescriptor.predicate = #Predicate { entity in
                     ids.contains(entity.id)
-                        && (entity.effectiveDateValue ?? entity.createdAt) >= startCopy
-                        && (entity.effectiveDateValue ?? entity.createdAt) < endCopy
+                        && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= startCopy
+                        && entity.effectiveDateValue! < endCopy
                 }
                 for row in try modelContext.fetch(chunkDescriptor) {
                     guard matchesAccountAndSource(row) else { continue }
@@ -1747,6 +1747,28 @@ actor PersistenceModelActor {
         )) {
             modelContext.delete(row)
         }
+    }
+
+    /// Datumsabfragen nutzen den Index auf `effectiveDateValue` und lassen
+    /// Zeilen ohne Wert deshalb aus. Jede Schreibstelle setzt ihn (Anzeige-
+    /// datum, notfalls Anlagezeit); ältere Zeilen ohne Wert holt dieser
+    /// Schritt beim Start nach. Liefert die Anzahl ergänzter Zeilen.
+    func backfillMissingSortDates() throws -> Int {
+        let descriptor = FetchDescriptor<SDTransactionEntity>(
+            predicate: #Predicate { $0.effectiveDateValue == nil }
+        )
+        let rows = try modelContext.fetch(descriptor)
+        guard !rows.isEmpty else { return 0 }
+        for row in rows {
+            row.effectiveDateValue = row.bookedAt ?? row.authorizedAt ?? row.valueDate ?? row.createdAt
+        }
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+        return rows.count
     }
 
     /// Einmalige Reparatur: Zeilen, deren Buchung fehlt (frühere Lücken im

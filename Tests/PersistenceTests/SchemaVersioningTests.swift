@@ -36,8 +36,10 @@ struct SchemaVersioningTests {
         #expect(FinanceTrackerSchemaV16.versionIdentifier == Schema.Version(16, 0, 0))
         #expect(FinanceTrackerSchemaV16.models.contains { $0 == SDAccountVisibilityEntity.self })
         #expect(!FinanceTrackerSchemaV15.models.contains { $0 == SDAccountVisibilityEntity.self })
-        #expect(FinanceTrackerMigrationPlan.schemas.count == 16)
-        #expect(FinanceTrackerMigrationPlan.stages.count == 15)
+        // V17 = Indizes auf der Buchungstabelle (gleiche Spalten).
+        #expect(FinanceTrackerSchemaV17.versionIdentifier == Schema.Version(17, 0, 0))
+        #expect(FinanceTrackerMigrationPlan.schemas.count == 17)
+        #expect(FinanceTrackerMigrationPlan.stages.count == 16)
     }
 
     @Test("V2 umfasst alle Entitäten inklusive User-Metadaten")

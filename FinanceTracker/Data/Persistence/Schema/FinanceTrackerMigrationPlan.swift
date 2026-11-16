@@ -11,7 +11,7 @@ enum FinanceTrackerSchemaV1: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -28,7 +28,7 @@ enum FinanceTrackerSchemaV2: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -50,7 +50,7 @@ enum FinanceTrackerSchemaV3: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -72,7 +72,7 @@ enum FinanceTrackerSchemaV4: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -95,7 +95,7 @@ enum FinanceTrackerSchemaV5: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -126,7 +126,7 @@ enum FinanceTrackerSchemaV6: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -152,7 +152,7 @@ enum FinanceTrackerSchemaV7: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -180,7 +180,7 @@ enum FinanceTrackerSchemaV8: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -209,7 +209,7 @@ enum FinanceTrackerSchemaV9: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -238,7 +238,7 @@ enum FinanceTrackerSchemaV10: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -271,7 +271,7 @@ enum FinanceTrackerSchemaV11: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -305,7 +305,7 @@ enum FinanceTrackerSchemaV12: VersionedSchema {
             SDAccountEntity.self,
             SDCategoryEntity.self,
             SDMerchantEntity.self,
-            SDTransactionEntity.self,
+            FinanceTrackerSchemaV16.SDTransactionEntity.self,
             SDRuleEntity.self,
             SDImportBatchEntity.self,
             SDConnectionEntity.self,
@@ -363,6 +363,20 @@ enum FinanceTrackerSchemaV15: VersionedSchema {
     }
 }
 
+/// V17: Indizes auf der Buchungstabelle (Datum, Konto + Datum, Import,
+/// Bank-ID). Ein Index allein ändert die Prüfsumme nicht; der Hash-Modifier
+/// an `effectiveDateValue` löst eine Leichtgewicht-Migration aus, bei der
+/// bestehende Datenbanken die Indizes bekommen. Spalten bleiben gleich.
+enum FinanceTrackerSchemaV17: VersionedSchema {
+    static let versionIdentifier = Schema.Version(17, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        FinanceTrackerSchemaV16.models.map { model in
+            model == FinanceTrackerSchemaV16.SDTransactionEntity.self ? SDTransactionEntity.self : model
+        }
+    }
+}
+
 /// V16: Anzeige-Einstellung je Konto („In der Kontenliste ausblenden"),
 /// neue 1:1-Sidecar-Tabelle `SDAccountVisibilityEntity`. Rein additiv →
 /// lightweight.
@@ -392,7 +406,8 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             FinanceTrackerSchemaV13.self,
             FinanceTrackerSchemaV14.self,
             FinanceTrackerSchemaV15.self,
-            FinanceTrackerSchemaV16.self
+            FinanceTrackerSchemaV16.self,
+            FinanceTrackerSchemaV17.self
         ]
     }
 
@@ -457,6 +472,10 @@ enum FinanceTrackerMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: FinanceTrackerSchemaV15.self,
                 toVersion: FinanceTrackerSchemaV16.self
+            ),
+            .lightweight(
+                fromVersion: FinanceTrackerSchemaV16.self,
+                toVersion: FinanceTrackerSchemaV17.self
             )
         ]
     }

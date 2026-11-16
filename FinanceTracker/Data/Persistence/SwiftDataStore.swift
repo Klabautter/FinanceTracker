@@ -17,7 +17,7 @@ final class SwiftDataStore {
     let container: ModelContainer
 
     private static var schema: Schema {
-        Schema(FinanceTrackerSchemaV16.models)
+        Schema(FinanceTrackerSchemaV17.models)
     }
 
     /// Eigener, app-spezifischer Store-Pfad: Der SwiftData-Defaultname

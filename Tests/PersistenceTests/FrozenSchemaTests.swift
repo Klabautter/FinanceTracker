@@ -21,7 +21,8 @@ import Testing
 struct FrozenSchemaTests {
     /// Ausgelieferte Versionen mit eingefrorener Form und Datenbankdatei.
     static let shippedVersions: [(version: Int, models: [any PersistentModel.Type])] = [
-        (16, FinanceTrackerSchemaV16.models)
+        (16, FinanceTrackerSchemaV16.models),
+        (17, FinanceTrackerSchemaV17.models)
     ]
 
     static var fixturesDirectory: URL {
@@ -53,7 +54,7 @@ struct FrozenSchemaTests {
             .joined(separator: "\n") + "\n"
     }
 
-    @Test("Ausgelieferte Schema-Versionen behalten ihre Form", arguments: [16])
+    @Test("Ausgelieferte Schema-Versionen behalten ihre Form", arguments: [16, 17])
     func shippedShapeIsFrozen(version: Int) throws {
         let models = try #require(Self.shippedVersions.first { $0.version == version }?.models)
         let expected = try String(
@@ -67,7 +68,7 @@ struct FrozenSchemaTests {
         )
     }
 
-    @Test("Datenbank jeder ausgelieferten Version öffnet und migriert", arguments: [16])
+    @Test("Datenbank jeder ausgelieferten Version öffnet und migriert", arguments: [16, 17])
     func shippedStoreOpens(version: Int) async throws {
         let fixture = Self.fixturesDirectory.appendingPathComponent("FinanceTracker-v\(version).store")
         let directory = FileManager.default.temporaryDirectory
@@ -112,5 +113,36 @@ struct FrozenSchemaTests {
             let store = try SwiftDataStore(url: url)
             PreviewDependencies.seedDemoData(into: store.container)
         }
+    }
+
+    @Test("Migration V16 → V17 legt die Indizes der Buchungstabelle an")
+    func v17AddsIndexes() throws {
+        let fixture = Self.fixturesDirectory.appendingPathComponent("FinanceTracker-v16.store")
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FrozenSchema-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let copy = directory.appendingPathComponent("FinanceTracker.store")
+        try FileManager.default.copyItem(at: fixture, to: copy)
+        do { _ = try SwiftDataStore(url: copy) }
+
+        let indexes = try Self.indexNames(table: "ZSDTRANSACTIONENTITY", in: copy)
+        #expect(indexes.contains { $0.hasSuffix("effectiveDateValue") && !$0.contains("accountID") })
+        #expect(indexes.contains { $0.hasSuffix("accountIDeffectiveDateValue") })
+        #expect(indexes.contains { $0.hasSuffix("importBatchID") })
+        #expect(indexes.contains { $0.hasSuffix("externalID") })
+    }
+
+    /// Indexnamen einer Tabelle über das sqlite3-Werkzeug (nur lesend).
+    private static func indexNames(table: String, in url: URL) throws -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        process.arguments = ["-readonly", url.path, "select name from sqlite_master where type='index' and tbl_name='\(table)';"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        process.waitUntilExit()
+        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return output.split(separator: "\n").map(String.init)
     }
 }
