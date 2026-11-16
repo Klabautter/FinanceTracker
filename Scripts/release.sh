@@ -171,6 +171,11 @@ else
         exit 1
     fi
     grep -E "Test run with" "$TEST_LOG" | tail -1 || true
+    # Jeder UI-Text im Katalog und mit Englisch (nutzt den Test-Build).
+    if ! python3 "$ROOT/Scripts/sync-strings.py" --check; then
+        echo "Texte fehlen im Katalog oder haben kein Englisch: Scripts/sync-strings.py ausführen und übersetzen." >&2
+        exit 1
+    fi
 fi
 
 echo "→ Baue Release …"

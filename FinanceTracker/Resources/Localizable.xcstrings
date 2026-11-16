@@ -2071,6 +2071,16 @@
         }
       }
     },
+    "(Code %lld)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(code %lld)"
+          }
+        }
+      }
+    },
     "+%@" : {
       "localizations" : {
         "de" : {
@@ -3969,6 +3979,16 @@
         }
       }
     },
+    "Anteil löschen?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete share?"
+          }
+        }
+      }
+    },
     "Anteil speichern" : {
       "localizations" : {
         "de" : {
@@ -5688,6 +5708,16 @@
         }
       }
     },
+    "Beleg löschen?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete receipt?"
+          }
+        }
+      }
+    },
     "Beleg ohne Buchung." : {
       "localizations" : {
         "de" : {
@@ -6784,6 +6814,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Blue"
+          }
+        }
+      }
+    },
+    "Breite der Detailspalte" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detail pane width"
           }
         }
       }
@@ -8640,6 +8680,16 @@
         }
       }
     },
+    "Der Anteil von %@ an %@ wird entfernt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The share from %@ to %@ will be removed."
+          }
+        }
+      }
+    },
     "Der Code ist einmalig nutzbar. Bitte einen frischen Code erzeugen (Bank-Login erneut durchlaufen)." : {
       "localizations" : {
         "de" : {
@@ -8837,6 +8887,16 @@
         }
       }
     },
+    "Der Schlüssel deiner Enable-Banking-Anwendung fehlt auf diesem Mac. Lade die .pem-Datei unter Konten → Datenquelle hinzufügen erneut." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The key of your Enable Banking application is missing on this Mac. Load the .pem file again under Accounts → Add Data Source."
+          }
+        }
+      }
+    },
     "Der Stand bleibt beim Konto sichtbar, zählt aber auch nicht zur Reichweite." : {
       "localizations" : {
         "en" : {
@@ -8917,6 +8977,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The payment plan couldn’t be saved."
+          }
+        }
+      }
+    },
+    "Der Zugang wurde abgelehnt: Entweder passt der Schlüssel nicht zur Anwendung, oder die Freigabe der Bank ist abgelaufen. Unter Konten neu verbinden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access was denied: either the key doesn’t match the application or the bank’s consent has expired. Reconnect under Accounts."
           }
         }
       }
@@ -9114,6 +9184,16 @@
         }
       }
     },
+    "Die Anfrage passte nicht zum Stand der Verbindung, etwa weil ein Anmeldecode schon benutzt wurde. Bank-Anmeldung erneut starten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request didn’t match the connection’s state, for example because a sign-in code was already used. Start the bank sign-in again."
+          }
+        }
+      }
+    },
     "Die Anmeldung bei %@ hat geklappt. Deine Enable-Banking-Anwendung gibt ohne Vertrag aber nur Konten heraus, die du dort im Control Panel verknüpft hast. Es wurde nichts gespeichert." : {
       "localizations" : {
         "en" : {
@@ -9271,6 +9351,26 @@
         }
       }
     },
+    "Die Bank hat die Anfrage abgelehnt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank rejected the request."
+          }
+        }
+      }
+    },
+    "Die Bank hat eine unlesbare Antwort geschickt. Bitte später erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank sent an unreadable response. Please try again later."
+          }
+        }
+      }
+    },
     "Die Bank hat für diesen Zeitraum keine Umsätze geliefert." : {
       "localizations" : {
         "de" : {
@@ -9283,6 +9383,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The bank didn't return any transactions for this period."
+          }
+        }
+      }
+    },
+    "Die Bank hat nicht rechtzeitig geantwortet. Bitte später erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank didn’t respond in time. Please try again later."
           }
         }
       }
@@ -9962,6 +10072,16 @@
         }
       }
     },
+    "Die Verbindung zur Bank ist fehlgeschlagen. Bitte später erneut versuchen; bleibt der Fehler, unter Konten neu verbinden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the bank failed. Please try again later; if it keeps failing, reconnect under Accounts."
+          }
+        }
+      }
+    },
     "Die Verbindung zur Bank konnte nicht initialisiert werden." : {
       "localizations" : {
         "de" : {
@@ -10225,6 +10345,16 @@
         }
       }
     },
+    "Diese Verbindung gibt es bei Enable Banking nicht mehr. Unter Konten neu verbinden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This connection no longer exists at Enable Banking. Reconnect under Accounts."
+          }
+        }
+      }
+    },
     "Dieselbe Datei erneut vorbereiten" : {
       "localizations" : {
         "en" : {
@@ -10340,6 +10470,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duplicate IDs: %@."
+          }
+        }
+      }
+    },
+    "Dunkel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
           }
         }
       }
@@ -10469,6 +10609,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Custom Period…"
+          }
+        }
+      }
+    },
+    "Ein Anmeldecode gilt nur einmal: Bank-Anmeldung bitte neu starten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A sign-in code works only once: please start the bank sign-in again."
           }
         }
       }
@@ -10932,6 +11082,16 @@
         }
       }
     },
+    "Enable Banking ist gerade nicht erreichbar. Bitte später erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Banking can’t be reached right now. Please try again later."
+          }
+        }
+      }
+    },
     "Enable Banking lehnt die Zugangsdaten ab (HTTP %lld). Application ID und privater Schlüssel passen nicht zusammen, oder die Anwendung ist gesperrt." : {
       "localizations" : {
         "de" : {
@@ -10944,6 +11104,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enable Banking rejects the credentials (HTTP %lld). The application ID and private key don't match, or the application is blocked."
+          }
+        }
+      }
+    },
+    "Enable Banking oder die Bank hat gerade eine Störung. Bitte später erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Banking or the bank has an outage right now. Please try again later."
           }
         }
       }
@@ -11041,6 +11211,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Included"
+          }
+        }
+      }
+    },
+    "Enthält Einnahmen aus dem Zeitraum. Nicht passende Buchungen über das Menü der Zeile ausschließen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes income from this period. Exclude bookings that don’t belong via the row menu."
           }
         }
       }
@@ -11271,6 +11451,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "Erscheinungsbild" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
           }
         }
       }
@@ -13041,6 +13231,16 @@
         }
       }
     },
+    "Hell" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        }
+      }
+    },
     "Herbsturlaub" : {
       "localizations" : {
         "de" : {
@@ -14805,6 +15005,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Merchants"
+          }
+        }
+      }
+    },
+    "Keine Internetverbindung. Sobald der Mac wieder online ist, erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No internet connection. Try again once the Mac is back online."
           }
         }
       }
@@ -24988,6 +25198,16 @@
         }
       }
     },
+    "Wie System" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        }
+      }
+    },
     "Wie sind Beträge wie „1.000“ gemeint?" : {
       "localizations" : {
         "en" : {
@@ -25795,6 +26015,16 @@
         }
       }
     },
+    "Zeitraum und Filter" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period and filters"
+          }
+        }
+      }
+    },
     "Zeitraum wählen" : {
       "localizations" : {
         "de" : {
@@ -25983,6 +26213,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move to Another Category…"
+          }
+        }
+      }
+    },
+    "Zu viele Abrufe in kurzer Zeit. Viele Banken erlauben nur wenige Abrufe pro Tag; später erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many refreshes in a short time. Many banks allow only a few per day; try again later."
           }
         }
       }
@@ -27662,6 +27902,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” will be permanently removed along with %lld transactions and their receipts. This can’t be undone."
+          }
+        }
+      }
+    },
+    "„%@“ wird von diesem Mac entfernt. Das lässt sich nicht rückgängig machen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” will be removed from this Mac. This cannot be undone."
           }
         }
       }

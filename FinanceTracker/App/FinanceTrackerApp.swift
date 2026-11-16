@@ -127,11 +127,16 @@ struct FinanceTrackerApp: App {
                     }
                 }
             }
-            #if DEBUG
             #if os(macOS)
-            // WP36: QA-Appearance setzen, sobald NSApp verfügbar ist.
-            .task { applyVisualQAAppearance() }
-            #endif
+            // Gewähltes Erscheinungsbild setzen, sobald NSApp verfügbar ist
+            // (in DEBUG hat die QA-Vorgabe `-ui-testing-appearance` Vorrang).
+            .task {
+                #if DEBUG
+                applyVisualQAAppearance()
+                #else
+                AppearancePreference.stored().apply()
+                #endif
+            }
             #endif
             .environment(privacyState)
         }
@@ -218,7 +223,10 @@ struct FinanceTrackerApp: App {
     /// Window-Root hängt die macOS-26-Fenster-Präsentation auf; niemals
     /// dorthin zurückbauen.
     private func applyVisualQAAppearance() {
-        guard let appearance = AppLaunchEnvironment.live.visualQAAppearance else { return }
+        guard let appearance = AppLaunchEnvironment.live.visualQAAppearance else {
+            AppearancePreference.stored().apply()
+            return
+        }
         NSApp.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
     }
     #endif

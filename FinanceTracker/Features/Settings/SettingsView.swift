@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
     let dependencies: AppDependencies
     /// P1 UX: Echter Navigations-Link auf Konten & Verbindungen. Hosts mit
     /// eigener Navigation (z. B. Sidebar-Steuerung) übergeben einen
@@ -141,6 +142,17 @@ struct SettingsView: View {
                     Spacer()
                     Text(appVersion).foregroundStyle(.secondary)
                 }
+                #if os(macOS)
+                Picker("Erscheinungsbild", selection: $appearance) {
+                    ForEach(AppearancePreference.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .onChange(of: appearance) { _, raw in
+                    (AppearancePreference(rawValue: raw) ?? .system).apply()
+                }
+                .accessibilityIdentifier("settings-appearance")
+                #endif
             }
 
             if let updatesContent {
