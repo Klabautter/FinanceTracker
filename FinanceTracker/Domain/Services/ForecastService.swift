@@ -419,3 +419,36 @@ struct ForecastService: Sendable {
         }
     }
 }
+
+/// Eingaben einer Monatsprognose, um sie mit Änderungen erneut zu rechnen
+/// („Was wäre, wenn …"): dieselben Buchungen, Budgets und Termine, nur ohne
+/// die abgewählten Zahlungspläne.
+struct ForecastInputs: Sendable {
+    let period: DateInterval
+    let transactions: [Transaction]
+    let budgets: [Budget]
+    let budgetProgresses: [BudgetProgress]
+    let commitments: [RecurringCommitment]
+    let explicitOccurrences: [RecurringOccurrence]
+    let latestOccurrences: [UUID: Date]
+    let baseCurrency: CurrencyCode
+    let calendar: Calendar
+    let now: Date
+    let currencyConverter: CurrencyConverter
+
+    func forecast(excludingCommitments excluded: Set<UUID> = []) -> ForecastSnapshot {
+        ForecastService().forecast(
+            period: period,
+            transactions: transactions,
+            budgets: budgets,
+            budgetProgresses: budgetProgresses,
+            commitments: commitments.filter { !excluded.contains($0.id) },
+            explicitOccurrences: explicitOccurrences.filter { !excluded.contains($0.commitmentID) },
+            latestOccurrences: latestOccurrences,
+            baseCurrency: baseCurrency,
+            calendar: calendar,
+            now: now,
+            currencyConverter: currencyConverter
+        )
+    }
+}

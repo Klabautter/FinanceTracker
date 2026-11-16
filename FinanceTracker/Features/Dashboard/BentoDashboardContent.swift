@@ -15,6 +15,7 @@ struct BentoDashboardContent: View {
     let onOpenTransaction: (Transaction.ID) -> Void
     @Environment(PrivacyPresentationState.self) private var privacyState
     @State private var showsCalculation = false
+    @State private var showsWhatIf = false
     var scrollsContent = true
     var onShowBudgets: (() -> Void)?
     var onShowRecurring: (() -> Void)?
@@ -416,9 +417,67 @@ struct BentoDashboardContent: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if !model.whatIfCandidates.isEmpty {
+                        whatIfDisclosure(base: forecast)
+                    }
                 }
             }
         }
+    }
+
+    /// „Was wäre, wenn": anstehende Zahlungspläne testweise abwählen und den
+    /// neuen Planungsrest sofort sehen. Nichts wird gespeichert.
+    private func whatIfDisclosure(base: ForecastSnapshot) -> some View {
+        DisclosureGroup(isExpanded: $showsWhatIf) {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(model.whatIfCandidates) { commitment in
+                    Toggle(isOn: Binding(
+                        get: { !model.whatIfExcludedCommitmentIDs.contains(commitment.id) },
+                        set: { included in
+                            if included {
+                                model.whatIfExcludedCommitmentIDs.remove(commitment.id)
+                            } else {
+                                model.whatIfExcludedCommitmentIDs.insert(commitment.id)
+                            }
+                        }
+                    )) {
+                        HStack {
+                            Text(commitment.name).lineLimit(1)
+                            Spacer(minLength: AppSpacing.s)
+                            Text(amountString(commitment.direction == .expense ? -commitment.expectedAmount : commitment.expectedAmount))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.caption)
+                    }
+                    #if os(macOS)
+                    .toggleStyle(.checkbox)
+                    #endif
+                }
+                if let whatIf = model.whatIfForecast {
+                    Divider()
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Dann verfügbar").font(.caption.weight(.semibold))
+                        Spacer(minLength: AppSpacing.m)
+                        Text(amountString(whatIf.availableAmount))
+                            .font(.callout.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(whatIf.availableAmount < 0 ? AppPalette.critical : AppPalette.positive)
+                    }
+                    Text(String(localized: "\(amountString(whatIf.availableAmount - base.availableAmount)) gegenüber der Prognose"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Button("Zurücksetzen") { model.whatIfExcludedCommitmentIDs = [] }
+                        .controlSize(.small)
+                }
+            }
+            .padding(.top, AppSpacing.s)
+        } label: {
+            Text("Was wäre, wenn …")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityIdentifier("dashboard-what-if")
     }
 
     private func forecastCaption(_ forecast: ForecastSnapshot) -> String {

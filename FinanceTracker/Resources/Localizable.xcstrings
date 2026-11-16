@@ -206,6 +206,16 @@
         }
       }
     },
+    "%@ gegenüber der Prognose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ compared with the forecast"
+          }
+        }
+      }
+    },
     "%@ getrennt. Die Konten findest du unter „Getrennte Konten“." : {
       "localizations" : {
         "de" : {
@@ -7907,6 +7917,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Then Category"
+          }
+        }
+      }
+    },
+    "Dann verfügbar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Then available"
           }
         }
       }
@@ -24986,6 +25006,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Warning"
+          }
+        }
+      }
+    },
+    "Was wäre, wenn …" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What if …"
           }
         }
       }

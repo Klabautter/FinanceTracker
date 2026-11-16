@@ -37,6 +37,25 @@ final class DashboardModel {
         }.prefix(3))
     }
     private(set) var forecast: ForecastSnapshot?
+    @ObservationIgnored private var forecastInputs: ForecastInputs?
+    /// „Was wäre, wenn": Zahlungspläne, die testweise wegfallen.
+    var whatIfExcludedCommitmentIDs: Set<UUID> = []
+
+    /// Zahlungspläne, die im laufenden Monat noch anstehen (für „Was wäre,
+    /// wenn"), nach Termin.
+    var whatIfCandidates: [RecurringCommitment] {
+        guard let inputs = forecastInputs else { return [] }
+        // Halboffen: ein Termin am Monatsersten des Folgemonats gehört nicht dazu.
+        let open = Set(upcomingOccurrences.filter { inputs.period.containsHalfOpen($0.scheduledDate) }.map(\.commitmentID))
+        return inputs.commitments.filter { open.contains($0.id) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// Prognose ohne die abgewählten Zahlungspläne; `nil` ohne Abwahl.
+    var whatIfForecast: ForecastSnapshot? {
+        guard !whatIfExcludedCommitmentIDs.isEmpty, let forecastInputs else { return nil }
+        return forecastInputs.forecast(excludingCommitments: whatIfExcludedCommitmentIDs)
+    }
     /// Der Dashboard-Cashflow bleibt nutzbar, wenn optionale Planungsdaten
     /// fehlschlagen. Eine präzise Forecast-Zahl darf dann aber nicht aus
     /// unvollständigen Eingaben berechnet werden.
@@ -146,6 +165,7 @@ final class DashboardModel {
         var newCommitmentsByID: [UUID: RecurringCommitment] = [:]
         var newBudgetProgresses: [BudgetProgress] = []
         var newForecast: ForecastSnapshot?
+        var newForecastInputs: ForecastInputs?
         var newFXSnapshot: FXRateSnapshot?
         defer {
             loadState = failure.map { .failed($0) } ?? .loaded
@@ -279,7 +299,7 @@ final class DashboardModel {
                                 latestPaymentDate: latestOccurrences[commitment.id]
                             )
                         }.sorted { $0.scheduledDate < $1.scheduledDate }
-                        let forecast = ForecastService().forecast(
+                        let inputs = ForecastInputs(
                             period: currentInterval,
                             transactions: monthTxns,
                             budgets: budgets,
@@ -292,9 +312,10 @@ final class DashboardModel {
                             now: now,
                             currencyConverter: forecastCurrencyConverter
                         )
-                        return (forecast, upcoming)
+                        return (inputs.forecast(), upcoming, inputs)
                     }.value
                     newForecast = planning.0
+                    newForecastInputs = planning.2
                     newUpcomingOccurrences = planning.1
                     newOverdueOccurrenceIDs = Set(
                         planning.1.filter { $0.isOverdue(now: now, calendar: calculationCalendar) }.map(\.id)
@@ -317,6 +338,10 @@ final class DashboardModel {
             budgetProgresses = newBudgetProgresses
             planningDataWarning = newPlanningDataWarning
             forecast = newForecast
+            forecastInputs = newForecastInputs
+            whatIfExcludedCommitmentIDs = whatIfExcludedCommitmentIDs.filter { id in
+                newForecastInputs?.commitments.contains { $0.id == id } == true
+            }
             upcomingOccurrences = newUpcomingOccurrences
             overdueOccurrenceIDs = newOverdueOccurrenceIDs
             commitmentsByID = newCommitmentsByID
