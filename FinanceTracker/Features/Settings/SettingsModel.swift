@@ -36,8 +36,44 @@ final class SettingsModel {
         dataMessage = nil
         defer { isPreparingExport = false }
         do {
-            return BackupPackageDocument(data: try await BackupService.makeBackupPackage(dependencies: dependencies, includeAttachments: includeAttachments))
+            // Kein Bankabruf währenddessen: sonst könnten Zeilen zwischen den
+            // einzelnen Ladeschritten fehlen oder doppelt sein.
+            let dependencies = dependencies
+            let data = try await dependencies.bankSyncCoordinator.runExclusively {
+                try await BackupService.makeBackupPackage(dependencies: dependencies, includeAttachments: includeAttachments)
+            }
+            return BackupPackageDocument(data: data)
         } catch { dataMessage = String(localized: "Backup konnte nicht erstellt werden: \(error.localizedDescription)"); return nil }
+    }
+
+    /// Löscht alle Finanzdaten dieses Macs. Vorher entsteht automatisch eine
+    /// vollständige Sicherheitskopie; ohne sie wird nichts gelöscht. Der
+    /// Bank-Schlüssel im Schlüsselbund bleibt (eigene Aktion unter Konten).
+    func deleteAllData() async {
+        guard !isBusyWithData else { return }
+        isRestoring = true
+        dataMessage = nil
+        defer { isRestoring = false }
+        do {
+            let dependencies = dependencies
+            let target = try await dependencies.bankSyncCoordinator.runExclusively {
+                let data = try await BackupService.makeBackupPackage(dependencies: dependencies)
+                let target = try AttachmentService.defaultBaseDirectory().deletingLastPathComponent()
+                    .appendingPathComponent("RestoreSafety", isDirectory: true)
+                    .appendingPathComponent("FinanceTracker-vor-Loeschen-\(UUID().uuidString).ftbackup")
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try data.write(to: target, options: .atomic)
+                }.value
+                try await LocalDataResetService(dependencies: dependencies).wipe()
+                return target
+            }
+            lastSafetyBackupURL = target
+            await refreshLocalNotifications()
+            dataMessage = String(localized: "Alle Daten wurden gelöscht. Der vorherige Stand ist als Sicherheitskopie gespeichert.")
+        } catch {
+            dataMessage = String(localized: "Löschen abgebrochen, es wurde nichts entfernt: \(error.localizedDescription)")
+        }
     }
 
     func prepareRestore(from url: URL) async {

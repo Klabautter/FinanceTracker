@@ -3043,6 +3043,36 @@
         }
       }
     },
+    "Alle Daten löschen?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete all data?"
+          }
+        }
+      }
+    },
+    "Alle Daten löschen…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete All Data…"
+          }
+        }
+      }
+    },
+    "Alle Daten wurden gelöscht. Der vorherige Stand ist als Sicherheitskopie gespeichert." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All data was deleted. The previous state is saved as a safety copy."
+          }
+        }
+      }
+    },
     "Alle Kategorien" : {
       "localizations" : {
         "de" : {
@@ -15508,6 +15538,16 @@
         }
       }
     },
+    "Konten, Buchungen, Kategorien, Budgets und Belege werden von diesem Mac entfernt. Vorher speichert die App automatisch eine vollständige Sicherheitskopie, aus der du alles wiederherstellen kannst. Der Bank-Schlüssel bleibt im Schlüsselbund." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts, transactions, categories, budgets and receipts are removed from this Mac. Before that, the app automatically saves a full safety copy you can restore everything from. The bank key stays in the keychain."
+          }
+        }
+      }
+    },
     "Kontenfilter" : {
       "localizations" : {
         "de" : {
@@ -16727,6 +16767,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete"
+          }
+        }
+      }
+    },
+    "Löschen abgebrochen, es wurde nichts entfernt: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deletion cancelled, nothing was removed: %@"
           }
         }
       }
@@ -20981,6 +21031,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Backup Copy in Finder"
+          }
+        }
+      }
+    },
+    "Sicherheitskopie speichern und alles löschen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Safety Copy and Delete Everything"
           }
         }
       }

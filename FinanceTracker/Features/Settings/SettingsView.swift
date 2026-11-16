@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
+    @State private var confirmsDeleteAll = false
     let dependencies: AppDependencies
     /// P1 UX: Echter Navigations-Link auf Konten & Verbindungen. Hosts mit
     /// eigener Navigation (z. B. Sidebar-Steuerung) übergeben einen
@@ -309,6 +310,20 @@ struct SettingsView: View {
                 if let exportErrorMessage {
                     Label(exportErrorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
+                }
+
+                Button("Alle Daten löschen…", systemImage: "trash", role: .destructive) {
+                    confirmsDeleteAll = true
+                }
+                .disabled(model.isBusyWithData)
+                .accessibilityIdentifier("settings-delete-all")
+                .confirmationDialog("Alle Daten löschen?", isPresented: $confirmsDeleteAll) {
+                    Button("Sicherheitskopie speichern und alles löschen", role: .destructive) {
+                        Task { await model.deleteAllData() }
+                    }
+                    Button("Abbrechen", role: .cancel) {}
+                } message: {
+                    Text("Konten, Buchungen, Kategorien, Budgets und Belege werden von diesem Mac entfernt. Vorher speichert die App automatisch eine vollständige Sicherheitskopie, aus der du alles wiederherstellen kannst. Der Bank-Schlüssel bleibt im Schlüsselbund.")
                 }
 
                 // Privacy Mode ist UI-Presentation: Exporte enthalten immer
