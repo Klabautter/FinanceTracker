@@ -18,36 +18,57 @@ enum KeychainError: Error {
 struct KeychainStore: Sendable {
     let service: String
 
+    /// Speichert per Aktualisieren, nur wenn es noch keinen Eintrag gibt
+    /// per Anlegen. Nie erst löschen: Scheiterte danach das Anlegen, wäre
+    /// der vorhandene Wert verloren.
     func save(_ value: String, account: String) throws {
         let data = Data(value.utf8)
-
-        SecItemDelete(query(account: account, dataProtection: true) as CFDictionary)
-        var dpAdd = query(account: account, dataProtection: true)
-        dpAdd[kSecValueData as String] = data
-        dpAdd[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        if SecItemAdd(dpAdd as CFDictionary, nil) == errSecSuccess {
+        if upsert(data, account: account, dataProtection: true) == errSecSuccess {
             return
         }
-
-        // Fallback: klassische Login-Keychain (bisheriges Verhalten).
-        SecItemDelete(query(account: account, dataProtection: false) as CFDictionary)
-        var legacyAdd = query(account: account, dataProtection: false)
-        legacyAdd[kSecValueData as String] = data
-        legacyAdd[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        let status = SecItemAdd(legacyAdd as CFDictionary, nil)
+        // Fallback: klassische Login-Keychain (ohne passende Berechtigung).
+        let status = upsert(data, account: account, dataProtection: false)
         guard status == errSecSuccess else {
             throw KeychainError.unexpectedStatus(status)
         }
     }
 
+    private func upsert(_ data: Data, account: String, dataProtection: Bool) -> OSStatus {
+        let match = query(account: account, dataProtection: dataProtection)
+        let update = SecItemUpdate(match as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        guard update == errSecItemNotFound else { return update }
+        var add = match
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(add as CFDictionary, nil)
+    }
+
+    /// Ergebnis eines Lesezugriffs: „gibt es nicht" ist etwas anderes als
+    /// „konnte nicht gelesen werden" (gesperrter Schlüsselbund, fehlende
+    /// Berechtigung). Nur im ersten Fall ist der Wert wirklich weg.
+    enum ReadResult: Equatable, Sendable {
+        case found(String)
+        case notFound
+        case failed(OSStatus)
+
+        var value: String? {
+            if case .found(let value) = self { return value }
+            return nil
+        }
+    }
+
     func read(account: String) -> String? {
+        readResult(account: account).value
+    }
+
+    func readResult(account: String) -> ReadResult {
         var result: AnyObject?
         let dpStatus = SecItemCopyMatching(
             query(account: account, dataProtection: true, returnData: true) as CFDictionary,
             &result
         )
-        if dpStatus == errSecSuccess, let data = result as? Data {
-            return String(data: data, encoding: .utf8)
+        if dpStatus == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8) {
+            return .found(value)
         }
 
         var legacyResult: AnyObject?
@@ -55,11 +76,16 @@ struct KeychainStore: Sendable {
             query(account: account, dataProtection: false, returnData: true) as CFDictionary,
             &legacyResult
         )
-        guard legacyStatus == errSecSuccess, let data = legacyResult as? Data,
-              let value = String(data: data, encoding: .utf8) else { return nil }
-
-        migrateToDataProtection(value, account: account)
-        return value
+        if legacyStatus == errSecSuccess, let data = legacyResult as? Data,
+           let value = String(data: data, encoding: .utf8) {
+            migrateToDataProtection(value, account: account)
+            return .found(value)
+        }
+        let notFound: Set<OSStatus> = [errSecItemNotFound, errSecMissingEntitlement]
+        if notFound.contains(dpStatus), legacyStatus == errSecItemNotFound {
+            return .notFound
+        }
+        return .failed(legacyStatus != errSecItemNotFound ? legacyStatus : dpStatus)
     }
 
     func delete(account: String) {
@@ -93,11 +119,7 @@ struct KeychainStore: Sendable {
     /// (dann ist der Zugriff erlaubt). Schlägt die DP-Ablage fehl, bleibt
     /// der Legacy-Eintrag erhalten und das Verhalten ist wie bisher.
     private func migrateToDataProtection(_ value: String, account: String) {
-        var dpAdd = query(account: account, dataProtection: true)
-        dpAdd[kSecValueData as String] = Data(value.utf8)
-        dpAdd[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemDelete(query(account: account, dataProtection: true) as CFDictionary)
-        guard SecItemAdd(dpAdd as CFDictionary, nil) == errSecSuccess else { return }
+        guard upsert(Data(value.utf8), account: account, dataProtection: true) == errSecSuccess else { return }
         // Erst wenn die neue Kopie lesbar ist, den alten Eintrag ausräumen,
         // und zwar nur im klassischen Schlüsselbund.
         var check = query(account: account, dataProtection: true, returnData: true)

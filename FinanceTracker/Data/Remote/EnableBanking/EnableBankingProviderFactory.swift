@@ -47,8 +47,13 @@ final class KeychainEnableBankingCredentialStore: EnableBankingCredentialStoring
 
     private static let combinedAccount = "credentials"
 
-    private let keychain = KeychainStore.enableBanking
+    private let keychain: KeychainStore
     private let lock = NSLock()
+
+    /// `keychain`: nur Tests geben einen Wegwerf-Dienst an.
+    init(keychain: KeychainStore = .enableBanking) {
+        self.keychain = keychain
+    }
     private var cached: Stored?
     private var hasLoaded = false
 
@@ -80,11 +85,19 @@ final class KeychainEnableBankingCredentialStore: EnableBankingCredentialStoring
         lock.lock()
         defer { lock.unlock() }
         if hasLoaded { return cached }
-        hasLoaded = true
-        if let json = keychain.read(account: Self.combinedAccount),
-           let stored = try? JSONDecoder().decode(Stored.self, from: Data(json.utf8)) {
-            cached = stored
-            return stored
+        switch keychain.readResult(account: Self.combinedAccount) {
+        case .found(let json):
+            hasLoaded = true
+            if let stored = try? JSONDecoder().decode(Stored.self, from: Data(json.utf8)) {
+                cached = stored
+                return stored
+            }
+        case .failed:
+            // Vorübergehend nicht lesbar (z. B. gesperrt): nicht als „kein
+            // Schlüssel" merken, beim nächsten Zugriff erneut versuchen.
+            return nil
+        case .notFound:
+            hasLoaded = true
         }
         // Bestand aus zwei Einzeleinträgen: einmalig zusammenlegen.
         guard let applicationID = keychain.readEnableBankingApplicationID(),
