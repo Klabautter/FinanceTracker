@@ -221,7 +221,7 @@ struct AccountsView: View {
                     InlineNotice(message: errorMessage, tone: .warning)
                 }
                 if let actionError = model.actionError {
-                    InlineNotice(message: actionError, tone: .warning)
+                    InlineNotice(message: actionError, tone: .warning, onDismiss: { model.dismissActionError() })
                 }
                 if let liquidity = model.liquidity {
                     liquidityHero(liquidity)

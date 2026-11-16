@@ -72,7 +72,7 @@ struct FixkostenView: View {
                     }
                 }
                 if let actionError = model.actionError {
-                    InlineNotice(message: actionError, tone: .critical)
+                    InlineNotice(message: actionError, tone: .critical, onDismiss: { model.dismissActionError() })
                 }
             }
             .padding(.horizontal, AppLayout.pageHorizontalPadding)
@@ -307,24 +307,30 @@ struct FixkostenView: View {
                         }
                     }
             }
+            .width(min: 120, ideal: 200)
             TableColumn("Nächster Termin", value: \.dateSortValue) { row in
                 Text(row.nextDate.map { AppDateFormatter.weekdayDay($0) } ?? String(localized: "Nicht geplant"))
                     .foregroundStyle(row.nextDate == nil ? .secondary : .primary)
             }
+            .width(min: 90, ideal: 120, max: 160)
             TableColumn("Betrag", value: \.signedAmount) { row in
                 amountCell(row)
             }
+            .width(min: 100, ideal: 120, max: 160)
             TableColumn("Turnus", value: \.cadenceSortValue) { row in
                 Text(row.commitment.cadence.displayName)
                     .foregroundStyle(.secondary)
             }
+            .width(min: 70, ideal: 90, max: 130)
             TableColumn("Richtung", value: \.directionSortValue) { row in
                 Text(row.commitment.direction.displayName)
                     .foregroundStyle(.secondary)
             }
+            .width(min: 70, ideal: 90, max: 130)
             TableColumn("Status", value: \.statusSortValue) { row in
                 statusBadge(row)
             }
+            .width(min: 90, ideal: 110)
         }
         .onChange(of: selectedCommitmentID) { _, selection in
             if selection != nil {

@@ -110,6 +110,22 @@
         }
       }
     },
+    "%@ (%lld×)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$lld×)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (%lld×)"
+          }
+        }
+      }
+    },
     "%@ (zählt nicht in Auswertungen)" : {
       "localizations" : {
         "de" : {
@@ -202,6 +218,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ disconnected. You can find the accounts under “Disconnected Accounts”."
+          }
+        }
+      }
+    },
+    "%@ hat keine Konten freigegeben" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ shared no accounts"
           }
         }
       }
@@ -558,7 +584,24 @@
         }
       }
     },
+    "%@ → %@: %@. Die Gegenbuchung auf dem Absender-Konto legst du bei Bedarf selbst an." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ → %2$@: %3$@. Die Gegenbuchung auf dem Absender-Konto legst du bei Bedarf selbst an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ → %@: %@. Add the matching entry on the sending account yourself if needed."
+          }
+        }
+      }
+    },
     "%@ → %@: %@. Es wird nur eine manuelle Buchung angelegt, kein Geldversand. Die Gegenbuchung ggf. manuell auf dem Absender-Konto anlegen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -858,6 +901,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld%%"
+          }
+        }
+      }
+    },
+    "%lld Banken aktualisiert: %lld neu, %lld aktualisiert." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld Banken aktualisiert: %2$lld neu, %3$lld aktualisiert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld banks refreshed: %lld new, %lld updated."
           }
         }
       }
@@ -1167,6 +1226,7 @@
       }
     },
     "%lld Hinweise sind in eindeutigen Transaktionen gebündelt." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1707,6 +1767,7 @@
       }
     },
     "%lld angezeigt · weitere Buchungen verfügbar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -2058,6 +2119,22 @@
         }
       }
     },
+    "1 Bank aktualisiert: %lld neu, %lld aktualisiert." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "1 Bank aktualisiert: %1$lld neu, %2$lld aktualisiert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 bank refreshed: %lld new, %lld updated."
+          }
+        }
+      }
+    },
     "1 Beleg" : {
       "localizations" : {
         "de" : {
@@ -2394,6 +2471,46 @@
         }
       }
     },
+    "1. Im Control Panel bei deiner bestehenden Anwendung unten Land und Bank wählen und „Link“ klicken. Keine neue Anwendung anlegen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1. In the control panel, open your existing application, choose country and bank at the bottom and click “Link”. Don’t create a new application."
+          }
+        }
+      }
+    },
+    "1.000 = eins" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1.000 = one"
+          }
+        }
+      }
+    },
+    "1.000 = tausend" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1.000 = one thousand"
+          }
+        }
+      }
+    },
+    "2. Danach die Bank hier auswählen. Ohne Schritt 1 klappt die Anmeldung, es kommen aber keine Konten an." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2. Then choose the bank here. Without step 1 the sign-in works, but no accounts arrive."
+          }
+        }
+      }
+    },
     "50 von %lld Beiträgen angezeigt. Die Budgetsumme berücksichtigt alle Beiträge." : {
       "localizations" : {
         "de" : {
@@ -2406,6 +2523,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Showing 50 of %lld contributions. The budget total includes all contributions."
+          }
+        }
+      }
+    },
+    "= %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "= %@"
           }
         }
       }
@@ -2534,6 +2661,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Subscriptions"
+          }
+        }
+      }
+    },
+    "Abruf fehlgeschlagen: %@. Bitte später erneut versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh failed: %@. Please try again later."
           }
         }
       }
@@ -2731,6 +2868,7 @@
       }
     },
     "Aktuell gibt es nichts zu prüfen. Neue Buchungen ohne Kategorie oder mit Auffälligkeiten erscheinen hier." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -2858,7 +2996,28 @@
         }
       }
     },
+    "Alle Banken aktualisieren" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh All Banks"
+          }
+        }
+      }
+    },
+    "Alle Daten bleiben auf diesem Mac." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All data stays on this Mac."
+          }
+        }
+      }
+    },
     "Alle Daten bleiben auf diesem Mac. Keine Zahlungen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -2923,6 +3082,7 @@
       }
     },
     "Alle Kontobewegungen an einem Ort" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -3050,6 +3210,16 @@
         }
       }
     },
+    "Alle aktualisieren" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh All"
+          }
+        }
+      }
+    },
     "Alle anzeigen" : {
       "localizations" : {
         "de" : {
@@ -3078,6 +3248,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select all visible transactions"
+          }
+        }
+      }
+    },
+    "Alle verbundenen Banken jetzt abrufen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh all connected banks now"
           }
         }
       }
@@ -4349,6 +4529,16 @@
         }
       }
     },
+    "Ausgeblendete Konten (%lld)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden Accounts (%lld)"
+          }
+        }
+      }
+    },
     "Ausgeblendete Vorschläge (%lld)" : {
       "localizations" : {
         "de" : {
@@ -4525,6 +4715,16 @@
         }
       }
     },
+    "Ausschließen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclude"
+          }
+        }
+      }
+    },
     "Ausschluss konnte nicht gespeichert werden." : {
       "localizations" : {
         "de" : {
@@ -4553,6 +4753,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Car"
+          }
+        }
+      }
+    },
+    "Automatik" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
           }
         }
       }
@@ -4989,6 +5199,46 @@
         }
       }
     },
+    "Bankabruf fertig" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bank refresh finished"
+          }
+        }
+      }
+    },
+    "Bankabruf unvollständig" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bank refresh incomplete"
+          }
+        }
+      }
+    },
+    "Bankdaten werden abgerufen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetching bank data"
+          }
+        }
+      }
+    },
+    "Banken automatisch abrufen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh banks automatically"
+          }
+        }
+      }
+    },
     "Banken in %@ werden geladen …" : {
       "localizations" : {
         "de" : {
@@ -5085,7 +5335,18 @@
         }
       }
     },
+    "Bankzugang läuft ab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bank access expires"
+          }
+        }
+      }
+    },
     "Bankzugriff nur zum Lesen. Du behältst die Kontrolle über deine Daten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -5118,7 +5379,18 @@
         }
       }
     },
+    "Bargeld oder ein Konto ohne Bankanbindung. Buchungen trägst du selbst ein" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cash or an account without a bank connection. You enter transactions yourself"
+          }
+        }
+      }
+    },
     "Bargeld, Geldbeutel oder ein Konto ohne Anbindung, mit Anfangsbestand. Buchungen trägst du selbst ein" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -5274,6 +5546,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign In to %@"
+          }
+        }
+      }
+    },
+    "Beim Öffnen der App und danach etwa alle sechs Stunden, solange sie läuft." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When the app opens and then about every six hours while it runs."
           }
         }
       }
@@ -5454,6 +5736,16 @@
         }
       }
     },
+    "Beleg-Datei wurde nicht gefunden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receipt file not found."
+          }
+        }
+      }
+    },
     "Belegdatei fehlt: %@." : {
       "localizations" : {
         "de" : {
@@ -5535,6 +5827,7 @@
       }
     },
     "Beliebte Banken. Alle %@ Banken in %@ findest du über die Suche, auch deine Sparkasse oder Volksbank." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -5546,6 +5839,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Popular banks. Use search to find all %@ banks in %@, including your Sparkasse or Volksbank."
+          }
+        }
+      }
+    },
+    "Beliebte Banken. Alle %@ Banken in %@ findest du über die Suche." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Beliebte Banken. Alle %1$@ Banken in %2$@ findest du über die Suche."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Popular banks. Search to find all %@ banks in %@."
           }
         }
       }
@@ -5631,6 +5940,7 @@
       }
     },
     "Bereit für echte Konten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6606,6 +6916,16 @@
         }
       }
     },
+    "Buchungen dieses Tages sind enthalten, spätere verändern den Stand." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transactions on this day are included; later ones change the balance."
+          }
+        }
+      }
+    },
     "Buchungen in %@ fehlen im Verbrauch (kein Referenzkurs)." : {
       "localizations" : {
         "de" : {
@@ -6623,6 +6943,7 @@
       }
     },
     "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags oder zum genauen Gegenwert aus der Datei, Kontostände zum aktuellen Kurs. Ohne Tageskurs gilt der aktuelle." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6638,7 +6959,18 @@
         }
       }
     },
+    "Buchungen in Fremdwährung zählen zum EZB-Kurs ihres Buchungstags, Kontostände zum aktuellen Kurs." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreign-currency transactions count at the ECB rate of their booking day, balances at the current rate."
+          }
+        }
+      }
+    },
     "Buchungen sind manuell und Cashflow-neutral, es wird kein Geld versendet." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6654,7 +6986,18 @@
         }
       }
     },
+    "Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transactions already in the account are not imported twice, even if they came from another file or from bank sync."
+          }
+        }
+      }
+    },
     "Buchungen, die schon im Konto sind, werden nicht doppelt importiert, auch wenn sie aus einer anderen Datei oder dem Bankabruf stammen. Gleiche Zeilen in einem anderen Konto gelten nicht als doppelt." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -6975,7 +7318,18 @@
         }
       }
     },
+    "Budgets konnten nicht neu geladen werden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Budgets could not be reloaded"
+          }
+        }
+      }
+    },
     "Budgets konnten nicht vollständig geladen werden" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7184,6 +7538,7 @@
       }
     },
     "CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte, egal von welcher Bank oder Karte. Spalten und Buchungsarten (Kartenzahlung, Aufladung, Erstattung, Cashback, Gebühr, Zinsen) werden auf Deutsch und Englisch erkannt; unbekannte Arten ordnest du einmal zu. Kategorien kommen aus deinen Regeln." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7195,6 +7550,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "CSV and Excel files as well as PDF statements with a date and an amount column, from any bank or card. Columns and transaction types (card payments, top-ups, refunds, cashback, fees, interest) are recognised in English and German; you assign unknown types once. Categories come from your rules."
+          }
+        }
+      }
+    },
+    "CSV- und Excel-Dateien sowie PDF-Kontoauszüge mit einer Datums- und einer Betragsspalte. Spalten und Buchungsarten werden auf Deutsch und Englisch erkannt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CSV and Excel files and PDF statements with a date and an amount column. Columns and transaction types are recognised in English and German."
           }
         }
       }
@@ -7216,6 +7581,7 @@
       }
     },
     "CSV-, Excel- und PDF-Importe werden lokal verarbeitet. FinanceTracker führt keine Zahlungen aus." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7359,6 +7725,16 @@
         }
       }
     },
+    "Danach wählst du deine Bank und gibst sie im Browser frei." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Then you choose your bank and approve access in the browser."
+          }
+        }
+      }
+    },
     "Dann Kategorie" : {
       "localizations" : {
         "de" : {
@@ -7403,6 +7779,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The backup doesn't contain all receipts. Restoring requires a complete backup."
+          }
+        }
+      }
+    },
+    "Das Backup wurde nicht gespeichert, weil es sich nicht wiederherstellen ließe: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup was not saved because it could not be restored: %@"
           }
         }
       }
@@ -7552,6 +7938,7 @@
       }
     },
     "Das vollständige Backup enthält alles, auch deine Belege, und lässt sich komplett wiederherstellen. Ohne Belege ist es kleiner, Belegdateien fehlen dann nach einer Wiederherstellung." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8032,6 +8419,7 @@
       }
     },
     "Deine Ausgaben planen und Grenzen im Blick behalten" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8064,6 +8452,7 @@
       }
     },
     "Deine Einnahmen und Ausgaben im Überblick" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8096,6 +8485,7 @@
       }
     },
     "Deine Konten und Bankverbindungen an einem Ort" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8223,7 +8613,18 @@
         }
       }
     },
+    "Der Anfangsbestand ist der Stand zu Beginn des gewählten Tages. Buchungen ab diesem Tag verändern den aktuellen Stand." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The opening balance is the balance at the start of the chosen day. Transactions from that day on change the current balance."
+          }
+        }
+      }
+    },
     "Der Anfangsbestand ist der Stand zu Beginn des gewählten Tages. Buchungen ab diesem Tag verändern den aktuellen Stand. Er zählt nicht als Einnahme und verändert keine Auswertung." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8351,6 +8752,26 @@
         }
       }
     },
+    "Der Lesezugriff auf „%@“ läuft heute ab. Erneuere ihn in FinanceTracker unter Konten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read access to “%@” expires today. Renew it in FinanceTracker under Accounts."
+          }
+        }
+      }
+    },
+    "Der Lesezugriff auf „%@“ läuft in 7 Tagen ab. Erneuere ihn in FinanceTracker unter Konten, damit der Abruf weiterläuft." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read access to “%@” expires in 7 days. Renew it in FinanceTracker under Accounts to keep refreshing."
+          }
+        }
+      }
+    },
     "Der Provider hat eine unlesbare Antwort geschickt." : {
       "localizations" : {
         "de" : {
@@ -8383,7 +8804,24 @@
         }
       }
     },
+    "Der Schlüssel deiner %@-Anwendung wird von diesem Mac entfernt. %@, bis du ihn erneut lädst. Konten und Buchungen bleiben erhalten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Der Schlüssel deiner %1$@-Anwendung wird von diesem Mac entfernt. %2$@, bis du ihn erneut lädst. Konten und Buchungen bleiben erhalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The key of your %@ application is removed from this Mac. %@ until you load it again. Accounts and transactions are kept."
+          }
+        }
+      }
+    },
     "Der Schlüssel deiner %@-Anwendung wird von diesem Mac entfernt. %@, bis du ihn erneut lädst. Konten und Buchungen bleiben erhalten.\n\nNur eine Bank entfernen? Dann bei der Bank „Trennen“ wählen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8395,6 +8833,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The key for your %@ application will be removed from this Mac. %@ until you load it again. Accounts and transactions are kept.\n\nOnly want to remove one bank? Then choose “Disconnect” for that bank."
+          }
+        }
+      }
+    },
+    "Der Stand bleibt beim Konto sichtbar, zählt aber auch nicht zur Reichweite." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The balance stays visible on the account but doesn’t count towards the runway either."
+          }
+        }
+      }
+    },
+    "Der Tag wird von %lld Transaktionen entfernt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tag is removed from %lld transactions."
           }
         }
       }
@@ -8464,6 +8922,7 @@
       }
     },
     "Der gesamte Bis-Tag gehört zur Sammlung." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8655,6 +9114,16 @@
         }
       }
     },
+    "Die Anmeldung bei %@ hat geklappt. Deine Enable-Banking-Anwendung gibt ohne Vertrag aber nur Konten heraus, die du dort im Control Panel verknüpft hast. Es wurde nichts gespeichert." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in to %@ worked. Without a contract, your Enable Banking application only returns accounts you linked in its control panel. Nothing was saved."
+          }
+        }
+      }
+    },
     "Die Anteile dürfen zusammen nicht mehr als den Betrag der Buchung ergeben." : {
       "localizations" : {
         "de" : {
@@ -8720,6 +9189,7 @@
       }
     },
     "Die App fragt bei Enable Banking nach, ob die Anwendung auf Production steht, aktiv ist und die Redirect-URL stimmt. Danach wählst du deine Bank und gibst sie im Browser frei. Deine Bank-Login-Daten gehören nie in diese App." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8736,6 +9206,7 @@
       }
     },
     "Die App liest nur. Zahlungen sind nicht möglich." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8752,6 +9223,7 @@
       }
     },
     "Die Ausgleichsbuchung wird manuell auf dem gewählten Konto angelegt, kein Geldversand." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -8811,6 +9283,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The bank didn't return any transactions for this period."
+          }
+        }
+      }
+    },
+    "Die Bank ist bei Enable Banking nicht verknüpft. Im Control Panel „Konten verknüpfen“ wählen, dann neu verbinden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank isn’t linked in Enable Banking. Choose “Link accounts” in the control panel, then connect again."
+          }
+        }
+      }
+    },
+    "Die Bank lieferte eine unlesbare Buchung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank returned an unreadable transaction."
+          }
+        }
+      }
+    },
+    "Die Bank lieferte keine Kontowährung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank returned no account currency."
           }
         }
       }
@@ -9071,6 +9573,16 @@
         }
       }
     },
+    "Die Datei verrät nicht, ob Punkt oder Komma das Dezimalzeichen ist. Die Antwort gilt für künftige Importe in dieses Konto." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file doesn’t show whether dot or comma is the decimal separator. Your answer applies to future imports into this account."
+          }
+        }
+      }
+    },
     "Die Dateiauswahl ist fehlgeschlagen. Bitte versuche es erneut." : {
       "localizations" : {
         "de" : {
@@ -9311,7 +9823,18 @@
         }
       }
     },
+    "Die Split-Positionen ersetzen die Original-Buchung in Budgets und Analysen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The split lines replace the original transaction in budgets and analytics."
+          }
+        }
+      }
+    },
     "Die Summe der Positionen muss exakt dem Transaktionsbetrag entsprechen. Die Split-Positionen ersetzen die Original-Buchung in Budgets und Analysen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9583,6 +10106,16 @@
         }
       }
     },
+    "Diese Bankverbindung gibt es nicht mehr." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This bank connection no longer exists."
+          }
+        }
+      }
+    },
     "Diese Datei enthält keinen lesbaren privaten Schlüssel. Wähle die .pem-Datei, die beim Anlegen der Anwendung heruntergeladen wurde." : {
       "localizations" : {
         "de" : {
@@ -9660,6 +10193,7 @@
       }
     },
     "Diese Transaktion existiert nicht mehr." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9687,6 +10221,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Split this transaction into items"
+          }
+        }
+      }
+    },
+    "Dieselbe Datei erneut vorbereiten" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare the same file again"
           }
         }
       }
@@ -9724,6 +10268,7 @@
       }
     },
     "Dieser Tag ist %lld Transaktionen zugewiesen. Die Transaktionen selbst bleiben unverändert." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -9880,6 +10425,7 @@
       }
     },
     "Eigene Markierungen für deine Transaktionen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10163,7 +10709,18 @@
         }
       }
     },
+    "Einmal am Tag prüft die App, ob es eine neue Version gibt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once a day the app checks for a new version."
+          }
+        }
+      }
+    },
     "Einmal am Tag prüft die App, ob es eine neue Version gibt. Updates sind signiert und werden erst nach deiner Bestätigung installiert." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10276,6 +10833,7 @@
       }
     },
     "Einnahmen und Ausgaben der letzten Monate" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10292,6 +10850,7 @@
       }
     },
     "Einnahmen und Ausgaben pro Monat · Monat anklicken für Details" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10308,6 +10867,7 @@
       }
     },
     "Einnahmen − Ausgaben" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10453,6 +11013,7 @@
       }
     },
     "Entfernt dieses selbst angelegte Konto samt seiner Buchungen. Importierte Buchungen lassen sich danach erneut importieren." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10501,6 +11062,7 @@
       }
     },
     "Erfasse wiederkehrende Beträge wie Miete, Abos oder Gehalt, damit Termine und Zahlstatus an einem Ort sichtbar sind." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10512,6 +11074,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Track recurring amounts like rent, subscriptions, or salary so due dates and payment status are visible in one place."
+          }
+        }
+      }
+    },
+    "Erfasse wiederkehrende Beträge wie Miete, Abos oder Gehalt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add recurring amounts like rent, subscriptions or salary."
           }
         }
       }
@@ -10597,6 +11169,7 @@
       }
     },
     "Erkannte Abhebungen (Geldautomat, Bargeldauszahlung) aus Bank-Sync und Datei-Import werden als Transfer gebucht und dem gewählten Bargeldkonto gutgeschrieben. Einzelne Buchungen gehen auch per Rechtsklick in den Transaktionen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -10672,6 +11245,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check Again"
+          }
+        }
+      }
+    },
+    "Erneut verbinden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect Again"
           }
         }
       }
@@ -10869,6 +11452,7 @@
       }
     },
     "Es sind noch keine Kategorien vorhanden." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11044,7 +11628,18 @@
         }
       }
     },
+    "Fasse Reisen, Projekte oder gemeinsame Ausgaben nach Zeitraum und Konten zusammen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group trips, projects or shared expenses by period and accounts."
+          }
+        }
+      }
+    },
     "Fasse Reisen, Projekte oder gemeinsame Ausgaben nach Zeitraum und Konten zusammen. Analysen und Budgets bleiben unverändert." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11184,6 +11779,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filter (%lld)"
+          }
+        }
+      }
+    },
+    "Filter und Sortierung öffnen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open filters and sorting"
           }
         }
       }
@@ -11540,6 +12145,16 @@
         }
       }
     },
+    "Funktioniert nur mit einem bestehenden Bank-Account-Data-Konto." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only works with an existing Bank Account Data account."
+          }
+        }
+      }
+    },
     "Für Bargeld oder ein Konto ohne Bankanbindung" : {
       "localizations" : {
         "de" : {
@@ -11552,6 +12167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "For cash or an account without a bank connection"
+          }
+        }
+      }
+    },
+    "Für Konten, die du nicht mehr nutzt. Buchungen, Stand und Gesamtstand bleiben unverändert; ausgeblendete Konten findest du unten in der Kontenliste." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For accounts you no longer use. Transactions, balance and total stay unchanged; hidden accounts are at the bottom of the account list."
           }
         }
       }
@@ -11605,6 +12230,7 @@
       }
     },
     "Für den gewählten Zeitraum und Filter gibt es keine Transaktionen. Passe „Zeitraum & Filter“ an oder importiere Daten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12180,7 +12806,18 @@
         }
       }
     },
+    "Gilt für Abhebungen aus Bank-Sync und Datei-Import." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies to withdrawals from bank sync and file import."
+          }
+        }
+      }
+    },
     "Gilt für alle Banken. Um nur eine Bank zu entfernen, nutze oben bei der Bank „Trennen“." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12448,6 +13085,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Note for %@: %@"
+          }
+        }
+      }
+    },
+    "Hinweis schließen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss Notice"
           }
         }
       }
@@ -12916,6 +13563,16 @@
         }
       }
     },
+    "Im Login einfach beliebige Werte eingeben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter any values at the sign-in."
+          }
+        }
+      }
+    },
     "Im PDF wurde keine Umsatztabelle mit Datum und Betrag gefunden." : {
       "localizations" : {
         "de" : {
@@ -13108,6 +13765,16 @@
         }
       }
     },
+    "Importierte Buchungen lassen sich danach erneut importieren." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imported transactions can be imported again afterwards."
+          }
+        }
+      }
+    },
     "Importnachweis fehlt." : {
       "localizations" : {
         "de" : {
@@ -13188,7 +13855,18 @@
         }
       }
     },
+    "In den nächsten 30 Tagen ist nichts fällig. Alle Einträge findest du unter Zahlungspläne." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is due in the next 30 days. All entries are under Payment Plans."
+          }
+        }
+      }
+    },
     "In den nächsten 30 Tagen sind keine offenen Einnahmen oder Ausgaben geplant. Alle Einträge findest du unter Zahlungspläne." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13200,6 +13878,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No open income or expenses are planned for the next 30 days. You can find all entries under Payment Plans."
+          }
+        }
+      }
+    },
+    "In der Kontenliste ausblenden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide in Account List"
           }
         }
       }
@@ -13429,6 +14117,7 @@
       }
     },
     "Kategorie auswählen und künftig automatisch zuordnen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13488,6 +14177,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Category of the split line"
+          }
+        }
+      }
+    },
+    "Kategorie entfernen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Category"
           }
         }
       }
@@ -13600,6 +14299,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete Category?"
+          }
+        }
+      }
+    },
+    "Kategorie wird noch verwendet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category still in use"
           }
         }
       }
@@ -13893,7 +14602,18 @@
         }
       }
     },
+    "Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No current balance. Set an opening balance via “Edit”."
+          }
+        }
+      }
+    },
     "Kein aktueller Kontostand. Lege über „Bearbeiten“ einen Anfangsbestand fest. Fremdwährungen werden getrennt ausgewiesen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13989,6 +14709,16 @@
         }
       }
     },
+    "Keine Bankverbindung zum Aktualisieren." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No bank connection to refresh."
+          }
+        }
+      }
+    },
     "Keine Beiträge gefunden." : {
       "localizations" : {
         "de" : {
@@ -14033,6 +14763,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Data"
+          }
+        }
+      }
+    },
+    "Keine Einträge für diesen Filter." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No entries for this filter."
           }
         }
       }
@@ -14113,6 +14853,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No category spending available."
+          }
+        }
+      }
+    },
+    "Keine Konten freigegeben" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Accounts Shared"
           }
         }
       }
@@ -14357,6 +15107,16 @@
         }
       }
     },
+    "Keiner (nur über den Betrag)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None (match by amount only)"
+          }
+        }
+      }
+    },
     "Kennung" : {
       "localizations" : {
         "de" : {
@@ -14470,6 +15230,16 @@
         }
       }
     },
+    "Konten und Buchungen bleiben erhalten, werden aber nicht mehr abgerufen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts and transactions are kept but no longer refreshed."
+          }
+        }
+      }
+    },
     "Konten und Karten" : {
       "localizations" : {
         "de" : {
@@ -14514,6 +15284,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Accounts & Connections"
+          }
+        }
+      }
+    },
+    "Konten öffnen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Accounts"
           }
         }
       }
@@ -14694,6 +15474,16 @@
         }
       }
     },
+    "Konto in der Kontenliste ausblenden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide account in the account list"
+          }
+        }
+      }
+    },
     "Konto löschen" : {
       "localizations" : {
         "de" : {
@@ -14790,6 +15580,16 @@
         }
       }
     },
+    "Konto nicht zum Gesamtstand zählen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don’t count account in the total"
+          }
+        }
+      }
+    },
     "Konto und Buchungen löschen?" : {
       "localizations" : {
         "de" : {
@@ -14882,6 +15682,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Balance"
+          }
+        }
+      }
+    },
+    "Kontostand für %@ festlegen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set balance for %@"
+          }
+        }
+      }
+    },
+    "Kontostand in %@ (z. B. 120)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance in %@ (e.g. 120)"
           }
         }
       }
@@ -15254,6 +16074,16 @@
         }
       }
     },
+    "Laut Kontoauszug" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per statement"
+          }
+        }
+      }
+    },
     "Lebensmittel" : {
       "localizations" : {
         "de" : {
@@ -15271,6 +16101,7 @@
       }
     },
     "Lege Limits für Kategorien fest und verfolge Verbrauch, Restbetrag und Prognose direkt in der Übersicht." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15282,6 +16113,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Set limits for categories and track spending, remaining amount and forecast right in the Overview."
+          }
+        }
+      }
+    },
+    "Lege Limits für Kategorien fest." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set limits for categories."
           }
         }
       }
@@ -15298,6 +16139,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Create a cash account under Accounts, and the app can automatically book ATM withdrawals as transfers to it."
+          }
+        }
+      }
+    },
+    "Lege über „Neue Kategorie“ die erste an." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create the first one with “New Category”."
           }
         }
       }
@@ -15766,6 +16617,16 @@
         }
       }
     },
+    "Manuell hinzugefügt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added manually"
+          }
+        }
+      }
+    },
     "Manuelle Buchung bearbeiten" : {
       "localizations" : {
         "de" : {
@@ -15798,7 +16659,28 @@
         }
       }
     },
+    "Mehr" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More"
+          }
+        }
+      }
+    },
+    "Mehr als etwa 90 Tage liefern nicht alle Banken." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not all banks provide more than about 90 days."
+          }
+        }
+      }
+    },
     "Mehr als etwa 90 Tage liefern nicht alle Banken. Die App zeigt danach, ab wann Umsätze kamen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15894,6 +16776,16 @@
         }
       }
     },
+    "Meldung zum Bankabruf schließen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss bank refresh message"
+          }
+        }
+      }
+    },
     "Miete" : {
       "localizations" : {
         "de" : {
@@ -15926,6 +16818,16 @@
         }
       }
     },
+    "Mit Händler ordnet die App spätere Zahlungen sicher zu. Ohne Händler zählt eine Buchung mit gleichem Betrag als bezahlt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With a merchant, the app reliably matches later payments. Without one, a transaction with the same amount counts as paid."
+          }
+        }
+      }
+    },
     "Mit anderen teilen" : {
       "localizations" : {
         "de" : {
@@ -15943,6 +16845,7 @@
       }
     },
     "Mit den gewählten Filtern gibt es keine Buchungen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15976,6 +16879,7 @@
       }
     },
     "Mitteilungen sind aktiv. Hinweise entstehen nur aus lokalen Daten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -16056,6 +16960,7 @@
       }
     },
     "Mock-Bank von GoCardless: im Login einfach beliebige Werte eingeben. Kein echtes Bankkonto, keine PSD2-Authentifizierung." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -16099,6 +17004,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Month"
+          }
+        }
+      }
+    },
+    "Monat anklicken für Details" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a month for details"
           }
         }
       }
@@ -16583,6 +17498,26 @@
         }
       }
     },
+    "Neue Bank? Zuerst bei Enable Banking verknüpfen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New bank? Link it in Enable Banking first"
+          }
+        }
+      }
+    },
+    "Neue Buchungen ohne Kategorie oder mit Auffälligkeiten erscheinen hier." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New transactions without a category or with anything unusual appear here."
+          }
+        }
+      }
+    },
     "Neue Datei auswählen…" : {
       "localizations" : {
         "de" : {
@@ -16856,6 +17791,7 @@
       }
     },
     "Neue Zugänge sind pausiert. Dieser Weg funktioniert nur mit einem bestehenden Bank-Account-Data-Konto." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -16887,7 +17823,18 @@
         }
       }
     },
+    "Neue wiederkehrende Muster erscheinen hier zur Bestätigung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New recurring patterns appear here for confirmation."
+          }
+        }
+      }
+    },
     "Neue wiederkehrende Muster erscheinen hier zur ausdrücklichen Bestätigung." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17079,6 +18026,16 @@
         }
       }
     },
+    "Nicht im Gesamtstand" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not in Total"
+          }
+        }
+      }
+    },
     "Nicht importierbare Zeilen" : {
       "localizations" : {
         "de" : {
@@ -17107,6 +18064,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Longer Recurring (Delete)"
+          }
+        }
+      }
+    },
+    "Nicht zum Gesamtstand gezählt: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not counted in the total: %@"
+          }
+        }
+      }
+    },
+    "Nicht zum Gesamtstand zählen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don’t Count in Total"
           }
         }
       }
@@ -17496,6 +18473,7 @@
       }
     },
     "Nur %@ wird getrennt. Konten und Buchungen bleiben erhalten, werden aber nicht mehr abgerufen. Andere Banken sind nicht betroffen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17560,6 +18538,7 @@
       }
     },
     "Nur ausprobieren? Eine Sandbox-Anwendung mit der Testbank „Mock ASPSP“ genügt, ganz ohne echte Konten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17608,6 +18587,7 @@
       }
     },
     "Nur diese Bank trennen. Konten und Buchungen bleiben erhalten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -17735,6 +18715,16 @@
         }
       }
     },
+    "OK" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "Offen" : {
       "localizations" : {
         "de" : {
@@ -17779,6 +18769,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "If nothing is selected, “%@” is assigned (from the merchant name)."
+          }
+        }
+      }
+    },
+    "Ohne Belege ist das Backup kleiner, Belegdateien fehlen dann nach einer Wiederherstellung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without receipts the backup is smaller, but receipt files are missing after a restore."
           }
         }
       }
@@ -17976,6 +18976,7 @@
       }
     },
     "Ordne deine Ausgaben, automatisiere Zuordnungen und markiere Buchungen mit Tags" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18057,7 +19058,28 @@
         }
       }
     },
+    "Passe „Zeitraum & Filter“ an oder importiere Daten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust “Period & Filters” or import data."
+          }
+        }
+      }
+    },
+    "Pausieren wird sofort gespeichert." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausing is saved immediately."
+          }
+        }
+      }
+    },
     "Pausieren ändert nur den Status. Offene Formularänderungen werden erst mit „Speichern“ übernommen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18379,6 +19401,7 @@
       }
     },
     "Prognose · kein Kontostand" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18699,6 +19722,7 @@
       }
     },
     "Referenzwährung: %@. Kurse werden täglich aktualisiert; ohne Verbindung gelten die zuletzt verfügbaren Kurse." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19147,6 +20171,7 @@
       }
     },
     "Rücklagen-Budgets (z. B. Autoversicherung) übertragen nicht ausgegebenes Geld in den Folgemonat." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -19290,6 +20315,16 @@
         }
       }
     },
+    "Sammlung löschen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Collection"
+          }
+        }
+      }
+    },
     "Sammlung löschen?" : {
       "localizations" : {
         "de" : {
@@ -19356,6 +20391,7 @@
       }
     },
     "Sammlungen ändern weder globale Analysen noch Budgets und erzeugen keine Kopien von Transaktionen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20023,7 +21059,18 @@
         }
       }
     },
+    "Sparziele nutzen Rücklagen-Budgets: Der verbleibende Rest zählt als Gespartes." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Savings goals use reserve budgets: the remaining amount counts as saved."
+          }
+        }
+      }
+    },
     "Sparziele nutzen Rücklagen-Budgets: Der verbleibende Rest zählt als Gespartes. Leeres Ziel = kein Sparziel." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20343,7 +21390,18 @@
         }
       }
     },
+    "Stand = Anfangsbestand plus Buchungen ab dem Stichtag." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance = opening balance plus transactions from that date."
+          }
+        }
+      }
+    },
     "Stand = Anfangsbestand plus Buchungen ab dem Stichtag. Fremdwährungen werden getrennt ausgewiesen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20355,6 +21413,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Balance = opening balance plus transactions from the reference date. Foreign currencies are shown separately."
+          }
+        }
+      }
+    },
+    "Stand = gemeldeter Stand plus spätere Buchungen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance = reported balance plus later transactions."
           }
         }
       }
@@ -20371,6 +21439,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Balance On"
+          }
+        }
+      }
+    },
+    "Stand am Ende von" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance at end of"
+          }
+        }
+      }
+    },
+    "Stand festlegen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Balance"
           }
         }
       }
@@ -20392,6 +21480,7 @@
       }
     },
     "Stand laut Bank, Kontoauszug oder Anfangsbestand, sonst die Summe der Transaktionen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20727,6 +21816,16 @@
         }
       }
     },
+    "Summen je Währung" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Totals per currency"
+          }
+        }
+      }
+    },
     "Symbol suchen" : {
       "localizations" : {
         "de" : {
@@ -20979,6 +22078,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Edit or delete tag"
+          }
+        }
+      }
+    },
+    "Tag des Kontostands" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance date"
           }
         }
       }
@@ -21657,6 +22766,7 @@
       }
     },
     "Transaktionen warten auf deine Entscheidung." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22136,6 +23246,16 @@
         }
       }
     },
+    "Umsätze und Kontostände aller verbundenen Banken jetzt abrufen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetch transactions and balances of all connected banks now"
+          }
+        }
+      }
+    },
     "Umsätze von %@ jetzt abrufen" : {
       "localizations" : {
         "de" : {
@@ -22169,6 +23289,7 @@
       }
     },
     "Umsätze über Enable Banking abrufen (ausschließlich lesend)." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22180,6 +23301,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fetch transactions via Enable Banking (read-only)."
+          }
+        }
+      }
+    },
+    "Umsätze über Enable Banking abrufen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetch transactions via Enable Banking."
           }
         }
       }
@@ -22602,6 +23733,7 @@
       }
     },
     "Verbinde deine Bank oder importiere einen Export." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22617,7 +23749,18 @@
         }
       }
     },
+    "Verbinde deine Bank über Enable Banking oder importiere einen CSV-/Excel-Export." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect your bank via Enable Banking or import a CSV/Excel export."
+          }
+        }
+      }
+    },
     "Verbinde deine Bank über Enable Banking oder importiere einen CSV-/Excel-Export. Der Bankzugriff ist ausschließlich lesend." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22633,7 +23776,18 @@
         }
       }
     },
+    "Verbinde eine Bank oder importiere eine Datei. Danach siehst du Cashflow, Kategorien und Prognose für den aktuellen Monat." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect a bank or import a file. Then you see cash flow, categories and the forecast for the current month."
+          }
+        }
+      }
+    },
     "Verbinde eine Bank oder importiere eine Datei. FinanceTracker trennt Währungen und zeigt danach Cashflow, Kategorien und Prognose für den aktuellen Monat." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22661,6 +23815,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connect a data source or record your first transaction manually."
+          }
+        }
+      }
+    },
+    "Verbinde eine Datenquelle oder erfasse die erste Transaktion." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect a data source or add the first transaction."
           }
         }
       }
@@ -22858,6 +24022,7 @@
       }
     },
     "Verbrauch im jeweiligen Zeitraum" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -22901,6 +24066,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connected"
+          }
+        }
+      }
+    },
+    "Verbundene Banken automatisch abrufen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh connected banks automatically"
           }
         }
       }
@@ -23033,6 +24208,16 @@
         }
       }
     },
+    "Verstanden als %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Understood as %@"
+          }
+        }
+      }
+    },
     "Violett" : {
       "localizations" : {
         "de" : {
@@ -23113,6 +24298,16 @@
         }
       }
     },
+    "Von der Bank gemeldet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported by the bank"
+          }
+        }
+      }
+    },
     "Vorgemerkt" : {
       "localizations" : {
         "de" : {
@@ -23141,6 +24336,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Previous Month"
+          }
+        }
+      }
+    },
+    "Vormerkungen storniert: %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending transactions cancelled: %lld"
           }
         }
       }
@@ -23595,6 +24800,7 @@
       }
     },
     "Weitere Quellen lassen sich jederzeit unter „Konten“ ergänzen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23691,6 +24897,7 @@
       }
     },
     "Wer hat bezahlt, und wer schuldet welchen Anteil?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23706,7 +24913,18 @@
         }
       }
     },
+    "Wer schuldet dir etwas von dieser Ausgabe?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Who owes you part of this expense?"
+          }
+        }
+      }
+    },
     "Wer schuldet dir etwas von dieser Ausgabe? Nur eine Notiz, es wird kein Geld versendet." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -23766,6 +24984,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter a value to see matches."
+          }
+        }
+      }
+    },
+    "Wie sind Beträge wie „1.000“ gemeint?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What do amounts like “1.000” mean?"
           }
         }
       }
@@ -23964,6 +25192,7 @@
       }
     },
     "Wo im gewählten Zeitraum das meiste Geld hinging" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24027,7 +25256,18 @@
         }
       }
     },
+    "Wähle deine Bank." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your bank."
+          }
+        }
+      }
+    },
     "Wähle deine Bank. Die App liest nur. Zahlungen sind nicht möglich." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24043,7 +25283,18 @@
         }
       }
     },
+    "Wähle die heruntergeladene .pem-Datei." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the downloaded .pem file."
+          }
+        }
+      }
+    },
     "Wähle die heruntergeladene .pem-Datei. Sie bleibt im Schlüsselbund dieses Macs." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24348,6 +25599,7 @@
       }
     },
     "Zahlungspläne konnten nicht geladen werden" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24375,6 +25627,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Payment plans couldn’t be loaded."
+          }
+        }
+      }
+    },
+    "Zahlungspläne konnten nicht neu geladen werden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payment plans could not be reloaded"
+          }
+        }
+      }
+    },
+    "Zahlungspläne und Einnahmen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payment plans and income"
           }
         }
       }
@@ -24731,6 +26003,16 @@
         }
       }
     },
+    "Zugang erneuern: %@. Das geht unter Konten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renew access: %@. You can do this under Accounts."
+          }
+        }
+      }
+    },
     "Zugang läuft ab" : {
       "localizations" : {
         "de" : {
@@ -24859,7 +26141,18 @@
         }
       }
     },
+    "Zum Beispiel „dienstlich“ oder „erstattbar“." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For example “business” or “reimbursable”."
+          }
+        }
+      }
+    },
     "Zum Beispiel „dienstlich“ oder „erstattbar“. Mehrere Tags pro Transaktion sind möglich." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24876,6 +26169,7 @@
       }
     },
     "Zum Verlängern reicht „Standard der Bank“. Ein längerer Zeitraum holt zusätzlich ältere Umsätze nach, ohne Doppelte." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24887,6 +26181,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "To extend, “Bank Default” is enough. A longer period also fetches older transactions, without duplicates."
+          }
+        }
+      }
+    },
+    "Zum Verlängern reicht „Standard der Bank“. Ein längerer Zeitraum holt zusätzlich ältere Umsätze nach." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To renew, “Bank default” is enough. A longer period also fetches older transactions."
           }
         }
       }
@@ -25223,6 +26527,16 @@
         }
       }
     },
+    "gerade eben" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "just now"
+          }
+        }
+      }
+    },
     "gestiegen um %@ Prozent" : {
       "localizations" : {
         "de" : {
@@ -25368,6 +26682,7 @@
       }
     },
     "nicht mit Ausgaben verrechnet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -25491,6 +26806,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "of %@"
+          }
+        }
+      }
+    },
+    "von %@ Limit, davon %@ Übertrag" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "von %1$@ Limit, davon %2$@ Übertrag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "of %@ limit, including %@ carried over"
           }
         }
       }
@@ -25651,7 +26982,18 @@
         }
       }
     },
+    "Ältere Umsätze gibt es meist nur direkt nach einer frischen Anmeldung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Older transactions are usually only available right after a fresh sign-in."
+          }
+        }
+      }
+    },
     "Ältere Umsätze gibt es meist nur direkt nach einer frischen Anmeldung. Vorhandene Buchungen werden nicht doppelt angelegt." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -26112,6 +27454,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” has reached its limit."
+          }
+        }
+      }
+    },
+    "„%@“ ist die einzige Kategorie der Budgets %@. Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst die Budgets." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“ ist die einzige Kategorie der Budgets %2$@. Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst die Budgets."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is the only category of the budgets %@. Move it to another category when deleting, or change the budgets first."
+          }
+        }
+      }
+    },
+    "„%@“ ist die einzige Kategorie des Budgets %@. Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst das Budget." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“ ist die einzige Kategorie des Budgets %2$@. Verschiebe sie beim Löschen zu einer anderen Kategorie oder ändere zuerst das Budget."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is the only category of the budget %@. Move it to another category when deleting, or change the budget first."
           }
         }
       }

@@ -486,8 +486,32 @@ struct InlineNotice: View {
     var title: String?
     var tone: AppTone = .information
     var systemImage: String?
+    /// Gesetzt: der Hinweis bekommt einen Schließen-Knopf.
+    var onDismiss: (() -> Void)?
 
     var body: some View {
+        HStack(alignment: .top, spacing: AppSpacing.m) {
+            content
+            if let onDismiss {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Hinweis schließen")
+                .help("Hinweis schließen")
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .background(
+            RoundedRectangle(cornerRadius: AppRadius.medium, style: .continuous)
+                .fill(AppPalette.sunken)
+        )
+    }
+
+    private var content: some View {
         HStack(alignment: .top, spacing: AppSpacing.m) {
             Image(systemName: systemImage ?? tone.defaultSystemImage)
                 .font(.callout)
@@ -505,12 +529,6 @@ struct InlineNotice: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 14)
-        .background(
-            RoundedRectangle(cornerRadius: AppRadius.medium, style: .continuous)
-                .fill(AppPalette.sunken)
-        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
     }

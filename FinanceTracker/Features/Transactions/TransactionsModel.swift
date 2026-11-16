@@ -165,6 +165,12 @@ final class TransactionsModel {
     private func markLocallyChanged() {
         dependencies.changeTracker.markChanged()
         lastLocalRevision = dependencies.changeTracker.revision
+        // Jede erfolgreiche Änderung erledigt einen älteren Fehlerhinweis.
+        actionError = nil
+    }
+
+    func dismissActionError() {
+        actionError = nil
     }
 
     /// Ablageort der Beleg-Dateien; `nil` = Standardverzeichnis der App.

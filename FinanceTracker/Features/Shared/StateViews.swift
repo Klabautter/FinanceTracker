@@ -89,6 +89,13 @@ struct ErrorStateView: View {
 
 struct LoadingStateView: View {
     var label: String = String(localized: "Lade Daten…")
+    /// Kurze Ladevorgänge zeigen keinen Spinner: er erscheint erst nach
+    /// dieser Zeit, sonst flackert jeder Bereichswechsel.
+    var delay: Duration = LoadingStateView.defaultDelay
+
+    static let defaultDelay: Duration = .milliseconds(200)
+
+    @State private var isVisible = false
 
     var body: some View {
         VStack(spacing: AppSpacing.m) {
@@ -98,9 +105,16 @@ struct LoadingStateView: View {
                 .font(AppTypography.supporting)
                 .foregroundStyle(.secondary)
         }
+        .opacity(isVisible ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
+        .task {
+            guard !isVisible else { return }
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            isVisible = true
+        }
     }
 }
 

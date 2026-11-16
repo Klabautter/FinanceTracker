@@ -541,6 +541,7 @@ private struct PocketMacDetail: View {
                     Text(AppDateFormatter.weekdayDay(row.date))
                 }
             }
+            .width(min: 84, ideal: 110, max: 150)
             TableColumn("Händler", value: \.merchant) { row in
                 actionMenu(for: row) {
                     HStack(spacing: AppSpacing.xs) {
@@ -555,12 +556,15 @@ private struct PocketMacDetail: View {
                     }
                 }
             }
+            .width(min: 100, ideal: 180)
             TableColumn("Konto", value: \.account) { row in
                 Text(row.account).foregroundStyle(.secondary)
             }
+            .width(min: 60, ideal: 120, max: 200)
             TableColumn("Kategorie", value: \.category) { row in
                 Text(row.category).foregroundStyle(.secondary)
             }
+            .width(min: 80, ideal: 140, max: 220)
             TableColumn("Betrag", value: \.amount) { row in
                 Text(PrivacyAwareMoney.signed(row.transaction.amount, privacy: privacyState))
                     .monospacedDigit()
@@ -571,7 +575,9 @@ private struct PocketMacDetail: View {
                             signed: true
                         )
                     )
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .width(min: 96, ideal: 116, max: 160)
             TableColumn("") { row in
                 Menu {
                     transactionAction(for: row)

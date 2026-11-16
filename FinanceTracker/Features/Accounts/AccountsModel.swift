@@ -25,6 +25,10 @@ final class AccountsModel {
     /// getrennt in `actionError`.
     private(set) var loadState: LoadState = .idle
     private(set) var actionError: String?
+
+    func dismissActionError() {
+        actionError = nil
+    }
     var isLoading: Bool { loadState.isLoading }
 
     var dataRevision: Int { dependencies.changeTracker.revision }
@@ -102,6 +106,7 @@ final class AccountsModel {
             // Klick während des automatischen Abrufs).
             let result = try await dependencies.bankSyncCoordinator.sync(connection, dependencies: dependencies)
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
             return String(localized: "Sync fertig: \(result.importedCount) neu, \(result.updatedCount) aktualisiert.")
         } catch let error as BankProviderError {
@@ -141,6 +146,7 @@ final class AccountsModel {
                 connectionRepository: dependencies.connectionRepository
             )(connection)
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
         } catch {
             actionError = String(localized: "Verbindung konnte nicht getrennt werden.")
@@ -187,6 +193,7 @@ final class AccountsModel {
             )
             try await dependencies.accountRepository.deleteAccountWithTransactions(id: account.id)
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
         } catch {
             actionError = String(localized: "Das Konto konnte nicht gelöscht werden.")
@@ -202,6 +209,7 @@ final class AccountsModel {
                 transactionRepository: dependencies.transactionRepository
             )(balance, for: account, on: date)
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
         } catch {
             actionError = String(localized: "Der Kontostand konnte nicht gespeichert werden.")

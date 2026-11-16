@@ -13,6 +13,10 @@ final class BudgetsModel {
     /// getrennt in `actionError`.
     private(set) var loadState: LoadState = .idle
     private(set) var actionError: String?
+
+    func dismissActionError() {
+        actionError = nil
+    }
     var isLoading: Bool { loadState.isLoading }
     private(set) var currency: CurrencyCode = .eur
     /// FX-Status für UI-Debug (Quelle live/cache/fallback + Stand, `nil` =
@@ -78,6 +82,7 @@ final class BudgetsModel {
             try await dependencies.budgetRepository.delete(id: budget.id)
             await load()
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
         } catch {
             actionError = String(localized: "Budget konnte nicht gelöscht werden.")
         }

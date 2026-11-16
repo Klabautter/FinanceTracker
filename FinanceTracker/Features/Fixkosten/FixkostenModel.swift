@@ -47,6 +47,10 @@ final class FixkostenModel {
     /// getrennt in `actionError`.
     private(set) var loadState: LoadState = .idle
     private(set) var actionError: String?
+
+    func dismissActionError() {
+        actionError = nil
+    }
     var isLoading: Bool { loadState.isLoading }
 
     /// WP7: Occurrence-Resolution pro Commitment (aktueller Zeitraum):
@@ -222,6 +226,7 @@ final class FixkostenModel {
             markDismissed(dismissKey(for: series))
             lastSuggestionUndo = .confirmed(series, commitmentID: commitment.id)
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
         } catch {
             actionError = String(localized: "Abo konnte nicht bestätigt werden.")
@@ -255,6 +260,7 @@ final class FixkostenModel {
                 lastSuggestionUndo = nil
                 await restoreSuggestion(series)
                 dependencies.changeTracker.markChanged()
+                actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             } catch {
                 actionError = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")
             }
@@ -285,6 +291,7 @@ final class FixkostenModel {
         do {
             try await dependencies.recurringCommitmentRepository.upsert([commitment])
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
         } catch {
             actionError = String(localized: "Der Zahlungsplan konnte nicht gespeichert werden.")
@@ -298,6 +305,7 @@ final class FixkostenModel {
                 lastSuggestionUndo = nil
             }
             dependencies.changeTracker.markChanged()
+            actionError = nil // Erfolg: alter Fehlerhinweis ist erledigt
             await load()
         } catch {
             actionError = String(localized: "Der Zahlungsplan konnte nicht gelöscht werden.")

@@ -7,6 +7,9 @@ struct BudgetsView: View {
     @State private var budgetPendingDeletion: Budget?
     @State private var activeSheet: BudgetSheet?
     @State private var filter: BudgetOverviewFilter = .all
+    /// Schmal entfällt „Prognose", damit Verbrauch und Rest lesbar bleiben.
+    @State private var tableWidth: CGFloat = 1000
+    static let projectionColumnMinTableWidth: CGFloat = 700
     @State private var searchText = ""
     @State private var selectedBudgetID: Budget.ID?
     @State private var showsInspector = false
@@ -58,7 +61,7 @@ struct BudgetsView: View {
                         .padding(.bottom, AppSpacing.s)
                 }
                 if let actionError = model.actionError {
-                    InlineNotice(message: actionError, tone: .critical)
+                    InlineNotice(message: actionError, tone: .critical, onDismiss: { model.dismissActionError() })
                         .padding(.horizontal, AppLayout.pageHorizontalPadding)
                         .padding(.bottom, AppSpacing.s)
                 }
@@ -220,6 +223,7 @@ struct BudgetsView: View {
             TableColumn("Name", value: \.name) { row in
                 budgetNameCell(row)
             }
+            .width(min: 110, ideal: 170)
             TableColumn("Fortschritt", value: \.statusSortOrder) { row in
                 HStack(spacing: AppSpacing.s) {
                     FinanceProgressBar(fraction: row.progress.fraction, tone: row.status.tone, height: 6)
@@ -230,10 +234,11 @@ struct BudgetsView: View {
                         .frame(width: 44, alignment: .trailing)
                 }
             }
-            .width(min: 140, ideal: 180)
+            .width(min: 120, ideal: 180)
             TableColumn("Verbrauch", value: \.spent) { row in
                 amountCell(row.spent, currency: row.currency)
             }
+            .width(min: 88, ideal: 110, max: 150)
             TableColumn("Rest / Überschreitung", value: \.signedRemaining) { row in
                 VStack(alignment: .trailing, spacing: 1) {
                     amountCell(abs(row.signedRemaining), currency: row.currency)
@@ -243,14 +248,18 @@ struct BudgetsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            TableColumn("Prognose", value: \.projectionSortValue) { row in
-                if let projection = row.projection {
-                    amountCell(projection, currency: row.currency)
-                } else {
-                    Text("Noch nicht verfügbar")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+            .width(min: 96, ideal: 130, max: 170)
+            if tableWidth >= Self.projectionColumnMinTableWidth {
+                TableColumn("Prognose", value: \.projectionSortValue) { row in
+                    if let projection = row.projection {
+                        amountCell(projection, currency: row.currency)
+                    } else {
+                        Text("Noch nicht verfügbar")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
+                .width(min: 88, ideal: 110, max: 150)
             }
             TableColumn("Zeitraum / Status", value: \.statusSortOrder) { row in
                 VStack(alignment: .leading, spacing: 3) {
@@ -265,7 +274,9 @@ struct BudgetsView: View {
                     )
                 }
             }
+            .width(min: 100, ideal: 140)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { tableWidth = $0 }
         .onChange(of: selectedBudgetID) { _, selection in
             if selection != nil {
                 showsInspector = true

@@ -292,12 +292,9 @@ private struct MacTransactionsContent: View {
             .padding(.horizontal, AppLayout.pageHorizontalPadding)
         }
         if let error = model.actionError {
-            Label(error, systemImage: "exclamationmark.triangle")
-                .font(.callout).padding(AppSpacing.m)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(AppTone.warning.foregroundColor.opacity(0.1), in: RoundedRectangle(cornerRadius: AppRadius.medium))
+            InlineNotice(message: error, tone: .warning, onDismiss: { model.dismissActionError() })
                 .padding(.horizontal, AppLayout.pageHorizontalPadding)
-            .padding(.bottom, AppSpacing.s)
+                .padding(.bottom, AppSpacing.s)
         }
     }
 
@@ -670,6 +667,11 @@ private struct MacTransactionsContent: View {
 private struct MacTransactionsTable: View {
     let model: TransactionsModel
     @Binding var selection: Set<Transaction.ID>
+    /// Breite der Tabelle; schmal entfällt „Konto", damit der Betrag immer
+    /// vollständig sichtbar bleibt.
+    @State private var tableWidth: CGFloat = 1000
+
+    static let accountColumnMinTableWidth: CGFloat = 620
 
     var body: some View {
         @Bindable var model = model
@@ -677,24 +679,32 @@ private struct MacTransactionsTable: View {
             TableColumn("Datum", value: \.displayDate) { txn in
                 dateCell(txn)
             }
+            .width(min: 84, ideal: 112, max: 150)
 
             TableColumn("Händler", value: \.effectiveMerchantName) { txn in
                 merchantCell(txn)
             }
+            .width(min: 110, ideal: 200)
 
-            TableColumn("Konto") { txn in
-                accountCell(txn)
+            if tableWidth >= Self.accountColumnMinTableWidth {
+                TableColumn("Konto") { txn in
+                    accountCell(txn)
+                }
+                .width(min: 70, ideal: 130, max: 220)
             }
 
             TableColumn("Kategorie") { txn in
                 withTransactionContextMenu(txn, categoryCell(txn))
             }
+            .width(min: 100, ideal: 160, max: 240)
 
             TableColumn("Betrag", value: \.amountSortValue) { txn in
                 amountCell(txn)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .width(min: 108, ideal: 124, max: 170)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { tableWidth = $0 }
         .onScrollGeometryChange(for: Bool.self) { geometry in
             geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 240
         } action: { _, nearEnd in

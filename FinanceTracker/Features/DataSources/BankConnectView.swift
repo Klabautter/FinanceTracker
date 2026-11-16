@@ -1071,7 +1071,11 @@ struct BankConnectView: View {
             Button("Andere Bank wählen") {
                 model.chooseAnotherBank()
             }
+            #if os(macOS)
             .buttonStyle(.link)
+            #else
+            .buttonStyle(.borderless)
+            #endif
             Spacer(minLength: 0)
         }
         .padding(AppSpacing.xl)
