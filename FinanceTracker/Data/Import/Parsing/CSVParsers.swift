@@ -98,6 +98,16 @@ enum CSVMoneyParser {
         return comma >= dot ? "," : "."
     }
 
+    /// Ein Betrag, dessen einziger Trenner von genau drei Ziffern gefolgt
+    /// wird („1.000", „2,500"): ohne Dezimaltrenner der Datei mehrdeutig.
+    static func isAmbiguous(_ sample: String) -> Bool {
+        let core = sample.filter { $0.isNumber || $0 == "," || $0 == "." }
+        let separators = core.filter { $0 == "," || $0 == "." }
+        guard separators.count == 1, let separator = separators.first,
+              let tail = core.split(separator: separator, omittingEmptySubsequences: false).last else { return false }
+        return tail.count == 3
+    }
+
     private static let negativeMarkers: Set<String> = ["S", "D", "DR", "DB", "SOLL", "DEBIT", "DBIT"]
     private static let positiveMarkers: Set<String> = ["H", "C", "CR", "HABEN", "CREDIT", "CRDT"]
     private static let currencySymbols = CharacterSet(charactersIn: "€$£¥₣₤₹₽₺₩₪₫฿₴₸₱")

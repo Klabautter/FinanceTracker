@@ -104,6 +104,10 @@ struct ProviderParseResult: Sendable, Equatable {
     /// Buchungsarten der Datei, deren Bedeutung die App nicht kennt. Die
     /// Zeilen sind nach Vorzeichen importiert; die Vorschau fragt nach.
     var unknownTypes: [UnknownTransactionType] = []
+    /// Die Datei verrät ihren Dezimaltrenner nicht, enthält aber Beträge
+    /// wie „1.000", die tausend oder eins heißen können. Gelesen wurde mit
+    /// `assumedDecimalSeparator`; die Vorschau fragt nach (#17).
+    var assumedDecimalSeparator: Character?
 
     static func empty(totalRows: Int = 0) -> ProviderParseResult {
         ProviderParseResult(totalRows: totalRows, transactions: [], issues: [])

@@ -17,6 +17,17 @@ enum DecimalParser {
     /// führende Währungssymbole/Suffixe werden entfernt ("-12,30 €" → -12.30).
     /// Liefert `nil` für leere oder nicht-numerische Eingaben.
     static func parse(_ raw: String) -> Decimal? {
+        parse(raw, decimalSeparator: nil)
+    }
+
+    /// Wie `parse(_:)`, aber mit dem Dezimaltrenner der Systemsprache.
+    ///
+    /// Ein einzelner Trenner, der NICHT der Dezimaltrenner der Sprache ist
+    /// und von genau drei Ziffern gefolgt wird, ist ein Tausendertrenner:
+    /// auf Deutsch ist „1.500" also 1500, auf Englisch „1,500" ebenso.
+    /// Alle anderen Fälle verhalten sich wie ohne Sprachhinweis („0.99"
+    /// bleibt auch auf Deutsch 0,99).
+    static func parse(_ raw: String, decimalSeparator hint: Character?) -> Decimal? {
         var input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return nil }
 
@@ -37,6 +48,12 @@ enum DecimalParser {
             let thousands: Character = decimalSeparator == "," ? "." : ","
             input = input.replacingOccurrences(of: String(thousands), with: "")
             input = input.replacingOccurrences(of: String(decimalSeparator), with: ".")
+        } else if let hint, let single = singleSeparator(in: input), single != hint,
+                  hint == "," || hint == ".",
+                  let tail = input.split(separator: single, omittingEmptySubsequences: false).last,
+                  tail.count == 3, tail.allSatisfy(\.isNumber) {
+            // Tausendertrenner der Sprache ohne Dezimalanteil („1.500" auf Deutsch).
+            input = input.replacingOccurrences(of: String(single), with: "")
         } else if hasComma {
             let parts = input.components(separatedBy: ",")
             if parts.count == 2 {
@@ -53,6 +70,14 @@ enum DecimalParser {
         }
 
         guard !input.isEmpty, input != "-", input != "." else { return nil }
+        // Ein Minus nur ganz vorn; „12-3" ist keine Zahl.
+        guard !input.dropFirst().contains("-") else { return nil }
         return Decimal(string: input, locale: Locale(identifier: "en_US_POSIX"))
+    }
+
+    /// Der einzige Trenner der Eingabe, wenn genau einer genau einmal vorkommt.
+    private static func singleSeparator(in input: String) -> Character? {
+        let separators = input.filter { $0 == "," || $0 == "." }
+        return separators.count == 1 ? separators.first : nil
     }
 }

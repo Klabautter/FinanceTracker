@@ -208,6 +208,8 @@ struct GenericCSVProvider: ImportProvider {
     /// (Schlüssel: `TransactionTypeVocabulary.normalizedKey`). Hat Vorrang
     /// vor dem Wörterbuch (#22).
     private let typeMeanings: [String: TransactionTypeMeaning]
+    /// Vom Nutzer bestätigter Dezimaltrenner, wenn die Datei ihn nicht verrät.
+    private let decimalSeparatorChoice: Character?
 
     let identifier: String = GenericCSVProvider.providerIdentifier
     var displayName: String { String(localized: "Tabelle mit Buchungen") }
@@ -217,19 +219,25 @@ struct GenericCSVProvider: ImportProvider {
     init(
         fallbackCurrency: CurrencyCode = .eur,
         forcedMapping: GenericCSVMapping? = nil,
-        typeMeanings: [String: TransactionTypeMeaning] = [:]
+        typeMeanings: [String: TransactionTypeMeaning] = [:],
+        decimalSeparatorChoice: Character? = nil
     ) {
         self.fallbackCurrency = fallbackCurrency
         self.forcedMapping = forcedMapping
         self.typeMeanings = typeMeanings
+        self.decimalSeparatorChoice = decimalSeparatorChoice
     }
 
     func with(fallbackCurrency: CurrencyCode) -> GenericCSVProvider {
-        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings)
+        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings, decimalSeparatorChoice: decimalSeparatorChoice)
     }
 
     func with(typeMeanings: [String: TransactionTypeMeaning]) -> GenericCSVProvider {
-        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings)
+        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings, decimalSeparatorChoice: decimalSeparatorChoice)
+    }
+
+    func with(decimalSeparatorChoice: Character?) -> GenericCSVProvider {
+        GenericCSVProvider(fallbackCurrency: fallbackCurrency, forcedMapping: forcedMapping, typeMeanings: typeMeanings, decimalSeparatorChoice: decimalSeparatorChoice)
     }
 
     func canHandle(_ file: ImportFile) async throws -> Bool {
@@ -265,7 +273,15 @@ struct GenericCSVProvider: ImportProvider {
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .flatMap { column in document.records.compactMap { document.value(column, in: $0) } }
-        let decimalSeparator = CSVMoneyParser.decimalSeparator(in: amountSamples)
+        let detectedSeparator = CSVMoneyParser.decimalSeparator(in: amountSamples)
+        // Verrät die Datei den Trenner nicht und gibt es Beträge wie „1.000",
+        // gilt die Wahl des Nutzers, sonst vorläufig die Systemsprache; die
+        // Vorschau fragt dann nach, statt still zu raten (#17).
+        let isAmbiguous = detectedSeparator == nil && amountSamples.contains(where: CSVMoneyParser.isAmbiguous)
+        let assumedSeparator: Character? = isAmbiguous && decimalSeparatorChoice == nil
+            ? (Locale.current.decimalSeparator?.first ?? ",")
+            : nil
+        let decimalSeparator = detectedSeparator ?? (isAmbiguous ? (decimalSeparatorChoice ?? assumedSeparator) : nil)
         let monthFirst = CSVDateParser.prefersMonthFirst(
             in: document.records.compactMap { document.value(mapping.dateColumn, in: $0) }
         )
@@ -427,7 +443,8 @@ struct GenericCSVProvider: ImportProvider {
             issues: issues,
             unknownTypes: unknownTypes
                 .map { UnknownTransactionType(key: $0.key, label: $0.value.label, count: $0.value.count) }
-                .sorted { $0.count > $1.count }
+                .sorted { $0.count > $1.count },
+            assumedDecimalSeparator: assumedSeparator
         )
     }
 

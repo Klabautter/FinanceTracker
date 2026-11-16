@@ -315,6 +315,12 @@ struct ImportView: View {
                 .id(prepared.unknownTypes)
             }
 
+            if let assumed = prepared.assumedDecimalSeparator {
+                DecimalSeparatorQuestion(assumed: assumed) { separator in
+                    Task { await model.applyDecimalSeparator(separator) }
+                }
+            }
+
             // Die Bestätigung steht direkt unter der Zusammenfassung; unter der
             // Vorschau lag sie außerhalb des sichtbaren Bereichs.
             HStack {
@@ -331,7 +337,7 @@ struct ImportView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!prepared.hasChanges)
+                .disabled(!prepared.hasChanges || prepared.assumedDecimalSeparator != nil)
                 .accessibilityLabel(
                     "Import bestätigen: \(prepared.transactions.count) neue Transaktionen und \(prepared.updates.count) Aktualisierungen"
                 )
@@ -634,6 +640,33 @@ struct ImportView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// Die Datei verrät nicht, ob „1.000" tausend oder eins heißt. Der Import
+/// wartet auf die Antwort, die App merkt sie sich für das Konto.
+private struct DecimalSeparatorQuestion: View {
+    let assumed: Character
+    let apply: (Character) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.s) {
+            Label("Wie sind Beträge wie „1.000“ gemeint?", systemImage: "questionmark.circle")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppPalette.warning)
+            Text("Die Datei verrät nicht, ob Punkt oder Komma das Dezimalzeichen ist. Die Antwort gilt für künftige Importe in dieses Konto.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("1.000 = tausend") { apply(",") }
+                    .accessibilityIdentifier("import-decimal-comma")
+                Button("1.000 = eins") { apply(".") }
+                    .accessibilityIdentifier("import-decimal-dot")
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
     }
 }
 

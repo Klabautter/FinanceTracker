@@ -129,6 +129,9 @@ struct PreparedImport: Sendable, Equatable {
     /// Buchungsarten, deren Bedeutung die App nicht kennt (nach Vorzeichen
     /// importiert); die Vorschau lässt sie zuordnen.
     var unknownTypes: [UnknownTransactionType] = []
+    /// Dezimaltrenner, mit dem mehrdeutige Beträge vorläufig gelesen wurden;
+    /// gesetzt heißt: der Import braucht eine Bestätigung.
+    var assumedDecimalSeparator: Character?
     /// Stand nach der letzten Buchung der Datei (Saldo-Spalte), in der
     /// Währung des Zielkontos.
     var reportedBalance: ReportedBalance?
@@ -812,6 +815,7 @@ struct ImportPipeline: Sendable {
             crossSourceHints: crossSourceHints,
             crossSourceDuplicates: crossSourceDuplicates,
             unknownTypes: parseResult.unknownTypes,
+            assumedDecimalSeparator: parseResult.assumedDecimalSeparator,
             reportedBalance: reportedBalance,
             reportedBalanceIsNew: reportedBalance.map { balance in
                 targetAccount?.reportedBalance.map { balance.asOf > $0.asOf } ?? true

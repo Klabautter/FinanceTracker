@@ -29,6 +29,12 @@ struct DecimalInputField: View {
                 Label("Bitte einen gültigen Betrag eingeben.", systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(AppPalette.critical)
+            } else if let value, Self.needsEcho(text) {
+                // Zeigt, wie die Eingabe verstanden wurde („1.500" → 1.500,00).
+                Text("= \(Self.display(value))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("Verstanden als \(Self.display(value))"))
             }
         }
     }
@@ -41,7 +47,7 @@ struct DecimalInputField: View {
         self.title = title
         _value = value
         if let initial = value.wrappedValue {
-            _text = State(initialValue: "\(initial)")
+            _text = State(initialValue: Self.editText(initial))
         }
     }
 
@@ -51,7 +57,7 @@ struct DecimalInputField: View {
             isInvalid = false
             return
         }
-        if let parsed = DecimalParser.parse(newValue) {
+        if let parsed = Self.parse(newValue) {
             value = parsed
             isInvalid = false
         } else {
@@ -67,13 +73,32 @@ struct DecimalInputField: View {
     /// repräsentiert (kein Cursor-Sprung während der Eingabe).
     private func syncText(from newValue: Decimal?) {
         if let newValue {
-            if DecimalParser.parse(text) != newValue {
-                text = "\(newValue)"
+            if Self.parse(text) != newValue {
+                text = Self.editText(newValue)
             }
             isInvalid = false
-        } else if DecimalParser.parse(text) != nil {
+        } else if Self.parse(text) != nil {
             text = ""
             isInvalid = false
         }
+    }
+
+    /// Dezimaltrenner der Systemsprache: „1.500" ist auf Deutsch 1500.
+    static func parse(_ text: String, locale: Locale = .current) -> Decimal? {
+        DecimalParser.parse(text, decimalSeparator: locale.decimalSeparator?.first)
+    }
+
+    /// Bearbeitbarer Text im Format der Systemsprache, ohne Tausenderpunkte.
+    static func editText(_ value: Decimal, locale: Locale = .current) -> String {
+        value.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(0...2)))
+    }
+
+    static func display(_ value: Decimal, locale: Locale = .current) -> String {
+        value.formatted(.number.locale(locale).precision(.fractionLength(2)))
+    }
+
+    /// Nur bei Trennzeichen lohnt der Hinweis; „500" versteht jeder.
+    static func needsEcho(_ text: String) -> Bool {
+        text.contains(",") || text.contains(".")
     }
 }
