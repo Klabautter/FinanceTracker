@@ -137,15 +137,16 @@ struct AnalyticsView: View {
                         subtitle: model.scope?.summary,
                         eyebrow: String(localized: "Alltag")
                     ) {
-                        Button { showsFilterSheet = true } label: {
-                            Label(
-                                model.activeFilterCount == 0
-                                    ? String(localized: "Zeitraum & Filter")
-                                    : String(localized: "Zeitraum & Filter (\(model.activeFilterCount))"),
-                                systemImage: "line.3.horizontal.decrease"
-                            )
+                        // Filter direkt in der Kopfzeile: Zeitraum mit einem
+                        // Klick wechseln statt über ein Sheet.
+                        // Im schmalen Fenster brechen die Filter um, statt
+                        // aus dem Fenster zu ragen.
+                        FlowLayout(spacing: AppSpacing.s) {
+                            AnalyticsFilterControls(model: model)
                         }
-                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel("Zeitraum und Filter")
                     }
                     .padding(.horizontal, AppLayout.pageHorizontalPadding)
                     .padding(.top, AppSpacing.xl)

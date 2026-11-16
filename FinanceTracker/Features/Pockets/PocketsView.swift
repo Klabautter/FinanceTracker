@@ -452,6 +452,15 @@ private struct PocketMacDetail: View {
                 }
                 .scrollIndicators(.hidden)
             }
+            if summaries.contains(where: { $0.income > 0 }) {
+                // Eine Sammlung über Zeitraum und Konten nimmt auch Gehalt
+                // und Erstattungen mit; das soll niemand für Reisekosten halten.
+                Label("Enthält Einnahmen aus dem Zeitraum. Nicht passende Buchungen über das Menü der Zeile ausschließen.", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("pocket-income-hint")
+            }
             HStack(spacing: AppSpacing.m) {
                 Label(periodText, systemImage: "calendar")
                 Label(

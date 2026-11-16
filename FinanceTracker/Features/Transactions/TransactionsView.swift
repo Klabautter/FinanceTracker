@@ -679,12 +679,12 @@ private struct MacTransactionsTable: View {
             TableColumn("Datum", value: \.displayDate) { txn in
                 dateCell(txn)
             }
-            .width(min: 84, ideal: 112, max: 150)
+            .width(min: 84, ideal: 100, max: 150)
 
             TableColumn("Händler", value: \.effectiveMerchantName) { txn in
                 merchantCell(txn)
             }
-            .width(min: 110, ideal: 200)
+            .width(min: 110, ideal: 120)
 
             if tableWidth >= Self.accountColumnMinTableWidth {
                 TableColumn("Konto") { txn in
@@ -696,13 +696,13 @@ private struct MacTransactionsTable: View {
             TableColumn("Kategorie") { txn in
                 withTransactionContextMenu(txn, categoryCell(txn))
             }
-            .width(min: 100, ideal: 160, max: 240)
+            .width(min: 100, ideal: 124, max: 240)
 
             TableColumn("Betrag", value: \.amountSortValue) { txn in
                 amountCell(txn)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .width(min: 108, ideal: 124, max: 170)
+            .width(min: 108, ideal: 116, max: 170)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { tableWidth = $0 }
         .onScrollGeometryChange(for: Bool.self) { geometry in
