@@ -430,7 +430,8 @@ struct BankSyncService: Sendable {
         }
         guard !updates.isEmpty else { return }
         try await dependencies.transactionRepository.upsert(updates)
-        try await LinkOwnTransfers(transactionRepository: dependencies.transactionRepository).run()
+        try await LinkOwnTransfers(transactionRepository: dependencies.transactionRepository)
+            .run(around: updates.map(\.displayDate))
         Self.logger.info("Sync: \(updates.count, privacy: .public) frühere Überweisungen eingeordnet")
     }
 

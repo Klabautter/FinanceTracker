@@ -209,7 +209,7 @@ struct CategoriesView: View {
         }
         .workspaceNavigationTitle(String(localized: "Kategorien"))
         .refreshable { await model.load() }
-        .task(id: model.dataRevision) { await model.load() }
+        .reloadWhenVisible(revision: model.dataRevision) { await model.load() }
         .confirmationDialog(
             "Regel löschen?",
             isPresented: Binding(

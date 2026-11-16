@@ -84,7 +84,7 @@ struct AccountsView: View {
         .workspaceNavigationTitle(String(localized: "Konten"))
         .workspaceHeading(String(localized: "Konten"), eyebrow: String(localized: "Alltag"))
         .workspaceCanvas()
-        .task(id: model.dataRevision) {
+        .reloadWhenVisible(revision: model.dataRevision) {
             await model.load()
             await consumePendingRoute()
         }

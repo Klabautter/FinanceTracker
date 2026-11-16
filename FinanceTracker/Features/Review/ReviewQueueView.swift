@@ -182,7 +182,7 @@ struct ReviewQueueView: View {
                         }
                     }
                 }
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                         if index > 0 { Divider() }
                         reviewRow(entry)

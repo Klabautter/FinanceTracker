@@ -89,7 +89,7 @@ struct FixkostenView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task(id: model.dataRevision) { await model.load() }
+        .reloadWhenVisible(revision: model.dataRevision) { await model.load() }
         #if os(macOS)
         .modifier(SuggestionUndoFocusedAction(model: model))
         #endif

@@ -149,14 +149,20 @@ final class Performance50kTests: XCTestCase {
                 }
 
                 if index < 500 {
-                    context.insert(SDTransactionSplitLineEntity(
-                        id: UUID(),
-                        parentTransactionID: txnID,
-                        amountValue: "5",
-                        categoryID: nil,
-                        note: nil,
-                        createdAt: bookedAt
-                    ))
+                    // Eine gültige Aufteilung ergibt den Buchungsbetrag
+                    // (sonst lehnt der Backup-Export sie zu Recht ab).
+                    let total = index % 500 + 1
+                    let first = max(1, total / 2)
+                    for amount in [first, total - first] where amount > 0 {
+                        context.insert(SDTransactionSplitLineEntity(
+                            id: UUID(),
+                            parentTransactionID: txnID,
+                            amountValue: "\(amount)",
+                            categoryID: nil,
+                            note: nil,
+                            createdAt: bookedAt
+                        ))
+                    }
                 }
 
                 if index < 300 {

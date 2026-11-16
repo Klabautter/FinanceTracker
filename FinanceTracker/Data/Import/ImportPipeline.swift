@@ -230,11 +230,12 @@ struct ImportPipeline: Sendable {
         pendingCompleteSince: Date? = nil
     ) async throws -> ImportResult {
         let tracksPending = pendingCompleteSince != nil
-        var query = TransactionQuery()
-        query.accountIDs = [accountID]
-        query.sources = [source]
-
-        let existing = try await transactionRepository.transactions(matching: query)
+        // Der Kontobestand wird EINMAL geladen; die Zeilen dieser Quelle sind
+        // eine Teilmenge davon (vorher zwei Komplett-Ladevorgänge je Konto).
+        var accountQuery = TransactionQuery()
+        accountQuery.accountIDs = [accountID]
+        let accountWideExisting = try await transactionRepository.transactions(matching: accountQuery)
+        let existing = accountWideExisting.filter { $0.source == source }
         var existingByFingerprint: [String: Transaction] = [:]
         for txn in existing {
             guard let fp = txn.sourceFingerprint else { continue }
@@ -273,9 +274,6 @@ struct ImportPipeline: Sendable {
         // der Abruf keinen zweiten Eintrag an, sondern übernimmt den
         // vorhandenen: Bankdaten kommen dazu, Kategorie, Notiz, Tags und
         // Belege bleiben (gleiche ID). Danach greift die Bank-Kennung.
-        var accountQuery = TransactionQuery()
-        accountQuery.accountIDs = [accountID]
-        let accountWideExisting = try await transactionRepository.transactions(matching: accountQuery)
         let crossSourceMatcher = CrossSourceDuplicateMatcher()
         var crossSourceCandidates = accountWideExisting.filter { $0.source != source }
 
@@ -290,7 +288,7 @@ struct ImportPipeline: Sendable {
             rules,
             assignableCategoryIDs: assignableCategoryIDs
         )
-        var knownMerchants = try await merchantRepository?.merchants() ?? []
+        var knownMerchants = MerchantKeyIndex(try await merchantRepository?.merchants() ?? [])
         var merchantUpserts: [Merchant.ID: Merchant] = [:]
         let reconciler = PendingBookedReconciler()
         var availableCandidates = pendingCandidates
@@ -576,7 +574,7 @@ struct ImportPipeline: Sendable {
             $0.status == .pending && $0.accountID == accountID && $0.source == source
         }
 
-        var knownMerchants = try await merchantRepository?.merchants() ?? []
+        var knownMerchants = MerchantKeyIndex(try await merchantRepository?.merchants() ?? [])
         var merchantUpserts: [Merchant.ID: Merchant] = [:]
 
         let rules: [CategoryRule]
@@ -773,7 +771,10 @@ struct ImportPipeline: Sendable {
         emptinessQuery.accountIDs = [accountID]
         var targetAccountIsEmpty = false
         if foreignFileCurrency != nil {
-            targetAccountIsEmpty = try await transactionRepository.transactions(matching: emptinessQuery).isEmpty
+            // Eine Zeile genügt für „leer oder nicht".
+            targetAccountIsEmpty = try await transactionRepository.transactionPage(
+                matching: emptinessQuery, sort: .dateDescending, offset: 0, limit: 1
+            ).transactions.isEmpty
         }
         let reportedBalance = targetAccount.flatMap { account in
             (PDFStatementConverter.isPDF(file.data)
@@ -903,7 +904,7 @@ struct ImportPipeline: Sendable {
     private func normalizeAndCategorize(
         _ draft: inout Transaction,
         rawDescriptor: String?,
-        knownMerchants: inout [Merchant],
+        knownMerchants: inout MerchantKeyIndex,
         merchantUpserts: inout [Merchant.ID: Merchant],
         categoryRules: CategoryRuleEngine.CompiledRules,
         suggestedCategoryID: Category.ID?,
@@ -929,18 +930,14 @@ struct ImportPipeline: Sendable {
         if merchantRepository != nil {
             let resolution = MerchantNormalizer().resolve(
                 rawDescriptor: underlyingMerchant ?? rawDescriptor,
-                knownMerchants: knownMerchants
+                index: &knownMerchants
             )
             draft.merchantDisplayName = resolution.displayName
             draft.merchantID = resolution.merchantID
 
             if let merchant = resolution.merchantToUpsert {
                 merchantUpserts[merchant.id] = merchant
-                if let index = knownMerchants.firstIndex(where: { $0.id == merchant.id }) {
-                    knownMerchants[index] = merchant
-                } else {
-                    knownMerchants.append(merchant)
-                }
+                knownMerchants.upsert(merchant)
             }
         } else if let underlyingMerchant {
             draft.merchantDisplayName = underlyingMerchant
@@ -994,8 +991,11 @@ struct ImportPipeline: Sendable {
             try await transactionRepository.upsert(prepared.transactions + prepared.updates)
         }
         // Ist mit dieser Datei die Gegenseite einer Umbuchung angekommen,
-        // werden beide Seiten verknüpft und zählen nicht mehr doppelt.
-        try await LinkOwnTransfers(transactionRepository: transactionRepository).run()
+        // werden beide Seiten verknüpft und zählen nicht mehr doppelt. Ein
+        // neues Paar enthält immer eine Zeile dieser Datei: deren Zeitraum
+        // reicht als Suchfenster.
+        try await LinkOwnTransfers(transactionRepository: transactionRepository)
+            .run(around: (prepared.transactions + prepared.updates).map(\.displayDate))
         var savedBalance: ReportedBalance?
         if let balance = prepared.reportedBalance, let accountRepository {
             // Nicht fatal: Die Buchungen sind schon gespeichert. Ein älterer

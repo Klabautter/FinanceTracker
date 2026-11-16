@@ -54,7 +54,16 @@ final class ReviewQueueModel {
     private let effectiveTransactionResolver = EffectiveTransactionResolver()
     private let suggestionService = CategorySuggestionService()
 
-    private(set) var items: [ReviewItem] = []
+    private(set) var items: [ReviewItem] = [] {
+        didSet {
+            cachedEntries = nil
+            similarCountCache.removeAll()
+        }
+    }
+    /// Gruppierte, sortierte Einträge: einmal je Änderung von `items` statt
+    /// bei jedem Zugriff (die View fragt pro Zeile mehrfach).
+    @ObservationIgnored private var cachedEntries: [ReviewQueueEntry]?
+    @ObservationIgnored private var similarCountCache: [ReviewQueueEntry.ID: Int] = [:]
     private(set) var categories: [Category] = []
     private(set) var accountsByID: [UUID: Account] = [:]
     /// Verlauf-Vorschläge pro offener Transaktions-ID (Händler-Modus aus
@@ -310,6 +319,13 @@ final class ReviewQueueModel {
     }
 
     var entries: [ReviewQueueEntry] {
+        if let cachedEntries { return cachedEntries }
+        let computed = computeEntries()
+        cachedEntries = computed
+        return computed
+    }
+
+    private func computeEntries() -> [ReviewQueueEntry] {
         let grouped = Dictionary(grouping: items, by: { $0.transaction.id })
         return grouped.values.compactMap { transactionItems in
             guard let first = transactionItems.first else { return nil }
@@ -343,6 +359,13 @@ final class ReviewQueueModel {
     /// derselben Merkregel erfasst würden. Damit verspricht die UI keine
     /// heuristische Ähnlichkeit, die der persistierte Regelpfad nicht hält.
     func similarUncategorizedCount(for entry: ReviewQueueEntry) -> Int {
+        if let cached = similarCountCache[entry.id] { return cached }
+        let count = computeSimilarUncategorizedCount(for: entry)
+        similarCountCache[entry.id] = count
+        return count
+    }
+
+    private func computeSimilarUncategorizedCount(for entry: ReviewQueueEntry) -> Int {
         guard let rule = CategoryRule.makeFromCorrection(
             transaction: entry.transaction,
             categoryID: UUID(),

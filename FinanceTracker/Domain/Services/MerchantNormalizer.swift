@@ -105,6 +105,17 @@ struct MerchantNormalizer: Sendable {
         rawDescriptor: String?,
         knownMerchants: [Merchant]
     ) -> MerchantResolution {
+        var index = MerchantKeyIndex(knownMerchants)
+        return resolve(rawDescriptor: rawDescriptor, index: &index)
+    }
+
+    /// Wie oben, aber mit vorberechneten Händler-Schlüsseln: Beim Import
+    /// wird nicht für jede Zeile jeder Händlername neu normalisiert. Neue
+    /// oder ergänzte Händler trägt der Aufrufer per `index.upsert` nach.
+    func resolve(
+        rawDescriptor: String?,
+        index: inout MerchantKeyIndex
+    ) -> MerchantResolution {
         guard let rawDescriptor,
               let displayName = canonicalDisplayName(from: rawDescriptor) else {
             let fallback = rawDescriptor?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -119,18 +130,15 @@ struct MerchantNormalizer: Sendable {
         let descriptorKey = normalizedKey(rawDescriptor)
         let displayKey = normalizedKey(displayName)
 
-        for merchant in knownMerchants {
-            let candidates = [merchant.displayName] + merchant.aliases
-            for candidate in candidates {
-                let candidateKey = normalizedKey(candidate)
+        for entry in index.entries {
+            let merchant = entry.merchant
+            for candidateKey in entry.keys {
                 guard !candidateKey.isEmpty else { continue }
 
                 if CategoryRuleEngine.containsTokenSequence(descriptorKey, candidateKey)
                     || displayKey == candidateKey {
                     var updatedMerchant = merchant
-                    let alreadyKnown = candidates.contains {
-                        normalizedKey($0) == descriptorKey
-                    }
+                    let alreadyKnown = entry.keys.contains(descriptorKey)
                     if !alreadyKnown {
                         updatedMerchant.aliases.append(rawDescriptor.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
@@ -152,6 +160,42 @@ struct MerchantNormalizer: Sendable {
             merchantID: newMerchant.id,
             newMerchant: newMerchant,
             merchantToUpsert: newMerchant
+        )
+    }
+}
+
+/// Händler mit vorberechneten, normalisierten Namen und Aliassen, in der
+/// Reihenfolge der Liste (der erste Treffer gewinnt wie bisher).
+struct MerchantKeyIndex: Sendable {
+    struct Entry: Sendable {
+        var merchant: Merchant
+        var keys: [String]
+    }
+
+    private(set) var entries: [Entry]
+    private var positions: [Merchant.ID: Int]
+
+    init(_ merchants: [Merchant]) {
+        entries = merchants.map(Self.entry)
+        positions = Dictionary(merchants.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    var merchants: [Merchant] { entries.map(\.merchant) }
+
+    /// Ergänzt einen neuen oder ersetzt einen bekannten Händler.
+    mutating func upsert(_ merchant: Merchant) {
+        if let position = positions[merchant.id] {
+            entries[position] = Self.entry(merchant)
+        } else {
+            positions[merchant.id] = entries.count
+            entries.append(Self.entry(merchant))
+        }
+    }
+
+    private static func entry(_ merchant: Merchant) -> Entry {
+        Entry(
+            merchant: merchant,
+            keys: ([merchant.displayName] + merchant.aliases).map(CategoryRuleEngine.normalizedKey)
         )
     }
 }

@@ -17,9 +17,10 @@ final class AppBootstrapper {
 
     private(set) var state: State = .loading
 
-    private let factory: () throws -> AppDependencies
+    private let factory: @Sendable () throws -> AppDependencies
+    private var openTask: Task<Void, Never>?
 
-    init(factory: @escaping () throws -> AppDependencies = {
+    init(factory: @escaping @Sendable () throws -> AppDependencies = {
         if AppLaunchEnvironment.live.isUITestingStorageErrorMode {
             throw AppBootstrapSimulatedError.simulatedStorageFailure
         }
@@ -29,12 +30,24 @@ final class AppBootstrapper {
         start()
     }
 
+    /// Öffnet die Datenbank (inklusive Migration) im Hintergrund: Eine
+    /// große oder zu migrierende Datenbank blockiert so nicht das Fenster,
+    /// und der Ladezustand ist tatsächlich zu sehen (Rule 24).
     func start() {
         state = .loading
-        do {
-            state = .ready(try factory())
-        } catch {
-            state = .failed(String(localized: "Die lokalen Daten konnten nicht geöffnet werden. Es wurden keine Daten gelöscht oder verändert."))
+        openTask?.cancel()
+        let factory = factory
+        openTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try factory() }
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            switch result {
+            case .success(let dependencies):
+                self.state = .ready(dependencies)
+            case .failure:
+                self.state = .failed(String(localized: "Die lokalen Daten konnten nicht geöffnet werden. Es wurden keine Daten gelöscht oder verändert."))
+            }
         }
     }
 }

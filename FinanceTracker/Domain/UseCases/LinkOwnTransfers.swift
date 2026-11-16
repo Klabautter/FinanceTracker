@@ -19,9 +19,28 @@ struct LinkOwnTransfers: Sendable {
     /// Kategorien, die eine Seite als eigenes Geld ausweisen.
     static let ownMoneyCategoryIDs: Set<UUID> = [Category.transfers.id, Category.investments.id]
 
+    /// Nur Buchungen rund um die geänderten Tage prüfen: Ein neues Paar
+    /// enthält immer eine geänderte Zeile, ihr Gegenstück liegt höchstens
+    /// `maxDaysApart` Tage daneben. Ohne Tage gibt es nichts zu tun.
+    @discardableResult
+    func run(around dates: [Date], calendar: Calendar = .current) async throws -> Int {
+        guard let first = dates.min(), let last = dates.max() else { return 0 }
+        let margin = detector.maxDaysApart + 1
+        guard let start = calendar.date(byAdding: .day, value: -margin, to: calendar.startOfDay(for: first)),
+              let end = calendar.date(byAdding: .day, value: margin + 1, to: calendar.startOfDay(for: last)) else { return 0 }
+        var query = TransactionQuery()
+        query.dateInterval = DateInterval(start: start, end: end)
+        return try await run(matching: query, calendar: calendar)
+    }
+
+    /// Alle Buchungen prüfen (z. B. nach einer Wiederherstellung).
     @discardableResult
     func run(calendar: Calendar = .current) async throws -> Int {
-        let all = try await transactionRepository.transactions(matching: TransactionQuery())
+        try await run(matching: TransactionQuery(), calendar: calendar)
+    }
+
+    private func run(matching query: TransactionQuery, calendar: Calendar) async throws -> Int {
+        let all = try await transactionRepository.transactions(matching: query)
         let own = Self.ownMoneyCategoryIDs
         func isOwnMoney(_ txn: Transaction) -> Bool { txn.categoryID.map(own.contains) ?? false }
         func isOpenOrOwn(_ txn: Transaction) -> Bool { txn.categoryID == nil || isOwnMoney(txn) }

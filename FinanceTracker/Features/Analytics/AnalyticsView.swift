@@ -180,7 +180,7 @@ struct AnalyticsView: View {
         }
         .background(AppPalette.canvas)
         .workspaceNavigationTitle(String(localized: "Analyse"))
-        .task(id: model.dataRevision) {
+        .reloadWhenVisible(revision: model.dataRevision) {
             await model.load()
             await consumePendingRoute()
         }

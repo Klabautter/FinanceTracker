@@ -114,7 +114,7 @@ struct BudgetsView: View {
             #endif
             }
         }
-        .task(id: model.dataRevision) { await model.load() }
+        .reloadWhenVisible(revision: model.dataRevision) { await model.load() }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .add:

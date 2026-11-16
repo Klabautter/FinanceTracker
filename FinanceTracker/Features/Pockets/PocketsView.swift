@@ -113,7 +113,7 @@ struct PocketsView: View {
         } message: {
             Text("Die Sammlung und ihre manuellen Zuordnungen werden gelöscht. Die Transaktionen bleiben unverändert.")
         }
-        .task(id: model.dataRevision) { await model.load() }
+        .reloadWhenVisible(revision: model.dataRevision) { await model.load() }
     }
 
     private var emptyState: some View {
