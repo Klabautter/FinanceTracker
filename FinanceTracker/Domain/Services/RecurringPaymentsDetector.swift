@@ -31,8 +31,6 @@ struct RecurringSeries: Identifiable, Hashable, Sendable {
     /// Häufigste Kategorie der erkannten Buchungen; Vorbelegung beim
     /// Bestätigen (ein Sparplan übernimmt so „Geldanlage“).
     var categoryID: UUID? = nil
-
-    var isFixedCost: Bool { true }
 }
 
 struct RecurringPaymentsDetector: Sendable {
@@ -311,13 +309,4 @@ struct RecurringPaymentsDetector: Sendable {
         return sortedValues[mid]
     }
 
-    private func median(_ values: [Double]) -> Double? {
-        guard !values.isEmpty else { return nil }
-        let sortedValues = values.sorted()
-        let mid = sortedValues.count / 2
-        if sortedValues.count % 2 == 0 {
-            return (sortedValues[mid - 1] + sortedValues[mid]) / 2
-        }
-        return sortedValues[mid]
-    }
 }

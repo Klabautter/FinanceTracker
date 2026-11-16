@@ -18,8 +18,9 @@ final class MerchantDetailModel {
     /// Währungen, die zum Referenzkurs in die Basiswährung umgerechnet sind.
     private(set) var convertedCurrencies: Set<CurrencyCode> = []
     private(set) var fxSnapshot: FXRateSnapshot?
-    private(set) var isLoading = true
-    private(set) var errorMessage: String?
+    /// Rule 37: ein Ladezustand statt `isLoading` + `errorMessage`.
+    private(set) var loadState: LoadState = .idle
+    var isLoading: Bool { loadState.isLoading || loadState == .idle }
 
     init(merchantName: String, scope: AnalyticsScope, dependencies: AppDependencies) {
         self.merchantName = merchantName
@@ -36,8 +37,10 @@ final class MerchantDetailModel {
     }
 
     func load() async {
-        isLoading = true
-        errorMessage = nil
+        loadState = .loading
+        var failure: String?
+        // Endet immer, auch bei Abbruch (Rule 37).
+        defer { loadState = failure.map { .failed($0) } ?? .loaded }
         fxSnapshot = nil
 
         do {
@@ -96,14 +99,12 @@ final class MerchantDetailModel {
             total = convertedTotal
             convertedCurrencies = converted
             excludedCurrencies = excluded
-            isLoading = false
         } catch {
             total = nil
             transactions = []
             excludedCurrencies = []
             convertedCurrencies = []
-            errorMessage = String(localized: "Händler-Daten konnten nicht geladen werden.")
-            isLoading = false
+            failure = String(localized: "Händler-Daten konnten nicht geladen werden.")
         }
     }
 
@@ -133,13 +134,14 @@ struct MerchantDetailSheet: View {
     var body: some View {
         AdaptiveSheet(title: model.merchantName) {
             Group {
-                if model.isLoading {
+                switch ScreenState(load: model.loadState, hasContent: model.total != nil) {
+                case .loading:
                     LoadingStateView(label: String(localized: "Händler im gewählten Analysebereich laden…"))
-                } else if let errorMessage = model.errorMessage {
-                    ErrorStateView(message: errorMessage) {
+                case .failed(let message):
+                    ErrorStateView(message: message) {
                         Task { await model.load() }
                     }
-                } else {
+                case .empty, .content:
                     content
                 }
             }

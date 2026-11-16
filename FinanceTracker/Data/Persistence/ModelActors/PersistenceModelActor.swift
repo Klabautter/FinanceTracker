@@ -335,7 +335,6 @@ actor PersistenceModelActor {
                 )
             }
 
-            let ascendingDirection = merchantSort == true || amountSort == true
             let sortedKeys: [SortKey]
             if merchantSort != nil {
                 sortedKeys = keys.sorted {
@@ -356,7 +355,6 @@ actor PersistenceModelActor {
                         : lhs.amount > rhs.amount
                 }
             }
-            _ = ascendingDirection
 
             let pageKeys = Array(sortedKeys.dropFirst(offset).prefix(limit))
             let hasMore = sortedKeys.count > offset + limit

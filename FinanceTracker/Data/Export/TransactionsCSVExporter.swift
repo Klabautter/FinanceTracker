@@ -45,10 +45,6 @@ struct TransactionsCSVExporter: Sendable {
         tagsByID = Dictionary(uniqueKeysWithValues: input.tags.map { ($0.id, $0) })
     }
 
-    init(dependencies: AppDependencies) {
-        self.init(input: Input(transactions: [], accounts: [], categories: [], tags: []))
-    }
-
     func makeCSV(transactions: [Transaction]) -> String {
         let sorted = transactions.sorted { $0.displayDate < $1.displayDate }
         var lines = [Self.header.joined(separator: ",")]
