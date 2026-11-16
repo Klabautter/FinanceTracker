@@ -887,7 +887,7 @@ struct BankConnectView: View {
     private func waitingForAuthorization(url: URL?, institutionName: String) -> some View {
         VStack(spacing: AppSpacing.l) {
             Image(systemName: "lock.shield")
-                .font(.system(size: 44))
+                .font(AppTypography.stateSymbol)
             Text("\(institutionName) verbinden")
                 .font(.headline)
 
@@ -1004,7 +1004,7 @@ struct BankConnectView: View {
         VStack(spacing: AppSpacing.l) {
             Spacer(minLength: 0)
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 52))
+                .font(AppTypography.stateSymbol)
                 .foregroundStyle(AppPalette.positive)
                 .accessibilityHidden(true)
             VStack(spacing: AppSpacing.s) {
@@ -1047,7 +1047,7 @@ struct BankConnectView: View {
         VStack(spacing: AppSpacing.l) {
             Spacer(minLength: 0)
             Image(systemName: "tray")
-                .font(.system(size: 48))
+                .font(AppTypography.stateSymbol)
                 .foregroundStyle(AppPalette.warning)
                 .accessibilityHidden(true)
             VStack(spacing: AppSpacing.s) {

@@ -20,7 +20,11 @@ enum AppPalette {
     static let sunken = Color(light: 0xEEEEF1, dark: 0x2A2A2D)
     /// Hover/hervorgehobene Zeile.
     static let raised = Color(light: 0xF7F7F9, dark: 0x28282B)
-    static let hairline = Color(light: 0x000000, lightAlpha: 0.07, dark: 0xFFFFFF, darkAlpha: 0.08)
+    /// Trennlinien und Kartenränder; bei „Kontrast erhöhen" deutlich kräftiger.
+    static let hairline = Color(
+        light: 0x000000, lightAlpha: 0.07, dark: 0xFFFFFF, darkAlpha: 0.08,
+        highContrastLightAlpha: 0.35, highContrastDarkAlpha: 0.45
+    )
 
     /// Interaktion folgt der System-Akzentfarbe.
     static let brand = Color.accentColor
@@ -38,11 +42,24 @@ enum AppPalette {
 
 extension Color {
     /// Adaptive Farbe aus zwei Hex-Werten.
-    init(light: UInt32, lightAlpha: Double = 1, dark: UInt32, darkAlpha: Double = 1) {
+    /// `highContrast…Alpha`: Deckkraft bei „Kontrast erhöhen" (Bedienungs-
+    /// hilfen); ohne Angabe wie im normalen Modus.
+    init(
+        light: UInt32, lightAlpha: Double = 1, dark: UInt32, darkAlpha: Double = 1,
+        highContrastLightAlpha: Double? = nil, highContrastDarkAlpha: Double? = nil
+    ) {
         #if os(macOS)
         self.init(nsColor: NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua]) != nil
-            return NSColor(hex: isDark ? dark : light, alpha: isDark ? darkAlpha : lightAlpha)
+            let match = appearance.bestMatch(from: [
+                .aqua, .darkAqua, .vibrantDark,
+                .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastVibrantDark
+            ])
+            let isDark = [.darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastVibrantDark].contains(match)
+            let isHighContrast = [.accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastVibrantDark].contains(match)
+            let alpha = isDark
+                ? (isHighContrast ? highContrastDarkAlpha ?? darkAlpha : darkAlpha)
+                : (isHighContrast ? highContrastLightAlpha ?? lightAlpha : lightAlpha)
+            return NSColor(hex: isDark ? dark : light, alpha: alpha)
         })
         #elseif os(iOS)
         self.init(uiColor: UIColor { traits in
@@ -132,6 +149,14 @@ enum AppTypography {
     static let supporting = Font.callout
     static let metadata = Font.caption
     static let compactMetadata = Font.caption2
+    /// Große Symbole in Zustandsseiten (Erfolg, leer, Bank-Anmeldung).
+    static let stateSymbol = Font.system(size: 48)
+    /// Achsenbeschriftung kleiner Diagramme.
+    static let chartAxis = Font.system(size: 9, weight: .medium)
+    /// Schrittnummer in Einrichtungs-Abläufen.
+    static let stepNumber = Font.system(size: 11, weight: .medium).monospacedDigit()
+    /// Betrag in einer Kontozeile.
+    static let rowMetric = Font.system(size: 16, weight: .semibold)
 }
 
 // MARK: - Tone

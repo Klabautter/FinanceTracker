@@ -484,7 +484,7 @@ struct AccountsView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 if let balance = summary.balance {
                     MoneyText(money: balance, signed: true, tintsNegative: true)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppTypography.rowMetric)
                     Text(LiquidityPresentation.asOfText(summary, privacy: privacyState) ?? String(localized: "Stand"))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -495,7 +495,7 @@ struct AccountsView: View {
                     }
                 } else {
                     MoneyText(money: summary.netMovement, signed: true)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(AppTypography.rowMetric)
                     Text("Summe der Transaktionen")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)

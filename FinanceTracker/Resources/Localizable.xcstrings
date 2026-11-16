@@ -6512,6 +6512,26 @@
         }
       }
     },
+    "Bisher %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So far %@"
+          }
+        }
+      }
+    },
+    "Bisher %@, Vormonat bis zum gleichen Tag %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So far %@, previous month by the same day %@"
+          }
+        }
+      }
+    },
     "Bitte Application ID und privaten Schlüssel einfügen." : {
       "localizations" : {
         "de" : {

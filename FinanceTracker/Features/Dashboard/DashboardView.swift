@@ -191,7 +191,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: AppSpacing.m) {
                     Text("Willkommen").eyebrowStyle()
                     Text("Dein Monat beginnt\nmit echten Daten.")
-                        .font(.system(size: 40, weight: .semibold))
+                        .font(AppTypography.heroMetric)
                         .tracking(-1)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("Verbinde eine Bank oder importiere eine Datei. Danach siehst du Cashflow, Kategorien und Prognose für den aktuellen Monat.")
@@ -233,7 +233,7 @@ struct DashboardView: View {
     private func firstRunFeature(_ number: String, _ title: LocalizedStringKey, _ message: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: number)
-                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                .font(AppTypography.stepNumber)
                 .foregroundStyle(.tertiary)
             Text(title).font(AppTypography.sectionTitle)
             Text(message)

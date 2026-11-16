@@ -220,6 +220,17 @@ struct BentoDashboardContent: View {
         }
     }
 
+    /// Die Zahlen des Diagramms für VoiceOver: Stand heute und Vormonat am
+    /// gleichen Tag (sonst nur per Maus-Hover sichtbar).
+    private func paceAccessibilityValue(_ pace: SpendingPace) -> String {
+        let current = PrivacyAwareMoney.accessibilityLabel(pace.currentTotal, currency: model.currency, privacy: privacyState)
+        guard let previousValue = pace.previousAtSameDay else {
+            return String(localized: "Bisher \(current)")
+        }
+        let previous = PrivacyAwareMoney.accessibilityLabel(previousValue, currency: model.currency, privacy: privacyState)
+        return String(localized: "Bisher \(current), Vormonat bis zum gleichen Tag \(previous)")
+    }
+
     @ViewBuilder
     private var paceChart: some View {
         if let pace = model.spendingPace, !pace.current.isEmpty {
@@ -281,7 +292,9 @@ struct BentoDashboardContent: View {
                 }
             }
             .frame(minHeight: 170, maxHeight: 190)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("Kumulierte Ausgaben dieses Monats im Vergleich zum Vormonat")
+            .accessibilityValue(paceAccessibilityValue(pace))
         } else {
             Text("Noch keine Ausgaben in diesem Monat.")
                 .font(.callout)

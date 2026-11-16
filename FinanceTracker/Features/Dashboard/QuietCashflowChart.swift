@@ -45,7 +45,7 @@ struct QuietCashflowChart: View {
                 HStack(spacing: 0) {
                     ForEach(points) { point in
                         Text(AppDateFormatter.monthYear(point.monthStart).prefix(3).uppercased())
-                            .font(.system(size: 9, weight: .medium))
+                            .font(AppTypography.chartAxis)
                             .tracking(0.8)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
