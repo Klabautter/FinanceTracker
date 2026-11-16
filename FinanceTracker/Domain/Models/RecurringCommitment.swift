@@ -149,9 +149,11 @@ enum RecurringPaymentMatcher {
     /// normalisierten `merchantKey`, niemals über den Display-Namen.
     ///
     /// Umbenennen eines Commitments darf das Matching nicht brechen.
-    /// Commitments ohne merchantKey (reine Manuell-Erfassung) werden NICHT
-    /// heuristisch über Transaktionen gematcht; sie lösen sich über
-    /// explizite Occurrences oder geplante Termine auf.
+    /// Commitments ohne merchantKey (reine Manuell-Erfassung) passen nur
+    /// über einen festen Betrag: gleiche Richtung, Währung (und Konto, falls
+    /// gesetzt), Betrag auf 2 % genau. Ohne diesen Abgleich blieb ein
+    /// manuelles Gehalt nach dem Eingang „erwartet" und die Prognose zählte
+    /// es doppelt.
     static func matchingTransactions(
         for commitment: RecurringCommitment,
         in transactions: [Transaction],
@@ -159,7 +161,7 @@ enum RecurringPaymentMatcher {
     ) -> [Transaction] {
         guard let rawKey = commitment.matchingMerchantKey?.trimmingCharacters(in: .whitespacesAndNewlines),
               !rawKey.isEmpty else {
-            return []
+            return amountOnlyMatches(for: commitment, in: transactions)
         }
         let normalizedKey = CategoryRuleEngine.normalizedKey(rawKey)
         guard !normalizedKey.isEmpty else { return [] }
@@ -205,6 +207,29 @@ enum RecurringPaymentMatcher {
             let merchantSignatures = [txn.effectiveMerchantName, txn.rawMerchantName, txn.rawDescription]
                 .compactMap { $0 }
             return merchantSignatures.contains { CategoryRuleEngine.normalizedKey($0).contains(normalizedKey) }
+        }
+    }
+
+    /// Abgleich ohne Händler: nur feste Beträge, enge Toleranz.
+    private static func amountOnlyMatches(
+        for commitment: RecurringCommitment,
+        in transactions: [Transaction]
+    ) -> [Transaction] {
+        guard commitment.amountPolicy == .fixed, commitment.expectedAmount > 0 else { return [] }
+        let tolerance = max(Decimal(string: "0.50")!, commitment.expectedAmount * Decimal(string: "0.02")!)
+        let cashflowPolicy = CashflowPolicy.shared
+        return transactions.filter { txn in
+            guard commitment.matchingAccountID == nil || txn.accountID == commitment.matchingAccountID else { return false }
+            guard txn.amount.currency == commitment.currency, txn.status.isEffective else { return false }
+            guard !cashflowPolicy.isExcluded(txn) else { return false }
+            switch (commitment.direction, cashflowPolicy.contribution(for: txn)) {
+            case (.expense, .spending(let delta)) where delta > 0,
+                 (.income, .income(let delta)) where delta > 0:
+                break
+            default:
+                return false
+            }
+            return abs(abs(txn.amount.amount) - commitment.expectedAmount) <= tolerance
         }
     }
 

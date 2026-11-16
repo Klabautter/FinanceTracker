@@ -170,10 +170,10 @@ struct FixkostenTests {
         #expect(RecurringPaymentMatcher.matchingTransactions(for: commitment, in: [other]).isEmpty)
     }
 
-    @Test("Manuelles Commitment ohne merchantKey wird nicht heuristisch gematcht")
+    @Test("Manuelles Commitment ohne merchantKey passt nur über den Betrag")
     func manualWithoutKeyNoHeuristic() {
-        // Name "Netflix" allein ist KEINE stabile Identity mehr: Ein
-        // zufällig gleich heißer Merchant matcht nicht ohne merchantKey.
+        // Der Name ist keine Identity: ohne merchantKey zählt nur ein fester
+        // Betrag (2 % Toleranz), nie der gleich klingende Händlername.
         let manual = RecurringCommitment(
             name: "Netflix",
             merchantKey: nil,
@@ -183,8 +183,10 @@ struct FixkostenTests {
             expectedAmount: Decimal(string: "13.99")!,
             currency: .eur
         )
-        let txn = txn(merchant: "NETFLIX", amount: -Decimal(string: "13.99")!)
-        #expect(RecurringPaymentMatcher.matchingTransactions(for: manual, in: [txn]).isEmpty)
+        let sameAmount = txn(merchant: "IRGENDWER", amount: -Decimal(string: "13.99")!)
+        let sameName = txn(merchant: "NETFLIX", amount: -Decimal(string: "17.99")!)
+        #expect(RecurringPaymentMatcher.matchingTransactions(for: manual, in: [sameAmount]).count == 1)
+        #expect(RecurringPaymentMatcher.matchingTransactions(for: manual, in: [sameName]).isEmpty)
     }
 
     @Test("Leerer/Whitespace-merchantKey wird nicht als Identity genutzt")
@@ -198,7 +200,8 @@ struct FixkostenTests {
             expectedAmount: Decimal(string: "13.99")!,
             currency: .eur
         )
-        let txn = txn(merchant: "NETFLIX", amount: -Decimal(string: "13.99")!)
+        // Leerer Schlüssel = kein Schlüssel: der Name allein passt nicht.
+        let txn = txn(merchant: "NETFLIX", amount: -Decimal(string: "15.49")!)
         #expect(RecurringPaymentMatcher.matchingTransactions(for: manual, in: [txn]).isEmpty)
     }
 

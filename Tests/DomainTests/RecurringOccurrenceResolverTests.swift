@@ -164,8 +164,9 @@ struct RecurringOccurrenceResolverTests {
         #expect(!afterRemoval.isExplicitlyAssigned)
         #expect(afterRemoval.matchedTransactions.count == 1)
 
-        // Fall 2: ohne merchantKey → keine Heuristik → offen.
-        let manual = commitment(name: "Manuelles Abo", merchantKey: nil)
+        // Fall 2: ohne merchantKey zählt nur der Betrag; bei anderem Betrag
+        // bleibt der Termin offen.
+        let manual = commitment(name: "Manuelles Abo", merchantKey: nil, amount: Decimal(string: "14.99")!)
         let unassignable = resolver.resolve(
             commitment: manual,
             explicitOccurrences: [],

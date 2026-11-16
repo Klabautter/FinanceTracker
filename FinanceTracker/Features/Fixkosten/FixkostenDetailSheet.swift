@@ -382,10 +382,13 @@ struct RecurringCommitmentDraft {
     var categoryID: UUID?
     var nextExpectedDate: Date?
     var amount: Decimal
+    /// Optional gewählter Händler; ohne ihn passt der Plan nur über den Betrag.
+    var merchantKey: String? = nil
 
     func newCommitment(currency: CurrencyCode, now: Date = Date()) -> RecurringCommitment {
         RecurringCommitment(
             name: name,
+            merchantKey: merchantKey,
             direction: direction,
             cadence: cadence,
             amountPolicy: .fixed,

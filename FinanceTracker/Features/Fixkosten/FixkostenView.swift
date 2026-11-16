@@ -918,8 +918,15 @@ struct FixkostenCreateSheet: View {
     @State private var categoryID: UUID?
     @State private var nextExpectedDate = Date()
     @State private var leafCategories: [Category] = []
+    @State private var merchantKey: String?
+    @State private var merchantSuggestions: [ManualCommitmentMerchantSuggestions.Suggestion] = []
     @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
+
+    private struct SuggestionInput: Equatable {
+        let direction: RecurringCommitment.Direction
+        let amount: Decimal?
+    }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -961,6 +968,18 @@ struct FixkostenCreateSheet: View {
                     direction == .expense ? Text("Zahlungsplan") : Text("Wiederkehrende Einnahme")
                 }
 
+                Section {
+                    Picker("Händler", selection: $merchantKey) {
+                        Text("Keiner (nur über den Betrag)").tag(String?.none)
+                        ForEach(merchantSuggestions) { suggestion in
+                            Text("\(suggestion.label) (\(suggestion.count)×)").tag(String?.some(suggestion.merchantKey))
+                        }
+                    }
+                    .accessibilityIdentifier("fixkosten-create-merchant")
+                } footer: {
+                    Text("Mit Händler ordnet die App spätere Zahlungen sicher zu. Ohne Händler zählt eine Buchung mit gleichem Betrag als bezahlt.")
+                }
+
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
@@ -982,6 +1001,9 @@ struct FixkostenCreateSheet: View {
                 }
             }
             .task { await loadCategories() }
+            .task(id: SuggestionInput(direction: direction, amount: amount)) {
+                await loadMerchantSuggestions()
+            }
         }
         #if os(macOS)
         .frame(minWidth: 420, idealWidth: 460, maxWidth: 540, minHeight: 390, idealHeight: 450, maxHeight: 560)
@@ -999,6 +1021,25 @@ struct FixkostenCreateSheet: View {
         }
     }
 
+    private func loadMerchantSuggestions() async {
+        // Kurz warten, damit nicht jede Ziffer eine Abfrage auslöst.
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled else { return }
+        var query = TransactionQuery()
+        query.dateInterval = Calendar.current.date(byAdding: .day, value: -120, to: Date()).map { DateInterval(start: $0, end: Date()) }
+        guard let recent = try? await dependencies.transactionRepository.transactions(matching: query) else { return }
+        let suggestions = ManualCommitmentMerchantSuggestions.suggest(
+            direction: direction,
+            amount: amount,
+            currency: dependencies.baseCurrency,
+            transactions: recent
+        )
+        merchantSuggestions = suggestions
+        if let merchantKey, !suggestions.contains(where: { $0.merchantKey == merchantKey }) {
+            self.merchantKey = nil
+        }
+    }
+
     private func save() async {
         guard let amount, amount > 0 else {
             errorMessage = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
@@ -1010,7 +1051,8 @@ struct FixkostenCreateSheet: View {
             cadence: cadence,
             categoryID: categoryID,
             nextExpectedDate: nextExpectedDate,
-            amount: amount
+            amount: amount,
+            merchantKey: merchantKey
         )
         let commitment = draft.newCommitment(currency: dependencies.baseCurrency)
         do {

@@ -286,7 +286,9 @@ struct BankSyncService: Sendable {
                         status: status,
                         kind: .unknown,
                         amount: Money(amount: remoteTxn.amount.amount, currency: remoteTxn.amount.currency),
-                        bookedAt: remoteTxn.bookingDate,
+                        // Gebucht ohne Buchungsdatum: Wertstellung statt Abrufzeit.
+                        bookedAt: remoteTxn.bookingDate
+                            ?? (remoteTxn.state == .pending ? nil : remoteTxn.valueDate),
                         authorizedAt: remoteTxn.state == .pending ? (remoteTxn.valueDate ?? remoteTxn.bookingDate) : nil,
                         rawDescription: remoteTxn.remittanceInformation ?? merchantRaw,
                         rawMerchantName: merchantRaw,

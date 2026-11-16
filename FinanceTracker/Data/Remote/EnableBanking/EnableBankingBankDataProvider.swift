@@ -435,6 +435,17 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
         case nil: return "status (fehlt)"
         default: return "status"
         }
+        // Ein angegebenes Datum muss lesbar sein; eine gebuchte Zeile braucht
+        // mindestens Buchungs- oder Wertstellungsdatum. Sonst landete sie mit
+        // dem Abrufzeitpunkt im falschen Monat (Rule 17).
+        for (field, raw) in [("booking_date", dto.bookingDate), ("value_date", dto.valueDate), ("transaction_date", dto.transactionDate)] {
+            if let raw, !raw.isEmpty, date(fromString: raw) == nil { return field }
+        }
+        if dto.status?.uppercased() == "BOOK",
+           date(fromString: dto.bookingDate) == nil,
+           date(fromString: dto.valueDate ?? dto.transactionDate) == nil {
+            return "booking_date (fehlt)"
+        }
         return nil
     }
 
