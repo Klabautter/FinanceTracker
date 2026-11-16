@@ -57,9 +57,16 @@ final class AppCriticalFlowUITests: XCTestCase {
     @MainActor
     @discardableResult
     private func launchApp(arguments: [String] = []) -> XCUIApplication {
-        // Alte Instanzen sauber beenden und das Ende abwarten.
+        // Die installierte App (echte Daten) teilt die App-Kennung: nie
+        // beenden, sondern klar abbrechen. Nur Debug-Instanzen beenden.
+        let installedIsRunning = NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == Self.bundleID && $0.bundleURL?.path.hasPrefix("/Applications/") == true
+        }
+        if installedIsRunning {
+            XCTFail("Die installierte FinanceTracker-App läuft. Bitte zuerst beenden, dann die UI-Tests starten.")
+        }
         for running in NSWorkspace.shared.runningApplications
-        where running.bundleIdentifier == Self.bundleID {
+        where running.bundleIdentifier == Self.bundleID && running.bundleURL?.path.hasPrefix("/Applications/") != true {
             running.forceTerminate()
         }
         let killDeadline = Date().addingTimeInterval(10)

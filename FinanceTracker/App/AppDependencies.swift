@@ -115,7 +115,10 @@ struct AppDependencies: @unchecked Sendable {
         // Normale UI-/Visual-QA-Läufe verwenden bewusst den Live-Store.
         // Nur künstliche Empty-/Storage-Error-Zustände sind isoliert.
         let launch = AppLaunchEnvironment.live
-        let location: StoreLocation = launch.uiTestStoreURL.map { .url($0) } ?? .live
+        // Als Host der Unit-Tests nie die Entwicklungs-Datenbank öffnen:
+        // Migration und Startschritte liefen sonst gegen echte Testdaten.
+        let unitTestStore = AppDataDirectory.unitTestRoot()?.appendingPathComponent("FinanceTracker.store")
+        let location: StoreLocation = (launch.uiTestStoreURL ?? unitTestStore).map { .url($0) } ?? .live
         let store = try SwiftDataStore(location: location)
         var userDefaults = UserDefaults.standard
         #if DEBUG
