@@ -21,7 +21,12 @@ accounts. There is no central service behind the app.
   keychain of your Mac.
 - **Exchange rates.** The app downloads public reference rates from the
   European Central Bank; no personal data is sent.
-- **No tracking.** No analytics, no advertising, no third-party SDKs.
+- **Updates.** Once a day the app downloads the public update feed
+  (`appcast.xml`) from GitHub, and update files from GitHub Releases when you
+  install an update. This uses the open-source Sparkle framework; no personal
+  data or system profile is sent. Automatic checks can be turned off in the
+  app menu.
+- **No tracking.** No analytics, no advertising, no tracking SDKs.
 
 ## Who is responsible
 
@@ -54,6 +59,11 @@ zentralen Dienst hinter der App gibt es nicht.
 - **Dein Schlüssel bleibt bei dir:** im Schlüsselbund deines Macs.
 - **Wechselkurse** kommen als öffentliche Referenzkurse von der EZB, ohne
   personenbezogene Daten.
+- **Updates:** Einmal täglich lädt die App die öffentliche Update-Liste
+  (`appcast.xml`) von GitHub, beim Installieren eines Updates die Datei aus den
+  GitHub-Releases. Dafür nutzt sie das quelloffene Sparkle-Framework; es werden
+  keine personenbezogenen Daten und kein Systemprofil gesendet. Die
+  automatische Prüfung lässt sich im App-Menü abschalten.
 - **Kein Tracking**, keine Werbung, keine Analyse-Dienste.
 
 Verantwortlich ist die Person, die die App betreibt und die Enable-Banking-

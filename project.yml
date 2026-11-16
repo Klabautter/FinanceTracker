@@ -1,5 +1,7 @@
 name: FinanceTracker
 options:
+  # Gleiche Projektdatei auf jedem Rechner (README/CI nutzen diese Version).
+  minimumXcodeGenVersion: 2.46.0
   bundleIdPrefix: de.klabautter
   # Quelltexte sind Deutsch (Localizable.xcstrings, sourceLanguage de), die
   # Entwicklungsregion ist Englisch: Deutsch auf deutschen Macs, sonst Englisch.

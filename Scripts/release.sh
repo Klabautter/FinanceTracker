@@ -152,17 +152,54 @@ echo "   Signatur: $IDENTITY, Profil: $PROVISIONING_PROFILE, Notary-Profil: $NOT
 
 # --- 2. Bauen, signieren, notarisieren, packen ------------------------------
 
-echo "→ Erzeuge Projekt und baue Release …"
+echo "→ Erzeuge Projekt …"
 xcodegen generate >/dev/null
-xcodebuild build -project FinanceTracker.xcodeproj -scheme FinanceTracker \
+
+# Ohne grüne Tests kein Release. Die UI-Tests bewegen die Maus und laufen
+# deshalb nicht hier, sondern bewusst von Hand (VisualQAUITests).
+if [ "${FT_SKIP_TESTS:-0}" = 1 ] && [ "$DRY_RUN" = 1 ]; then
+    echo "   (dry-run) Tests übersprungen (FT_SKIP_TESTS=1)"
+else
+    echo "→ Führe Unit-Tests aus (dauert etwa zwei Minuten) …"
+    TEST_LOG="$ROOT/build/release-tests.log"
+    mkdir -p "$ROOT/build"
+    if ! xcodebuild test -project FinanceTracker.xcodeproj -scheme FinanceTracker \
+        -destination 'platform=macOS' -skip-testing:FinanceTrackerUITests_macOS \
+        >"$TEST_LOG" 2>&1; then
+        grep -E "recorded an issue| error: |Test run with" "$TEST_LOG" | tail -20 >&2 || true
+        echo "Tests fehlgeschlagen, kein Release. Ausgabe: $TEST_LOG" >&2
+        exit 1
+    fi
+    grep -E "Test run with" "$TEST_LOG" | tail -1 || true
+fi
+
+echo "→ Baue Release …"
+APP="$DERIVED/Build/Products/Release/FinanceTracker.app"
+# Eine App aus einem früheren, abgebrochenen Lauf darf nie ausgeliefert werden.
+rm -rf "$APP"
+BUILD_LOG="$ROOT/build/release-build.log"
+mkdir -p "$ROOT/build"
+if ! xcodebuild build -project FinanceTracker.xcodeproj -scheme FinanceTracker \
     -configuration Release -derivedDataPath "$DERIVED" \
     CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$IDENTITY" "DEVELOPMENT_TEAM=$TEAM_ID" \
     "PROVISIONING_PROFILE_SPECIFIER=$PROVISIONING_PROFILE" \
-    "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO 2>&1 \
-    | grep -E " error: |BUILD (SUCCEEDED|FAILED)" || true
-
-APP="$DERIVED/Build/Products/Release/FinanceTracker.app"
+    "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+    >"$BUILD_LOG" 2>&1; then
+    grep -E " error: " "$BUILD_LOG" | head -20 >&2 || true
+    echo "Build fehlgeschlagen, kein Release. Ausgabe: $BUILD_LOG" >&2
+    exit 1
+fi
 [ -d "$APP" ] || { echo "Build fehlgeschlagen: $APP fehlt" >&2; exit 1; }
+
+# Abhängigkeiten exakt wie eingecheckt (Config/Package.resolved): eine
+# andere Sparkle-Revision würde unbemerkt mit ausgeliefert.
+RESOLVED="FinanceTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+if ! diff -q <(grep '"revision"' "$RESOLVED") <(grep '"revision"' Config/Package.resolved) >/dev/null; then
+    echo "Paket-Revisionen weichen von Config/Package.resolved ab:" >&2
+    diff <(grep -E '"(identity|revision|version)"' Config/Package.resolved) <(grep -E '"(identity|revision|version)"' "$RESOLVED") >&2 || true
+    echo "Absichtlich aktualisiert? Dann Config/Package.resolved ersetzen und committen." >&2
+    exit 1
+fi
 
 # Sparkles Hilfsprogramme von innen nach außen mit der Developer ID neu
 # signieren, sonst lehnt die Notarisierung sie ab
