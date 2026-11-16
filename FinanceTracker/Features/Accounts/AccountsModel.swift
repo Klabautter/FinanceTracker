@@ -113,7 +113,7 @@ final class AccountsModel {
             actionError = String(localized: "Sync fehlgeschlagen: \(Self.providerFailureMessage(for: error))")
             return nil
         } catch {
-            actionError = String(localized: "Sync fehlgeschlagen: \(error.localizedDescription)")
+            actionError = String(localized: "Sync fehlgeschlagen: \(BankErrorPresentation.message(for: error))")
             return nil
         }
     }
@@ -122,21 +122,7 @@ final class AccountsModel {
     /// unbenutzbar: HTTP-Status und Provider-Fehlerbody sind die konkrete
     /// Ursache (z. B. abgelaufene Session) und werden sichtbar gemacht.
     private static func providerFailureMessage(for error: BankProviderError) -> String {
-        switch error {
-        case .missingCredentials:
-            return String(localized: "Keine Provider-Zugangsdaten hinterlegt. Bitte die Verbindung neu herstellen.")
-        case .invalidResponse:
-            return String(localized: "Der Provider hat eine unlesbare Antwort geschickt.")
-        case .requestFailed(_, let status, let body):
-            let detail = body.flatMap { body in
-                let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : String(trimmed.prefix(160))
-            }
-            if let detail {
-                return String(localized: "Die Bank-API hat HTTP \(status) gemeldet: \(detail).")
-            }
-            return String(localized: "Die Bank-API hat HTTP \(status) gemeldet.")
-        }
+        BankErrorPresentation.message(for: error)
     }
 
     func disconnect(connection: Connection) async {

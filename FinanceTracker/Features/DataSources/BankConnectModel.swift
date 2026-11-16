@@ -725,15 +725,8 @@ final class BankConnectModel {
     }
 
     static func authorizationFailureMessage(_ error: Error) -> String {
-        if case BankProviderError.requestFailed(_, let status, let body) = error {
-            var text = String(localized: "Enable Banking hat die Anfrage abgelehnt (HTTP \(status)).")
-            if let body, !body.isEmpty {
-                text += "\n" + String(localized: "API-Antwort: \(body)")
-            }
-            text += "\n" + String(localized: "Der Code ist einmalig nutzbar. Bitte einen frischen Code erzeugen (Bank-Login erneut durchlaufen).")
-            return text
-        }
-        return String(localized: "Die Sitzung konnte nicht autorisiert werden (\(String(describing: error))). Der Code ist einmalig nutzbar. Bitte einen frischen Code erzeugen.")
+        BankErrorPresentation.message(for: error) + "\n"
+            + String(localized: "Ein Anmeldecode gilt nur einmal: Bank-Anmeldung bitte neu starten.")
     }
 
     static func firstURL(in text: String) -> URLComponents? {

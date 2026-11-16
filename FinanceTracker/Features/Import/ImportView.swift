@@ -34,6 +34,12 @@ struct ImportView: View {
         .financeFormStyle()
         .navigationTitle("Import")
         .accessibilityIdentifier("screen-ready-import")
+        // Datei aus dem Finder hineinziehen statt über den Dialog wählen.
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first(where: \.isFileURL) else { return false }
+            Task { await model.prepareFile(at: url) }
+            return true
+        }
         .fileImporter(
             isPresented: $showsFileImporter,
             allowedContentTypes: Self.supportedContentTypes,

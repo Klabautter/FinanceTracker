@@ -437,6 +437,12 @@ struct BankConnectView: View {
             }
         }
         .financeFormStyle()
+        // Die heruntergeladene .pem-Datei direkt hineinziehen.
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first(where: \.isFileURL) else { return false }
+            Task { await model.importPrivateKeyFile(at: url) }
+            return true
+        }
         .fileImporter(
             isPresented: $importsKeyFile,
             allowedContentTypes: Self.keyFileTypes,

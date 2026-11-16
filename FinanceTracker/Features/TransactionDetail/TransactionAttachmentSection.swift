@@ -85,6 +85,16 @@ struct TransactionAttachmentSection: View {
         // WP16 (§115): QuickLook-Preview für PDF/Bilder.
         .quickLookPreview($previewURL)
         #endif
+        // Beleg (PDF, Foto) aus dem Finder auf die Buchung ziehen.
+        .dropDestination(for: URL.self) { urls, _ in
+            let supported: Set<String> = ["pdf", "png", "jpg", "jpeg", "heic"]
+            guard let url = urls.first(where: { $0.isFileURL && supported.contains($0.pathExtension.lowercased()) }) else {
+                return false
+            }
+            let transactionID = transaction.id
+            Task { await importFile(url, transactionID: transactionID) }
+            return true
+        }
         .confirmationDialog(
             "Beleg löschen?",
             isPresented: Binding(
