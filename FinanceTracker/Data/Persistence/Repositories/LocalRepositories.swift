@@ -175,6 +175,10 @@ final class LocalTransactionRepository: TransactionRepository {
         try await persistence.deleteTransactions(ids: ids)
     }
 
+    func purgeOrphanedDependents() async throws -> Int {
+        try await persistence.purgeOrphanedTransactionDependents()
+    }
+
     func count() async throws -> Int {
         try await persistence.countTransactions()
     }

@@ -247,6 +247,32 @@ final class ImportModel {
         return (stored?[accountID.uuidString] ?? [:]).compactMapValues(TransactionTypeMeaning.init(rawValue:))
     }
 
+    /// Dezimaltrenner, den der Nutzer für mehrdeutige Beträge dieses Kontos
+    /// bestätigt hat („1.000" = tausend oder eins).
+    private static let decimalSeparatorDefaultsKey = "importDecimalSeparatorByAccount"
+
+    func savedDecimalSeparator(for accountID: UUID) -> Character? {
+        let stored = dependencies.userDefaults.dictionary(forKey: Self.decimalSeparatorDefaultsKey) as? [String: String]
+        return stored?[accountID.uuidString]?.first
+    }
+
+    /// Merkt sich die Antwort für das Konto und liest die Datei damit neu.
+    func applyDecimalSeparator(_ separator: Character) async {
+        guard let accountID = preparedImport?.targetAccountID ?? selectedAccountID else { return }
+        var stored = dependencies.userDefaults.dictionary(forKey: Self.decimalSeparatorDefaultsKey) as? [String: String] ?? [:]
+        stored[accountID.uuidString] = String(separator)
+        dependencies.userDefaults.set(stored, forKey: Self.decimalSeparatorDefaultsKey)
+
+        guard let last = lastPreparation else { return }
+        do {
+            try await runPreparation(last.file, providerDisplayName: last.providerDisplayName, provider: last.provider)
+        } catch let error as ImportError {
+            fail(error.userFacingMessage)
+        } catch {
+            fail(String(localized: "Die Datei konnte nicht erneut vorbereitet werden."))
+        }
+    }
+
     /// Speichert die Zuordnung für das Zielkonto und bereitet die Datei neu
     /// vor; beim nächsten Import desselben Kontos fragt die Vorschau nicht
     /// mehr.
@@ -323,7 +349,9 @@ final class ImportModel {
         // Gespeicherte Zuordnungen unbekannter Buchungsarten für dieses Konto.
         let effectiveProvider: any ImportProvider
         if let generic = provider as? GenericCSVProvider {
-            effectiveProvider = generic.with(typeMeanings: savedTypeMeanings(for: accountID))
+            effectiveProvider = generic
+                .with(typeMeanings: savedTypeMeanings(for: accountID))
+                .with(decimalSeparatorChoice: savedDecimalSeparator(for: accountID))
         } else {
             effectiveProvider = provider
         }
@@ -384,6 +412,8 @@ final class ImportModel {
     /// Nur den Kontostand aus der Datei übernehmen, keine Buchungen.
     func confirmBalanceOnly() async {
         guard let prepared = preparedImport else { return }
+        // Mehrdeutige Beträge erst nach der Antwort übernehmen (#17).
+        guard prepared.assumedDecimalSeparator == nil else { return }
         phase = .running
         do {
             try await pipeline.commitBalanceOnly(prepared)
@@ -464,6 +494,12 @@ final class ImportModel {
         isRollingBack = true
         defer { isRollingBack = false }
         do {
+            // Belege eingefügter Buchungen zuerst entfernen (Datei, dann
+            // Metadaten), sonst bleiben Dateien ohne Buchung zurück.
+            if let batch = try await dependencies.importBatchRepository.batch(id: batchID) {
+                let insertedIDs = Set(batch.mutations.filter { $0.kind == .inserted }.map(\.transactionID))
+                try await AttachmentCleanup.removeAttachments(of: insertedIDs, dependencies: dependencies)
+            }
             try await dependencies.importBatchRepository.rollbackImportBatch(id: batchID)
             if lastCompletedBatchID == batchID {
                 lastCompletedBatchID = nil

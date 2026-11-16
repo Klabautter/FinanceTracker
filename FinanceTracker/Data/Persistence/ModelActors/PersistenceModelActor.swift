@@ -1714,12 +1714,12 @@ actor PersistenceModelActor {
         }
     }
 
-    /// Löscht Buchungszeilen und alles, was nur mit ihnen Sinn ergibt:
-    /// Suchindex, Tags, Anteile, Annotationen, Splits, Sammlungs-Overrides
-    /// und Zuordnungen zu Zahlungsplänen. Speichert NICHT: der Aufrufer
-    /// entscheidet über save/rollback.
-    private func deleteTransactionRowsWithDependents(_ rows: [SDTransactionEntity]) throws {
-        let transactionIDs = Set(rows.map(\.id))
+    /// Alle Zeilen, die nur zusammen mit einer Buchung Sinn ergeben:
+    /// Suchindex, Tags, Anteile, Annotationen, Splits, Sammlungs-Overrides,
+    /// Zuordnungen zu Zahlungsplänen und Beleg-Metadaten. Jeder Löschpfad
+    /// für Buchungen läuft hierüber, damit keiner etwas vergisst (sonst
+    /// lehnt die Wiederherstellung spätere Backups ab). Speichert NICHT.
+    private func deleteTransactionDependents(transactionIDs: Set<UUID>) throws {
         guard !transactionIDs.isEmpty else { return }
         try deleteDerivedTransactionIndexes(transactionIDs: transactionIDs)
         try deleteSharedExpenseShareRows(transactionIDs: transactionIDs)
@@ -1743,6 +1743,52 @@ actor PersistenceModelActor {
         )) {
             modelContext.delete(row)
         }
+        for row in try modelContext.fetch(FetchDescriptor<SDTransactionAttachmentEntity>(
+            predicate: #Predicate { transactionIDs.contains($0.transactionID) }
+        )) {
+            modelContext.delete(row)
+        }
+    }
+
+    /// Einmalige Reparatur: Zeilen, deren Buchung fehlt (frühere Lücken im
+    /// Import-Rückgängig), blockierten die Wiederherstellung jedes späteren
+    /// Backups. Speichert selbst; liefert die Anzahl entfernter Zeilen.
+    func purgeOrphanedTransactionDependents() throws -> Int {
+        var idDescriptor = FetchDescriptor<SDTransactionEntity>()
+        idDescriptor.propertiesToFetch = [\.id]
+        let existing = Set(try modelContext.fetch(idDescriptor).map(\.id))
+        var removed = 0
+        func purge<T: PersistentModel>(_ type: T.Type, _ transactionID: (T) -> UUID) throws {
+            for row in try modelContext.fetch(FetchDescriptor<T>()) where !existing.contains(transactionID(row)) {
+                modelContext.delete(row)
+                removed += 1
+            }
+        }
+        do {
+            try purge(SDTransactionAnnotationEntity.self) { $0.transactionID }
+            try purge(SDTransactionSplitLineEntity.self) { $0.parentTransactionID }
+            try purge(SDTransactionCollectionOverrideEntity.self) { $0.transactionID }
+            try purge(SDRecurringOccurrenceEntity.self) { $0.transactionID }
+            try purge(SDSharedExpenseShareEntity.self) { $0.transactionID }
+            try purge(SDTransactionSearchEntity.self) { $0.transactionID }
+            try purge(SDTransactionTagEntity.self) { $0.transactionID }
+            try purge(SDTransactionAttachmentEntity.self) { $0.transactionID }
+            if modelContext.hasChanges { try modelContext.save() }
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+        return removed
+    }
+
+    /// Löscht Buchungszeilen und alles, was nur mit ihnen Sinn ergibt:
+    /// Suchindex, Tags, Anteile, Annotationen, Splits, Sammlungs-Overrides
+    /// und Zuordnungen zu Zahlungsplänen. Speichert NICHT: der Aufrufer
+    /// entscheidet über save/rollback.
+    private func deleteTransactionRowsWithDependents(_ rows: [SDTransactionEntity]) throws {
+        let transactionIDs = Set(rows.map(\.id))
+        guard !transactionIDs.isEmpty else { return }
+        try deleteTransactionDependents(transactionIDs: transactionIDs)
         // Importe, deren Buchungen damit vollständig verschwinden, sollen
         // nicht als leere Einträge in „Letzte Imports" stehen bleiben.
         // Importe, die zusätzlich bestehende Buchungen aktualisiert haben,
@@ -1903,11 +1949,7 @@ actor PersistenceModelActor {
                 predicate: #Predicate { $0.importBatchID == importBatchID }
             )
             let rows = try modelContext.fetch(descriptor)
-            try deleteDerivedTransactionIndexes(transactionIDs: Set(rows.map(\.id)))
-            try deleteSharedExpenseShareRows(transactionIDs: Set(rows.map(\.id)))
-            for entity in rows {
-                modelContext.delete(entity)
-            }
+            try deleteTransactionRowsWithDependents(rows)
             try modelContext.save()
         } catch {
             modelContext.rollback()
@@ -2317,10 +2359,15 @@ actor PersistenceModelActor {
             )
             guard let batchEntity = try modelContext.fetch(batchDescriptor).first else { return }
 
+            // Ohne lesbare Mutationen ist unbekannt, was der Import geändert
+            // hat. Dann nichts löschen und den Import nicht verwerfen (§17).
             let mutations: [ImportMutation]
-            if let data = batchEntity.mutationsJSON,
-               let decoded = try? JSONDecoder().decode([ImportMutation].self, from: data) {
-                mutations = decoded
+            if let data = batchEntity.mutationsJSON {
+                do {
+                    mutations = try JSONDecoder().decode([ImportMutation].self, from: data)
+                } catch {
+                    throw PersistenceDecodingError.invalidJSON(field: "ImportBatch.mutationsJSON")
+                }
             } else {
                 mutations = []
             }
@@ -2340,17 +2387,20 @@ actor PersistenceModelActor {
                 switch mutation.kind {
                 case .inserted:
                     insertedIDs.insert(mutation.transactionID)
-                    modelContext.delete(entity)
                 case .updated:
                     guard let snapshot = mutation.previousSnapshot else { continue }
-                    let restored = snapshot.restoring(id: mutation.transactionID)
+                    let restored = try snapshot.restoring(id: mutation.transactionID)
                     entity.update(from: restored)
                     restoredTransactions.append(restored)
                 }
             }
 
-            try deleteDerivedTransactionIndexes(transactionIDs: insertedIDs)
-            try deleteSharedExpenseShareRows(transactionIDs: insertedIDs)
+            // Eingefügte Buchungen verschwinden samt allem, was daran hängt
+            // (Annotationen, Splits, Overrides, Zuordnungen, Belege).
+            try deleteTransactionDependents(transactionIDs: insertedIDs)
+            for id in insertedIDs {
+                if let entity = rowsByID[id] { modelContext.delete(entity) }
+            }
             try syncDerivedTransactionIndexes(for: restoredTransactions)
             modelContext.delete(batchEntity)
             try modelContext.save()

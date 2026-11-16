@@ -97,6 +97,9 @@ struct FinanceTrackerApp: App {
                             // kategorien + Händler-Regeln) für JEDER Installation,
                             // inkl. einmaligem Rückfill offener Buchungen.
                             await SystemCatalogSeeder(dependencies: dependencies).seedIfNeeded()
+                            // Reste früherer Import-Rückgängig-Läufe entfernen,
+                            // sonst ließen sich Backups nicht wiederherstellen.
+                            _ = try? await dependencies.transactionRepository.purgeOrphanedDependents()
                             // Doppelte nach Neu-Autorisierung zusammenführen (Enable Banking).
                             _ = try? await EnableBankingExternalIDMigration(
                                 transactionRepository: dependencies.transactionRepository

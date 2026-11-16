@@ -69,6 +69,18 @@ struct BackupPackageTests {
         #expect(try await fresh.transactionRepository.transactions(matching: TransactionQuery()).map(\.id) == [transaction.id])
     }
 
+    @Test("Export schreibt kein Backup, das sich nicht wiederherstellen ließe")
+    func exportRejectsUnrestorableBackup() async throws {
+        let dependencies = try makeDependencies()
+        let transaction = Transaction(accountID: UUID(), source: .manual, externalID: "orphan", status: .booked,
+            kind: .purchase, amount: Money(amount: -1, currency: .eur), bookedAt: Date(),
+            rawDescription: "Ungültig", rawMerchantName: "Ungültig", merchantDisplayName: "Ungültig")
+        try await dependencies.transactionRepository.upsert([transaction])
+        await #expect(throws: BackupExportError.self) {
+            _ = try await BackupService.makeBackup(dependencies: dependencies)
+        }
+    }
+
     @Test("Restore lehnt fehlende Referenzen und unvollständige Belege vor Änderungen ab")
     func restoreRejectsIncompletePackages() async throws {
         let dependencies = try makeDependencies()
@@ -76,7 +88,7 @@ struct BackupPackageTests {
             kind: .purchase, amount: Money(amount: -1, currency: .eur), bookedAt: Date(),
             rawDescription: "Ungültig", rawMerchantName: "Ungültig", merchantDisplayName: "Ungültig")
         try await dependencies.transactionRepository.upsert([transaction])
-        let orphan = try await BackupService.makeBackup(dependencies: dependencies)
+        let orphan = try await BackupService.makeBackup(dependencies: dependencies, validate: false)
         #expect(throws: BackupError.self) { try BackupRestoreService.prepare(BackupService.package(backup: orphan, attachmentFiles: [], appVersion: "Test")) }
         #expect(throws: BackupError.self) { try BackupRestoreService.validatePath("../secret") }
         #expect(throws: BackupError.self) { try BackupRestoreService.validatePath("/absolute") }
@@ -423,7 +435,7 @@ struct BackupPackageTests {
     @Test("V3 maskiert fehlende oder korrupte Collection-Daten nicht")
     func corruptCurrentCollectionDataFails() async throws {
         let dependencies = try makeDependencies()
-        let current = try await BackupService.makeBackup(dependencies: dependencies)
+        let current = try await BackupService.makeBackup(dependencies: dependencies, validate: false)
         var missing = try #require(
             JSONSerialization.jsonObject(with: BackupService.encode(current)) as? [String: Any]
         )
@@ -447,7 +459,7 @@ struct BackupPackageTests {
                 decision: .include
             )
         ])
-        let populated = try await BackupService.makeBackup(dependencies: dependencies)
+        let populated = try await BackupService.makeBackup(dependencies: dependencies, validate: false)
         var corrupt = try #require(
             JSONSerialization.jsonObject(with: BackupService.encode(populated)) as? [String: Any]
         )

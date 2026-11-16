@@ -187,7 +187,9 @@ enum BackupService {
     /// Batch-Größe für den Transaktions-Paging-Pfad.
     static let transactionPageSize = 1000
 
-    nonisolated static func makeBackup(dependencies: AppDependencies) async throws -> FinanceTrackerBackup {
+    /// - Parameter validate: Nur Tests schalten die Prüfung ab, um gezielt
+    ///   ungültige Backups für die Restore-Prüfung zu bauen.
+    nonisolated static func makeBackup(dependencies: AppDependencies, validate: Bool = true) async throws -> FinanceTrackerBackup {
         async let accountsTask = dependencies.accountRepository.accounts()
         async let annotationsTask = dependencies.transactionAnnotationRepository.annotations()
         async let collectionsTask = dependencies.transactionCollectionRepository.collections()
@@ -211,7 +213,7 @@ enum BackupService {
             repository: dependencies.transactionRepository
         )
 
-        return FinanceTrackerBackup(
+        let backup = FinanceTrackerBackup(
             formatVersion: FinanceTrackerBackup.formatVersion,
             exportedAt: Date(),
             accounts: try await accountsTask,
@@ -233,6 +235,14 @@ enum BackupService {
             connections: try await connectionsTask,
             merchants: try await merchantsTask
         )
+        // Dieselbe Prüfung wie beim Wiederherstellen: ein Backup, das sich
+        // nicht wiederherstellen ließe, wird gar nicht erst geschrieben.
+        do {
+            if validate { try BackupRestoreService.validate(backup) }
+        } catch {
+            throw BackupExportError.notRestorable(reason: error.localizedDescription)
+        }
+        return backup
     }
 
     /// Batched Voll-Load über existierendes Paging (fetchOffset/fetchLimit).
@@ -244,6 +254,7 @@ enum BackupService {
         pageSize: Int = BackupService.transactionPageSize
     ) async throws -> [Transaction] {
         var all: [Transaction] = []
+        var seen = Set<UUID>()
         var offset = 0
         while true {
             let page = try await repository.transactionPage(
@@ -252,9 +263,18 @@ enum BackupService {
                 offset: offset,
                 limit: pageSize
             )
-            all.append(contentsOf: page.transactions)
+            for transaction in page.transactions where seen.insert(transaction.id).inserted {
+                all.append(transaction)
+            }
             if !page.hasMore || page.transactions.isEmpty { break }
             offset += page.transactions.count
+        }
+        // Ändert sich der Bestand während des Pagings (z. B. Bankabruf),
+        // können Zeilen über Seitengrenzen rutschen. Dann einmal komplett
+        // laden statt ein lückenhaftes Backup zu schreiben.
+        let total = try await repository.transactions(matching: TransactionQuery())
+        if total.count != all.count || Set(total.map(\.id)) != seen {
+            return total
         }
         return all
     }
@@ -470,5 +490,17 @@ struct BackupPackageDocument: FileDocument {
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: data)
+    }
+}
+
+/// Fehler beim Erstellen eines Backups.
+enum BackupExportError: LocalizedError, Equatable {
+    case notRestorable(reason: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notRestorable(let reason):
+            String(localized: "Das Backup wurde nicht gespeichert, weil es sich nicht wiederherstellen ließe: \(reason)")
+        }
     }
 }

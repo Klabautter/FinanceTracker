@@ -57,17 +57,28 @@ struct TransactionSnapshot: Codable, Sendable, Hashable {
         self.updatedAt = transaction.updatedAt
     }
 
-    func restoring(id: UUID) -> Transaction {
-        Transaction(
+    /// Stellt die Buchung vor dem Import wieder her. Ein unlesbarer Wert
+    /// wirft, statt als „manuell", „gebucht" oder 0 zurückzukehren (§23).
+    func restoring(id: UUID) throws -> Transaction {
+        guard let source = TransactionSource(rawValue: sourceRaw) else {
+            throw ImportMutationError.corruptSnapshot(field: "source", raw: sourceRaw)
+        }
+        guard let status = TransactionStatus(rawValue: statusRaw) else {
+            throw ImportMutationError.corruptSnapshot(field: "status", raw: statusRaw)
+        }
+        guard let amount = Decimal(string: amountValue, locale: Locale(identifier: "en_US_POSIX")) else {
+            throw ImportMutationError.corruptSnapshot(field: "amount", raw: amountValue)
+        }
+        return Transaction(
             id: id,
             accountID: accountID,
-            source: TransactionSource(rawValue: sourceRaw) ?? .manual,
+            source: source,
             externalID: externalID,
             sourceFingerprint: sourceFingerprint,
-            status: TransactionStatus(rawValue: statusRaw) ?? .booked,
+            status: status,
             kind: kindRaw.flatMap(TransactionKind.init(rawValue:)) ?? .unknown,
             amount: Money(
-                amount: Decimal(string: amountValue) ?? 0,
+                amount: amount,
                 currency: CurrencyCode(amountCurrencyRaw)
             ),
             bookedAt: bookedAt,
@@ -107,4 +118,9 @@ struct ImportMutation: Codable, Sendable, Hashable {
         self.kind = kind
         self.previousSnapshot = previousSnapshot
     }
+}
+
+/// Ein gespeicherter Vorher-Stand eines Imports ist nicht mehr lesbar.
+enum ImportMutationError: Error, Equatable, Sendable {
+    case corruptSnapshot(field: String, raw: String)
 }

@@ -48,9 +48,16 @@ protocol TransactionRepository: Sendable {
     /// Extension), damit Aufrufe über `any TransactionRepository` den
     /// schnellen Pfad des Live-Repositories erreichen.
     func accountMovementRows() async throws -> [AccountMovementRow]
+
+    /// Entfernt Zeilen, deren Buchung nicht mehr existiert (Annotationen,
+    /// Splits, Zuordnungen, Belege …). Liefert die Anzahl entfernter Zeilen.
+    func purgeOrphanedDependents() async throws -> Int
 }
 
 extension TransactionRepository {
+    /// Nur persistente Repositories können verwaiste Zeilen haben.
+    func purgeOrphanedDependents() async throws -> Int { 0 }
+
     /// WP13/WP14 (§98/§103): Leichte Review-Projection (globale Kandidaten
     /// ohne Full-Domain-Hydration). Persistente Implementierungen
     /// überschreiben mit einem propertiesToFetch-basierten Pfad; der
