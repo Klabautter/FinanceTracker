@@ -17,6 +17,11 @@ enum UITestLaunch {
     ) {
         // Jeder UI-Test-Start ist markiert: Die App ruft dann keine
         // Bankdaten von selbst ab (Live-Store bleibt lesend).
+        // Die Tests suchen deutsche Beschriftungen: Sprache fest vorgeben,
+        // unabhängig von der Systemsprache des Rechners.
+        if !app.launchArguments.contains("-AppleLanguages") {
+            app.launchArguments += ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
+        }
         if !app.launchArguments.contains("-ui-testing") {
             app.launchArguments.append("-ui-testing")
         }
