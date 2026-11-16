@@ -232,7 +232,14 @@ enum BackupService {
             importBatches: try await batchesTask,
             sharedExpenseShares: try await sharesTask,
             attachments: try await attachmentsTask,
-            connections: try await connectionsTask,
+            // Die Sitzungs-ID der Bank gehört nicht in eine Datei, die
+            // weitergegeben werden kann (Rule 34). Nach einer Wiederherstellung
+            // wird die Bank neu verbunden.
+            connections: try await connectionsTask.map { connection in
+                var exported = connection
+                exported.providerConnectionID = nil
+                return exported
+            },
             merchants: try await merchantsTask
         )
         // Dieselbe Prüfung wie beim Wiederherstellen: ein Backup, das sich

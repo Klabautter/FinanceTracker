@@ -5,8 +5,17 @@ protocol HTTPTransport: Sendable {
 }
 
 struct URLSessionTransport: HTTPTransport {
+    /// Ohne Plattencache und ohne dauerhafte Cookies: Bankantworten sollen
+    /// nicht in `Library/Caches` liegen bleiben.
+    static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration)
+    }()
+
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await Self.session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw BankProviderError.invalidResponse(endpoint: request.url?.path ?? "?")
         }

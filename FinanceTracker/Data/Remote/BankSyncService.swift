@@ -461,9 +461,18 @@ struct BankSyncService: Sendable {
         String(id.uuidString.prefix(8))
     }
 
+    /// Pfad ohne Konto- und Sitzungskennungen (nur deren letzte vier
+    /// Zeichen), damit Logs nichts enthalten, womit sich ein Konto abfragen
+    /// ließe.
+    static func redacted(_ endpoint: String) -> String {
+        endpoint.split(separator: "/", omittingEmptySubsequences: false).map { segment in
+            segment.count >= 16 ? "…" + segment.suffix(4) : String(segment)
+        }.joined(separator: "/")
+    }
+
     static func describe(_ error: Error) -> String {
         if case BankProviderError.requestFailed(let endpoint, let status, _) = error {
-            return "HTTP \(status) bei \(endpoint)"
+            return "HTTP \(status) bei \(redacted(endpoint))"
         }
         if case BankProviderError.invalidResponse(let endpoint) = error {
             return "unlesbare Antwort bei \(endpoint)"

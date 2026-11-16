@@ -102,8 +102,22 @@ struct TransactionsCSVExporter: Sendable {
     /// RFC 4180: Felder mit Komma, Anführungszeichen oder Zeilenumbruch
     /// in doppelte Anführungszeichen; doppelte Quotes verdoppeln.
     static func escape(_ value: String) -> String {
+        let value = neutralizingFormula(value)
         if value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r") {
             return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        return value
+    }
+
+    /// Ein Händlername wie „=HYPERLINK(…)" würde in Excel oder Numbers als
+    /// Formel ausgeführt. Solche Texte bekommen ein führendes Apostroph;
+    /// Zahlen wie „-12.50" bleiben unverändert.
+    static func neutralizingFormula(_ value: String) -> String {
+        guard let first = value.first else { return value }
+        // Decimal(string:) liest auch Präfixe („-Rabatt" → 0): streng prüfen.
+        let isNumber = value.range(of: #"\A-?[0-9]+([.,][0-9]+)?\z"#, options: .regularExpression) != nil
+        if "=+@\t\r".contains(first) || (first == "-" && !isNumber) {
+            return "'" + value
         }
         return value
     }
