@@ -93,6 +93,11 @@ struct RecurringPaymentsDetector: Sendable {
             // Sparplan sichtbar. Strengere Schwelle, damit zufällig gleiche
             // Einkaufsbeträge keine Serie ergeben.
             for cluster in amountClusters(txns) where cluster.count >= tolerance.minimumOccurrences + 1 {
+                // Schwankende Händler (Tanken, Supermarkt) ergeben zufällig
+                // Stufen ähnlicher Beträge im Monatsabstand. Eine Teil-Serie
+                // braucht deshalb einen festen Preis und muss entweder einen
+                // guten Teil der Buchungen ausmachen oder centgenau gleich sein.
+                guard Self.looksLikeFixedPrice(cluster, groupCount: txns.count) else { continue }
                 let clusterAmount = medianDecimal(cluster.map { abs($0.amount.amount) }) ?? 0
                 let clusterID = key + "|" + NSDecimalNumber(decimal: clusterAmount).stringValue
                 if let part = makeSeries(id: clusterID, transactions: cluster, calendar: calendar, now: now),
@@ -258,6 +263,19 @@ struct RecurringPaymentsDetector: Sendable {
             }
         }
         return clusters
+    }
+
+    /// Fester Preis einer Teil-Serie: alle Beträge auf 2 % (mind. 0,50)
+    /// beim Median; dazu mindestens ein Drittel der Händler-Buchungen oder
+    /// centgenau gleiche Beträge (Abo zwischen gleich teuren Einzelkäufen).
+    static func looksLikeFixedPrice(_ cluster: [Transaction], groupCount: Int) -> Bool {
+        let amounts = cluster.map { abs($0.amount.amount) }.sorted()
+        guard !amounts.isEmpty else { return false }
+        let typical = amounts[amounts.count / 2]
+        let tight = max(Decimal(string: "0.50")!, typical * Decimal(string: "0.02")!)
+        guard amounts.allSatisfy({ abs($0 - typical) <= tight }) else { return false }
+        let identical = Set(amounts).count == 1
+        return identical || cluster.count * 3 >= groupCount
     }
 
     /// Drei Wochenzahlungen können noch Zufall sein (ein Monat Einkaufen).
