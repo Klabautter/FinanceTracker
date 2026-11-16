@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Focused Actions (WP22)
@@ -232,18 +233,32 @@ struct FinanceCommands: Commands {
         }
 
         CommandGroup(replacing: .undoRedo) {
-            Button(undoTitle) {
-                undoActions?.undo()
+            // Im Textfeld gilt das Rückgängig des Textfelds (Tippfehler),
+            // sonst das der Transaktionsliste; ohne beides der Standardweg
+            // über die Responder-Kette (Formulare, Sheets).
+            Button(Self.isEditingText ? String(localized: "Rückgängig machen") : undoTitle) {
+                if !Self.isEditingText, let undoActions, undoActions.canUndo {
+                    undoActions.undo()
+                } else {
+                    NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("z", modifiers: .command)
-            .disabled(!(undoActions?.canUndo ?? false))
 
-            Button(redoTitle) {
-                undoActions?.redo()
+            Button(Self.isEditingText ? String(localized: "Wiederholen") : redoTitle) {
+                if !Self.isEditingText, let undoActions, undoActions.canRedo {
+                    undoActions.redo()
+                } else {
+                    NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
-            .disabled(!(undoActions?.canRedo ?? false))
         }
+    }
+
+    /// Ein Textfeld hat den Fokus (Feld-Editor ist Erster Antwortgeber).
+    @MainActor private static var isEditingText: Bool {
+        NSApp.keyWindow?.firstResponder is NSTextView
     }
 
     private var undoTitle: String {

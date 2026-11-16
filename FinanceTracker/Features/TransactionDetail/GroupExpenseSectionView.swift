@@ -14,6 +14,7 @@ struct GroupExpenseSectionView: View {
     @State private var showsAddSheet = false
     @State private var pendingTransfer: SettlementTransfer?
     @State private var bookingNotice: String?
+    @State private var sharePendingDeletion: SharedExpenseShare?
     @Environment(PrivacyPresentationState.self) private var privacyState
 
     init(transaction: Transaction, dependencies: AppDependencies) {
@@ -114,6 +115,21 @@ struct GroupExpenseSectionView: View {
             bookingNotice = nil
             await model.load()
         }
+        .confirmationDialog(
+            "Anteil löschen?",
+            isPresented: Binding(
+                get: { sharePendingDeletion != nil },
+                set: { if !$0 { sharePendingDeletion = nil } }
+            ),
+            presenting: sharePendingDeletion
+        ) { share in
+            Button("Löschen", role: .destructive) {
+                Task { await model.deleteShare(id: share.id) }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { share in
+            Text("Der Anteil von \(share.owedBy) an \(share.paidBy) wird entfernt.")
+        }
         .sheet(isPresented: $showsAddSheet) {
             GroupExpenseAddShareSheet(
                 defaultCurrency: transaction.amount.currency,
@@ -197,7 +213,7 @@ struct GroupExpenseSectionView: View {
                     )
                     .accessibilityIdentifier("group-expense-settled-\(share.id.uuidString)")
                     Button(role: .destructive) {
-                        Task { await model.deleteShare(id: share.id) }
+                        sharePendingDeletion = share
                     } label: {
                         Image(systemName: "trash")
                     }

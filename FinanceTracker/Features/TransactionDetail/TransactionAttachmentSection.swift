@@ -18,6 +18,8 @@ struct TransactionAttachmentSection: View {
     @State private var isLoading = false
     /// WP16: Für die QuickLook-Preview ausgewählte Datei (iOS).
     @State private var previewURL: URL?
+    /// Beleg, dessen Löschen bestätigt werden muss (Datei ist danach weg).
+    @State private var attachmentPendingDeletion: TransactionAttachment?
 
     private var attachmentService: AttachmentService {
         let baseDirectory = (try? AttachmentService.defaultBaseDirectory())
@@ -51,7 +53,7 @@ struct TransactionAttachmentSection: View {
                         .help("Beleg öffnen")
 
                         Button(role: .destructive) {
-                            Task { await delete(attachment) }
+                            attachmentPendingDeletion = attachment
                         } label: {
                             Image(systemName: "trash")
                         }
@@ -83,6 +85,21 @@ struct TransactionAttachmentSection: View {
         // WP16 (§115): QuickLook-Preview für PDF/Bilder.
         .quickLookPreview($previewURL)
         #endif
+        .confirmationDialog(
+            "Beleg löschen?",
+            isPresented: Binding(
+                get: { attachmentPendingDeletion != nil },
+                set: { if !$0 { attachmentPendingDeletion = nil } }
+            ),
+            presenting: attachmentPendingDeletion
+        ) { attachment in
+            Button("Löschen", role: .destructive) {
+                Task { await delete(attachment) }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { attachment in
+            Text("„\(attachment.fileName)“ wird von diesem Mac entfernt. Das lässt sich nicht rückgängig machen.")
+        }
         .fileImporter(
             isPresented: $showsImporter,
             allowedContentTypes: [.pdf, .png, .jpeg, UTType(filenameExtension: "heic") ?? .image],

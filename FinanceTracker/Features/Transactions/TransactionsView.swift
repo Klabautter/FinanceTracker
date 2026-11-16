@@ -103,6 +103,14 @@ private struct MacTransactionsContent: View {
                                 isSearchFocused = false
                                 inspector.openExplicitly()
                             }
+                            // Entf/⌫: manuell erfasste Buchung löschen (mit
+                            // Rückfrage und Rückgängig). Bankbuchungen nicht.
+                            .onDeleteCommand {
+                                guard selection.count == 1, let id = selection.first,
+                                      let txn = model.visibleTransactions.first(where: { $0.id == id }),
+                                      model.canDeleteManually(txn) else { return }
+                                model.transactionPendingDeletion = txn
+                            }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -475,7 +483,7 @@ private struct MacTransactionsContent: View {
         Menu {
             Menu("Kategorie ändern") {
                 Button("Ohne Kategorie") {
-                    Task { await model.bulkChangeCategory(nil, for: visibleSelection); selection = [] }
+                    Task { await model.bulkChangeCategory(nil, for: visibleSelection) }
                 }
                 Button("Neue Kategorie …") {
                     model.categoryCreationTarget = .selection(visibleSelection)
@@ -483,7 +491,7 @@ private struct MacTransactionsContent: View {
                 Divider()
                 ForEach(model.assignableCategories) { cat in
                     Button(cat.name) {
-                        Task { await model.bulkChangeCategory(cat.id, for: visibleSelection); selection = [] }
+                        Task { await model.bulkChangeCategory(cat.id, for: visibleSelection) }
                     }
                 }
             }
@@ -491,18 +499,18 @@ private struct MacTransactionsContent: View {
             tagBulkMenu
 
             Button("Als geprüft markieren") {
-                Task { await model.bulkToggleReviewed(true, for: visibleSelection); selection = [] }
+                Task { await model.bulkToggleReviewed(true, for: visibleSelection) }
             }
             Button("Als ungeprüft markieren") {
-                Task { await model.bulkToggleReviewed(false, for: visibleSelection); selection = [] }
+                Task { await model.bulkToggleReviewed(false, for: visibleSelection) }
             }
 
             Divider()
             Button("Aus Analyse ausschließen") {
-                Task { await model.bulkExclude(true, for: visibleSelection); selection = [] }
+                Task { await model.bulkExclude(true, for: visibleSelection) }
             }
             Button("In Analyse einschließen") {
-                Task { await model.bulkExclude(false, for: visibleSelection); selection = [] }
+                Task { await model.bulkExclude(false, for: visibleSelection) }
             }
         } label: {
             Label("\(visibleSelection.count) ausgewählt", systemImage: "checkmark.circle.fill")
@@ -516,14 +524,14 @@ private struct MacTransactionsContent: View {
             Menu("Hinzufügen") {
                 ForEach(model.allTags) { tag in
                     Button(tag.name) {
-                        Task { await model.bulkAddTag(tag.id, for: visibleSelection); selection = [] }
+                        Task { await model.bulkAddTag(tag.id, for: visibleSelection) }
                     }
                 }
             }
             Menu("Entfernen") {
                 ForEach(model.allTags) { tag in
                     Button(tag.name) {
-                        Task { await model.bulkRemoveTag(tag.id, for: visibleSelection); selection = [] }
+                        Task { await model.bulkRemoveTag(tag.id, for: visibleSelection) }
                     }
                 }
             }
@@ -954,8 +962,46 @@ private struct MacTransactionsTable: View {
         }
     }
 
+    /// Rechtsklick auf eine Zeile der Auswahl wirkt auf die ganze Auswahl
+    /// (wie im Finder); auf eine andere Zeile nur auf diese.
     private func withTransactionContextMenu<V: View>(_ txn: Transaction, _ content: V) -> some View {
-        content.contextMenu { transactionMenuItems(txn) }
+        content.contextMenu {
+            if selection.count > 1, selection.contains(txn.id) {
+                selectionMenuItems(selection)
+            } else {
+                transactionMenuItems(txn)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func selectionMenuItems(_ ids: Set<Transaction.ID>) -> some View {
+        Text("\(ids.count) Buchungen")
+        Menu("Kategorie") {
+            Button("Ohne Kategorie") { Task { await model.bulkChangeCategory(nil, for: ids) } }
+            Divider()
+            ForEach(model.assignableCategories) { category in
+                Button(category.name) { Task { await model.bulkChangeCategory(category.id, for: ids) } }
+            }
+        }
+        Menu("Tags") {
+            if model.allTags.isEmpty { Text("Noch keine Tags") }
+            Menu("Hinzufügen") {
+                ForEach(model.allTags) { tag in
+                    Button(tag.name) { Task { await model.bulkAddTag(tag.id, for: ids) } }
+                }
+            }
+            Menu("Entfernen") {
+                ForEach(model.allTags) { tag in
+                    Button(tag.name) { Task { await model.bulkRemoveTag(tag.id, for: ids) } }
+                }
+            }
+        }
+        Button("Als geprüft markieren") { Task { await model.bulkToggleReviewed(true, for: ids) } }
+        Button("Als ungeprüft markieren") { Task { await model.bulkToggleReviewed(false, for: ids) } }
+        Divider()
+        Button("Aus Analyse ausschließen") { Task { await model.bulkExclude(true, for: ids) } }
+        Button("In Analyse einschließen") { Task { await model.bulkExclude(false, for: ids) } }
     }
 }
 
