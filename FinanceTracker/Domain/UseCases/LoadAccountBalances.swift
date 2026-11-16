@@ -54,10 +54,15 @@ struct LoadAccountBalances: Sendable {
         var movementsByAccount: [UUID: [AccountBalanceCalculator.Movement]] = [:]
         let accountsByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
         for row in movements {
-            guard let status = TransactionStatus(rawValue: row.statusRaw),
-                  status.isEffective else { continue }
-            guard let amount = Decimal(string: row.amountValue),
-                  let account = accountsByID[row.accountID] else { continue }
+            // Unlesbare Werte verfälschten den Stand still; sie werfen (§23).
+            guard let status = TransactionStatus(rawValue: row.statusRaw) else {
+                throw AccountBalanceLoadError.corruptRow(field: "status", raw: row.statusRaw)
+            }
+            guard status.isEffective else { continue }
+            guard let amount = Decimal(string: row.amountValue, locale: Locale(identifier: "en_US_POSIX")) else {
+                throw AccountBalanceLoadError.corruptRow(field: "amount", raw: row.amountValue)
+            }
+            guard let account = accountsByID[row.accountID] else { continue }
 
             let currency = CurrencyCode(row.currencyRaw)
             var entry = totalsByAccount[row.accountID] ?? (Decimal(0), [], 0)
@@ -115,4 +120,9 @@ struct LoadAccountBalances: Sendable {
             .sorted { $0.transactionCount > $1.transactionCount }
         return AccountBalances(accounts: accounts, active: active, inactive: inactive)
     }
+}
+
+/// Eine Buchungszeile lässt sich für den Kontostand nicht lesen.
+enum AccountBalanceLoadError: Error, Equatable, Sendable {
+    case corruptRow(field: String, raw: String)
 }

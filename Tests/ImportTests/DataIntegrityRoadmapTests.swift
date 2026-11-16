@@ -215,4 +215,53 @@ struct DataIntegrityRoadmapTests {
         #expect(suggestions.map(\.label) == ["Vermieter"])
         #expect(suggestions.first?.count == 2)
     }
+
+    // MARK: - Strenges Lesen
+
+    @Test("CSV: Zoll-Zeichen mitten im Wert ist kein Anführungszeichen")
+    func inchMarkInsideField() throws {
+        let rows = try CSVReader.parseRows("Datum;Text;Betrag\n01.10.2026;Monitor 27\";-199,00\n02.10.2026;Kabel;-9,99")
+        #expect(rows.count == 3)
+        #expect(rows[1][1] == "Monitor 27\"")
+    }
+
+    @Test("CSV: nicht geschlossenes Anführungszeichen ist ein Fehler, keine verschluckten Zeilen")
+    func unterminatedQuoteThrows() {
+        #expect(throws: CSVReadError.self) {
+            try CSVReader.parseRows("Datum;Text;Betrag\n01.10.2026;\"offen;-1,00\n02.10.2026;B;-2,00")
+        }
+    }
+
+    @Test("Kontostand: unlesbarer Betrag wirft statt die Zeile zu überspringen")
+    func balanceRejectsCorruptRow() async throws {
+        let dependencies = try makeDependencies()
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([account])
+        let broken = BrokenMovementRepository(
+            base: dependencies.transactionRepository,
+            rows: [AccountMovementRow(accountID: account.id, amountValue: "kaputt", currencyRaw: "EUR", statusRaw: "booked", date: Date())]
+        )
+        let loader = LoadAccountBalances(accountRepository: dependencies.accountRepository, transactionRepository: broken)
+        await #expect(throws: AccountBalanceLoadError.self) { _ = try await loader.execute() }
+    }
+}
+
+/// Liefert feste Bewegungszeilen, alles andere vom echten Repository.
+private struct BrokenMovementRepository: TransactionRepository {
+    let base: any TransactionRepository
+    let rows: [AccountMovementRow]
+    func transactionPage(matching query: TransactionQuery, sort: TransactionSortOrder, offset: Int, limit: Int) async throws -> TransactionPage {
+        try await base.transactionPage(matching: query, sort: sort, offset: offset, limit: limit)
+    }
+    func transactions(matching query: TransactionQuery) async throws -> [Transaction] { try await base.transactions(matching: query) }
+    func transactions(accountID: UUID, source: TransactionSource) async throws -> [Transaction] { try await base.transactions(accountID: accountID, source: source) }
+    func recentTransactions(limit: Int) async throws -> [Transaction] { try await base.recentTransactions(limit: limit) }
+    func transaction(id: UUID) async throws -> Transaction? { try await base.transaction(id: id) }
+    func upsert(_ transactions: [Transaction]) async throws { try await base.upsert(transactions) }
+    func deleteTransactions(importBatchID: UUID) async throws { try await base.deleteTransactions(importBatchID: importBatchID) }
+    func deleteTransactions(ids: Set<UUID>) async throws { try await base.deleteTransactions(ids: ids) }
+    func count() async throws -> Int { try await base.count() }
+    func deleteAll() async throws { try await base.deleteAll() }
+    func deleteAllDemoTransactions() async throws { try await base.deleteAllDemoTransactions() }
+    func accountMovementRows() async throws -> [AccountMovementRow] { rows }
 }

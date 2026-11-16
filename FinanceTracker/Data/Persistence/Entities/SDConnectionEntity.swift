@@ -70,14 +70,20 @@ extension SDConnectionEntity {
         updatedAt = connection.updatedAt
     }
 
-    func toDomain() -> Connection {
-        Connection(
+    func toDomain() throws -> Connection {
+        guard let provider = ConnectionProvider(rawValue: providerRaw) else {
+            throw PersistenceDecodingError.unknownEnum(field: "Connection.provider", raw: providerRaw)
+        }
+        guard let status = ConnectionStatus(rawValue: statusRaw) else {
+            throw PersistenceDecodingError.unknownEnum(field: "Connection.status", raw: statusRaw)
+        }
+        return Connection(
             id: id,
             userID: UUID(),
-            provider: ConnectionProvider(rawValue: providerRaw) ?? .gocardless,
+            provider: provider,
             providerConnectionID: providerConnectionID,
             institutionID: institutionID,
-            status: ConnectionStatus(rawValue: statusRaw) ?? .active,
+            status: status,
             consentExpiresAt: consentExpiresAt,
             lastSuccessfulSyncAt: lastSuccessfulSyncAt,
             createdAt: createdAt,

@@ -35,6 +35,9 @@ struct CSVDocument: Equatable, Sendable {
 enum CSVReadError: Error, Equatable {
     case emptyInput
     case noHeaderRow
+    /// Ein Anführungszeichen wird bis zum Dateiende nicht geschlossen: der
+    /// Rest der Datei landete sonst still in einem einzigen Feld (#18).
+    case unterminatedQuote(record: Int)
 }
 
 enum CSVReader {
@@ -83,11 +86,15 @@ enum CSVReader {
         var fields: [String] = []
         var field = ""
         var inQuotes = false
+        // Anführungszeichen öffnen nur am Feldanfang ein Feld in Anführung;
+        // mitten im Wert („Monitor 27\"") sind sie ein normales Zeichen.
+        var fieldStarted = false
         var index = content.startIndex
 
         func endField() {
             fields.append(field)
             field.removeAll(keepingCapacity: true)
+            fieldStarted = false
         }
 
         func endRecord() {
@@ -122,8 +129,9 @@ enum CSVReader {
             }
 
             switch char {
-            case "\"":
+            case "\"" where !fieldStarted:
                 inQuotes = true
+                fieldStarted = true
                 index = content.index(after: index)
 
             case delimiter:
@@ -144,11 +152,15 @@ enum CSVReader {
 
             default:
                 field.append(char)
+                fieldStarted = true
                 index = content.index(after: index)
             }
         }
 
-        if !field.isEmpty || !fields.isEmpty || inQuotes {
+        if inQuotes {
+            throw CSVReadError.unterminatedQuote(record: records.count + 1)
+        }
+        if !field.isEmpty || !fields.isEmpty {
             endRecord()
         }
 

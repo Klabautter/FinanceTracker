@@ -78,7 +78,7 @@ struct XLSXConverterTests {
         </sheetData></worksheet>
         """.data(using: .utf8)!
 
-        let rows = WorksheetRowParser(sharedStrings: ["Header"]).parse(xml)
+        let rows = try WorksheetRowParser(sharedStrings: ["Header"]).parse(xml)
         #expect(rows.count == 1)
         #expect(rows[0].cells == ["Header", "", "5"])
     }

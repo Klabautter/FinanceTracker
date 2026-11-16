@@ -32,18 +32,24 @@ extension SDAccountEntity {
 
     /// Anfangsbestand kommt aus dem V13-Sidecar (`SDAccountOpeningBalanceEntity`)
     /// und wird im Model-Actor zusammengeführt.
-    func toDomain() -> Account {
-        Account(
+    func toDomain() throws -> Account {
+        guard let type = AccountType(rawValue: typeRaw) else {
+            throw PersistenceDecodingError.unknownEnum(field: "Account.type", raw: typeRaw)
+        }
+        guard let source = AccountSource(rawValue: sourceRaw) else {
+            throw PersistenceDecodingError.unknownEnum(field: "Account.source", raw: sourceRaw)
+        }
+        return Account(
             id: id,
             connectionID: connectionID,
             institutionID: institutionID,
             name: name,
-            type: AccountType(rawValue: typeRaw) ?? .other,
+            type: type,
             currency: CurrencyCode(currencyRaw),
             maskedIdentifier: maskedIdentifier,
             ibanLast4: ibanLast4,
             providerAccountID: providerAccountID,
-            source: AccountSource(rawValue: sourceRaw) ?? .manual,
+            source: source,
             isActive: isActive
         )
     }

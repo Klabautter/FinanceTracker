@@ -269,3 +269,15 @@ protocol TagRepository: Sendable {
     /// WP2 (§14): Tag-Join-Rows + Tags entfernen (§15: Joins zuerst).
     func deleteAll() async throws
 }
+
+/// Schlanke Bewegungszeile für Kontostände (Rohwerte, wie gespeichert).
+/// Liegt in Domain, weil `TransactionRepository` sie liefert (Rule 14).
+struct AccountMovementRow: Sendable {
+    let accountID: UUID
+    let amountValue: String
+    let currencyRaw: String
+    let statusRaw: String
+    /// Anzeigedatum (gebucht, sonst autorisiert, sonst angelegt), für den
+    /// Kontostand ab Anfangsbestand-Stichtag.
+    let date: Date
+}

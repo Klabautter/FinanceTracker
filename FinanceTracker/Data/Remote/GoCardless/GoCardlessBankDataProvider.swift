@@ -152,12 +152,18 @@ struct GoCardlessBankDataProvider: BankDataProvider {
         let data = try await authenticatedGet(path: path, queryItems: queryItems)
         let response = try JSONDecoder.goCardless.decode(GoCardlessTransactionsResponseDTO.self, from: data)
 
-        let booked = (response.transactions.booked ?? []).compactMap {
-            Self.map(transaction: $0, state: .booked)
+        // Eine unlesbare Zeile lässt den ganzen Abruf sichtbar scheitern,
+        // statt still zu fehlen (Rule 17/18).
+        func mapAll(_ rows: [GoCardlessTransactionsResponseDTO.Transaction], _ state: RemoteBankTransaction.State) throws -> [RemoteBankTransaction] {
+            try rows.map { row in
+                guard let mapped = Self.map(transaction: row, state: state) else {
+                    throw ImportError.parsingFailed(stage: "bankSync", reason: String(localized: "Die Bank lieferte eine unlesbare Buchung."))
+                }
+                return mapped
+            }
         }
-        let pending = (response.transactions.pending ?? []).compactMap {
-            Self.map(transaction: $0, state: .pending)
-        }
+        let booked = try mapAll(response.transactions.booked ?? [], .booked)
+        let pending = try mapAll(response.transactions.pending ?? [], .pending)
 
         return RemoteBankAccountData(
             account: account,
@@ -180,8 +186,16 @@ struct GoCardlessBankDataProvider: BankDataProvider {
             providerAccountID: dto.account.resourceId ?? accountID,
             ownerName: dto.account.ownerName,
             maskedIBAN: dto.account.iban.flatMap { Self.maskedIBAN($0) },
-            currency: dto.account.currency.map(CurrencyCode.init) ?? .eur
+            currency: try Self.accountCurrency(dto.account.currency, accountID: accountID)
         )
+    }
+
+    /// Ohne Kontowährung kein Konto: EUR zu raten verfälschte Summen.
+    private static func accountCurrency(_ raw: String?, accountID: String) throws -> CurrencyCode {
+        guard let raw, raw.count == 3 else {
+            throw ImportError.parsingFailed(stage: "bankSync", reason: String(localized: "Die Bank lieferte keine Kontowährung."))
+        }
+        return CurrencyCode(raw)
     }
 
     static func maskedIBAN(_ iban: String) -> String {
@@ -196,10 +210,13 @@ struct GoCardlessBankDataProvider: BankDataProvider {
     }
 
     private static func map(transaction dto: GoCardlessTransactionsResponseDTO.Transaction, state: RemoteBankTransaction.State) -> RemoteBankTransaction? {
-        guard let amountDecimal = Decimal(string: dto.transactionAmount.amount) else { return nil }
+        guard let amountDecimal = Decimal(string: dto.transactionAmount.amount, locale: Locale(identifier: "en_US_POSIX")),
+              dto.transactionAmount.currency.count == 3 else { return nil }
 
         return RemoteBankTransaction(
-            externalID: dto.transactionId ?? dto.entryReference ?? UUID().uuidString,
+            // Ohne ID keine erfundene: eine Zufalls-ID machte jede Zeile bei
+            // jedem Abruf neu (Duplikate); ohne ID greift der Fingerabdruck.
+            externalID: dto.transactionId ?? dto.entryReference,
             state: state,
             amount: Money(amount: amountDecimal, currency: CurrencyCode(dto.transactionAmount.currency)),
             bookingDate: Self.date(fromString: dto.bookingDate),

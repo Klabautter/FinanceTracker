@@ -100,6 +100,22 @@ extension SDBudget2Entity {
         updatedAt = Date()
     }
 
+    /// Leere Felder sind leere Mengen; unlesbares JSON ist ein Fehler (§23).
+    private static func uuids(_ json: Data?, field: String) throws -> Set<UUID> {
+        guard let json, !json.isEmpty else { return [] }
+        guard let decoded = JSONCoding.decodeUUIDs(json) else {
+            throw PersistenceDecodingError.invalidJSON(field: field)
+        }
+        return Set(decoded)
+    }
+
+    private static func rollover(_ raw: String) throws -> BudgetRolloverPolicy {
+        guard let policy = BudgetRolloverPolicy(rawValue: raw) else {
+            throw PersistenceDecodingError.unknownEnum(field: "Budget.rollover", raw: raw)
+        }
+        return policy
+    }
+
     func toDomain() throws -> Budget {
         guard let amount = Decimal(string: amountValue) else {
             throw PersistenceDecodingError.invalidAmount(field: "budgetAmount", raw: amountValue)
@@ -118,10 +134,10 @@ extension SDBudget2Entity {
             amount: amount,
             currency: CurrencyCode(currencyRaw),
             periodPolicy: period,
-            categoryIDs: Set(JSONCoding.decodeUUIDs(categoryIDsJSON) ?? []),
-            tagIDs: Set(JSONCoding.decodeUUIDs(tagIDsJSON) ?? []),
-            accountIDs: Set(JSONCoding.decodeUUIDs(accountIDsJSON) ?? []),
-            rolloverPolicy: BudgetRolloverPolicy(rawValue: rolloverRaw) ?? .reset,
+            categoryIDs: try Self.uuids(categoryIDsJSON, field: "Budget.categoryIDs"),
+            tagIDs: try Self.uuids(tagIDsJSON, field: "Budget.tagIDs"),
+            accountIDs: try Self.uuids(accountIDsJSON, field: "Budget.accountIDs"),
+            rolloverPolicy: try Self.rollover(rolloverRaw),
             includeInForecast: includeInForecast,
             enabled: enabled,
             createdAt: createdAt

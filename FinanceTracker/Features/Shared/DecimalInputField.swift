@@ -84,21 +84,21 @@ struct DecimalInputField: View {
     }
 
     /// Dezimaltrenner der Systemsprache: „1.500" ist auf Deutsch 1500.
-    static func parse(_ text: String, locale: Locale = .current) -> Decimal? {
+    nonisolated static func parse(_ text: String, locale: Locale = .current) -> Decimal? {
         DecimalParser.parse(text, decimalSeparator: locale.decimalSeparator?.first)
     }
 
     /// Bearbeitbarer Text im Format der Systemsprache, ohne Tausenderpunkte.
-    static func editText(_ value: Decimal, locale: Locale = .current) -> String {
+    nonisolated static func editText(_ value: Decimal, locale: Locale = .current) -> String {
         value.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(0...2)))
     }
 
-    static func display(_ value: Decimal, locale: Locale = .current) -> String {
+    nonisolated static func display(_ value: Decimal, locale: Locale = .current) -> String {
         value.formatted(.number.locale(locale).precision(.fractionLength(2)))
     }
 
     /// Nur bei Trennzeichen lohnt der Hinweis; „500" versteht jeder.
-    static func needsEcho(_ text: String) -> Bool {
+    nonisolated static func needsEcho(_ text: String) -> Bool {
         text.contains(",") || text.contains(".")
     }
 }

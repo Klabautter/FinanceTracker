@@ -20,7 +20,7 @@ enum XLSXConverter {
 
         let archive = try ZipArchiveReader(data: xlsxData)
 
-        let sharedStrings = loadSharedStrings(in: archive)
+        let sharedStrings = try loadSharedStrings(in: archive)
         let worksheetPath = try firstWorksheetPath(in: archive)
 
         var expandedTotal = 0
@@ -32,7 +32,7 @@ enum XLSXConverter {
         }
 
         let sheetData = try archive.extractEntry(worksheetPath)
-        let rows = WorksheetRowParser(sharedStrings: sharedStrings).parse(sheetData)
+        let rows = try WorksheetRowParser(sharedStrings: sharedStrings).parse(sheetData)
 
         guard let headerRowIndex = rows.firstIndex(where: { $0.nonEmptyCellCount >= 3 }) else {
             throw XLSXConverterError.missingWorksheet
@@ -52,12 +52,12 @@ enum XLSXConverter {
         return field
     }
 
-    private static func loadSharedStrings(in archive: ZipArchiveReader) -> [String] {
-        guard archive.containsEntry(named: "xl/sharedStrings.xml"),
-              let data = try? archive.extractEntry("xl/sharedStrings.xml") else {
-            return []
-        }
-        return SharedStringsParser().parse(data)
+    /// Ohne Datei gibt es keine geteilten Texte; eine vorhandene, aber
+    /// unlesbare Datei ist ein Fehler (sonst fehlten Händlernamen still).
+    private static func loadSharedStrings(in archive: ZipArchiveReader) throws -> [String] {
+        guard archive.containsEntry(named: "xl/sharedStrings.xml") else { return [] }
+        let data = try archive.extractEntry("xl/sharedStrings.xml")
+        return try SharedStringsParser().parse(data)
     }
 
     private static func firstWorksheetPath(in archive: ZipArchiveReader) throws -> String {
@@ -66,12 +66,12 @@ enum XLSXConverter {
             throw XLSXConverterError.missingWorksheet
         }
 
-        let workbook = WorkbookSheetsParser().parse(workbookData)
+        let workbook = try WorkbookSheetsParser().parse(workbookData)
         guard let relationshipID = workbook.firstSheetRelationshipID else {
             throw XLSXConverterError.missingWorksheet
         }
 
-        let relationships = WorkbookRelationshipsParser().parse(relsData)
+        let relationships = try WorkbookRelationshipsParser().parse(relsData)
         guard let target = relationships[relationshipID] else {
             throw XLSXConverterError.missingWorksheet
         }
@@ -89,10 +89,10 @@ private final class SharedStringsParser: NSObject, XMLParserDelegate {
     private var isInsideTextElement = false
     private var textBuffer = ""
 
-    func parse(_ data: Data) -> [String] {
+    func parse(_ data: Data) throws -> [String] {
         let parser = XMLParser(data: data)
         parser.delegate = self
-        parser.parse()
+        guard parser.parse() else { throw XLSXConverterError.malformedXML }
         return strings
     }
 
@@ -141,10 +141,10 @@ private final class SharedStringsParser: NSObject, XMLParserDelegate {
 private final class WorkbookSheetsParser: NSObject, XMLParserDelegate {
     private(set) var firstSheetRelationshipID: String?
 
-    func parse(_ data: Data) -> (firstSheetRelationshipID: String?, sheetNames: [String]) {
+    func parse(_ data: Data) throws -> (firstSheetRelationshipID: String?, sheetNames: [String]) {
         let parser = XMLParser(data: data)
         parser.delegate = self
-        parser.parse()
+        guard parser.parse() else { throw XLSXConverterError.malformedXML }
         return (firstSheetRelationshipID, [])
     }
 
@@ -164,10 +164,10 @@ private final class WorkbookSheetsParser: NSObject, XMLParserDelegate {
 private final class WorkbookRelationshipsParser: NSObject, XMLParserDelegate {
     private var relationships: [String: String] = [:]
 
-    func parse(_ data: Data) -> [String: String] {
+    func parse(_ data: Data) throws -> [String: String] {
         let parser = XMLParser(data: data)
         parser.delegate = self
-        parser.parse()
+        guard parser.parse() else { throw XLSXConverterError.malformedXML }
         return relationships
     }
 
@@ -205,10 +205,10 @@ final class WorksheetRowParser: NSObject, XMLParserDelegate {
         self.sharedStrings = sharedStrings
     }
 
-    func parse(_ data: Data) -> [ParsedRow] {
+    func parse(_ data: Data) throws -> [ParsedRow] {
         let parser = XMLParser(data: data)
         parser.delegate = self
-        parser.parse()
+        guard parser.parse() else { throw XLSXConverterError.malformedXML }
         return rows
     }
 

@@ -3,16 +3,6 @@ import SwiftData
 
 /// Schlanke Bewegungszeile für Konto-Aggregationen (ohne vollständige
 /// Transaction-Hydratation).
-struct AccountMovementRow: Sendable {
-    let accountID: UUID
-    let amountValue: String
-    let currencyRaw: String
-    let statusRaw: String
-    /// Anzeigedatum (gebucht, sonst autorisiert, sonst angelegt), für den
-    /// Kontostand ab Anfangsbestand-Stichtag.
-    let date: Date
-}
-
 @ModelActor
 actor PersistenceModelActor {
     func loadTransactions(intervalStart: Date, intervalEnd: Date) throws -> [Transaction] {
@@ -332,13 +322,16 @@ actor PersistenceModelActor {
                 let currency: String
                 let amount: Decimal
             }
-            let keys: [SortKey] = lightRows.map { row in
-                SortKey(
+            let keys: [SortKey] = try lightRows.map { row in
+                guard let amount = Decimal(string: row.amountValue) else {
+                    throw PersistenceDecodingError.invalidAmount(field: "Transaction.amount", raw: row.amountValue)
+                }
+                return SortKey(
                     id: row.id,
                     merchant: (row.merchantDisplayName ?? row.rawMerchantName ?? "")
                         .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil),
                     currency: row.amountCurrencyRaw,
-                    amount: Decimal(string: row.amountValue) ?? 0
+                    amount: amount
                 )
             }
 
@@ -523,15 +516,21 @@ actor PersistenceModelActor {
         ]
         descriptor.includePendingChanges = false
 
-        return try modelContext.fetch(descriptor).compactMap { (row: SDTransactionEntity) -> Transaction? in
+        return try modelContext.fetch(descriptor).map { (row: SDTransactionEntity) throws -> Transaction in
             // NUR die leicht geladenen Felder lesen: Zugriff auf andere
             // Properties würde die Row re-faulten und den Gewinn zunichte-
-            // machen.
-            guard let status = TransactionStatus(rawValue: row.statusRaw) else { return nil }
+            // machen. Unlesbare Werte werfen wie im vollen Mapping (§23).
+            guard let status = TransactionStatus(rawValue: row.statusRaw) else {
+                throw PersistenceDecodingError.unknownStatus(raw: row.statusRaw)
+            }
             let kind = row.kindRaw.flatMap { TransactionKind(rawValue: $0) } ?? .unknown
             let currency = CurrencyCode(row.amountCurrencyRaw)
-            let amountValue = Decimal(string: row.amountValue) ?? 0
-            let source = TransactionSource(rawValue: row.sourceRaw) ?? .manual
+            guard let amountValue = Decimal(string: row.amountValue) else {
+                throw PersistenceDecodingError.invalidAmount(field: "Transaction.amount", raw: row.amountValue)
+            }
+            guard let source = TransactionSource(rawValue: row.sourceRaw) else {
+                throw PersistenceDecodingError.unknownSource(raw: row.sourceRaw)
+            }
             return Transaction(
                 id: row.id,
                 accountID: row.accountID,
@@ -559,7 +558,7 @@ actor PersistenceModelActor {
             predicate: #Predicate { $0.id == id }
         )
         descriptor.fetchLimit = 1
-        return try applyingOpeningBalances(try modelContext.fetch(descriptor).map { $0.toDomain() }).first
+        return try applyingOpeningBalances(try modelContext.fetch(descriptor).map { try $0.toDomain() }).first
     }
 
     /// V13-Sidecar zusammenführen: Anfangsbestand/Stichtag an die Konten
@@ -697,7 +696,7 @@ actor PersistenceModelActor {
                 $0.providerAccountID == providerAccountID && $0.connectionID == connectionID
             }
         )
-        return try applyingOpeningBalances(try modelContext.fetch(descriptor).map { $0.toDomain() }).first
+        return try applyingOpeningBalances(try modelContext.fetch(descriptor).map { try $0.toDomain() }).first
     }
 
     func loadRecentTransactions(limit: Int) throws -> [Transaction] {
@@ -1543,7 +1542,7 @@ actor PersistenceModelActor {
 
     func loadAccounts() throws -> [Account] {
         let rows = try modelContext.fetch(FetchDescriptor<SDAccountEntity>())
-        return try applyingOpeningBalances(rows.map { $0.toDomain() })
+        return try applyingOpeningBalances(rows.map { try $0.toDomain() })
     }
 
     func upsertAccounts(_ accounts: [Account]) throws {
@@ -2253,7 +2252,7 @@ actor PersistenceModelActor {
 
     func loadConnections() throws -> [Connection] {
         let rows = try modelContext.fetch(FetchDescriptor<SDConnectionEntity>())
-        return rows.map { $0.toDomain() }
+        return try rows.map { try $0.toDomain() }
     }
 
     func upsertConnections(_ connections: [Connection]) throws {
