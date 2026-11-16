@@ -67,6 +67,17 @@ final class DashboardModel {
     private(set) var fxIsLoading = false
     /// Gesamtstand der liquiden Mittel (nur laufender Monat).
     private(set) var liquidity: LiquidityOverview?
+    /// Auffälligkeiten des laufenden Monats (Abo teurer, doppelt, …).
+    private(set) var insights: [SpendingInsight] = []
+    private static let dismissedInsightsKey = "dismissedSpendingInsights"
+
+    /// Blendet einen Hinweis dauerhaft aus (gilt für genau diese Ursache).
+    func dismissInsight(_ insight: SpendingInsight) {
+        var dismissed = Set(dependencies.userDefaults.stringArray(forKey: Self.dismissedInsightsKey) ?? [])
+        dismissed.insert(insight.id)
+        dependencies.userDefaults.set(Array(dismissed), forKey: Self.dismissedInsightsKey)
+        insights.removeAll { $0.id == insight.id }
+    }
     private(set) var runway: LiquidityRunway?
 
     init(
@@ -336,6 +347,23 @@ final class DashboardModel {
                 runway = nil
             }
             recentTransactions = result.recentTransactions
+            if isCurrentMonth {
+                let dismissed = Set(dependencies.userDefaults.stringArray(forKey: Self.dismissedInsightsKey) ?? [])
+                let detectionInput = (historyTxns, Array(newCommitmentsByID.values), newBudgetProgresses)
+                let detectionCalendar = calendar
+                let detected = await Task.detached(priority: .userInitiated) {
+                    SpendingInsightDetector().detect(
+                        transactions: detectionInput.0,
+                        commitments: detectionInput.1,
+                        budgetProgresses: detectionInput.2,
+                        now: now,
+                        calendar: detectionCalendar
+                    )
+                }.value
+                insights = detected.filter { !dismissed.contains($0.id) }
+            } else {
+                insights = []
+            }
             categoriesByID = Dictionary(
                 uniqueKeysWithValues: result.categories.map { ($0.id, $0) }
             )

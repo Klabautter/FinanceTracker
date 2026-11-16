@@ -232,6 +232,16 @@
         }
       }
     },
+    "%@ ist teurer geworden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ got more expensive"
+          }
+        }
+      }
+    },
     "%@ konnte nicht getrennt werden." : {
       "localizations" : {
         "de" : {
@@ -789,6 +799,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@, already connected"
+          }
+        }
+      }
+    },
+    "%@, sonst meist um %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, usually around %@."
           }
         }
       }
@@ -4355,6 +4375,16 @@
         }
       }
     },
+    "Aufgefallen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noticed"
+          }
+        }
+      }
+    },
     "Aus" : {
       "localizations" : {
         "de" : {
@@ -4415,6 +4445,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Detected from the merchant name."
+          }
+        }
+      }
+    },
+    "Ausblenden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss"
           }
         }
       }
@@ -5600,6 +5640,16 @@
         }
       }
     },
+    "Beim aktuellen Tempo ist es am %@ aufgebraucht." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At the current pace it runs out on %@."
+          }
+        }
+      }
+    },
     "Beim Öffnen der App und danach etwa alle sechs Stunden, solange sie läuft." : {
       "localizations" : {
         "en" : {
@@ -6396,6 +6446,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide Amounts"
+          }
+        }
+      }
+    },
+    "Beträge verborgen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amounts hidden"
           }
         }
       }
@@ -7275,6 +7335,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Budget exceeded"
+          }
+        }
+      }
+    },
+    "Budget „%@“ reicht nicht bis zum Ende" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Budget “%@” won’t last until the end"
           }
         }
       }
@@ -10502,6 +10572,16 @@
         }
       }
     },
+    "Doppelte Abbuchung bei %@?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double charge at %@?"
+          }
+        }
+      }
+    },
     "Doppelte Dateien im Archiv." : {
       "localizations" : {
         "de" : {
@@ -13329,6 +13409,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Accent"
+          }
+        }
+      }
+    },
+    "Hinweis ausblenden: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss notice: %@"
           }
         }
       }
@@ -23791,6 +23881,16 @@
         }
       }
     },
+    "Ungewöhnlich hoher Betrag bei %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unusually high amount at %@"
+          }
+        }
+      }
+    },
     "Ungültige JSON-Daten in „%@“." : {
       "localizations" : {
         "de" : {
@@ -26439,6 +26539,16 @@
         }
       }
     },
+    "Zuletzt %@ statt %@. Lohnt sich ein Blick in den Vertrag?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Most recently %@ instead of %@. Worth checking the contract?"
+          }
+        }
+      }
+    },
     "Zuletzt aktualisiert: %@" : {
       "localizations" : {
         "de" : {
@@ -26757,6 +26867,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Two Years"
+          }
+        }
+      }
+    },
+    "Zweimal %@ innerhalb von %lld Tagen. Falls es kein zweiter Einkauf war, bei der Bank nachfragen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twice %@ within %lld days. If it wasn’t a second purchase, ask your bank."
           }
         }
       }

@@ -60,6 +60,7 @@ struct BentoDashboardContent: View {
                     }
                     .frame(minWidth: 460, maxWidth: .infinity, alignment: .topLeading)
                     VStack(alignment: .leading, spacing: AppSpacing.l) {
+                        if !model.insights.isEmpty { insightsSection }
                         if let liquidity = model.liquidity { liquiditySection(liquidity) }
                         planningSection
                         if !model.budgetProgresses.isEmpty { budgetSection }
@@ -70,6 +71,7 @@ struct BentoDashboardContent: View {
                 .frame(minWidth: 800)
 
                 VStack(alignment: .leading, spacing: AppSpacing.l) {
+                    if !model.insights.isEmpty { insightsSection }
                     if let liquidity = model.liquidity { liquiditySection(liquidity) }
                     planningSection
                     if !model.budgetProgresses.isEmpty { budgetSection }
@@ -442,6 +444,58 @@ struct BentoDashboardContent: View {
     }
 
     // MARK: - Budgets
+
+    /// Auffälligkeiten, die die App von sich aus meldet.
+    private var insightsSection: some View {
+        PageSection(String(localized: "Aufgefallen")) {
+            VStack(alignment: .leading, spacing: AppSpacing.m) {
+                ForEach(model.insights) { insight in
+                    HStack(alignment: .top, spacing: AppSpacing.s) {
+                        Image(systemName: Self.insightSymbol(insight.kind))
+                            .foregroundStyle(Self.insightTone(insight.kind).foregroundColor)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(insight.title)
+                                .font(.callout.weight(.medium))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(privacyState.hidesAmounts ? String(localized: "Beträge verborgen") : insight.detail)
+                                .font(AppTypography.metadata)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                        Button {
+                            model.dismissInsight(insight)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Hinweis ausblenden: \(insight.title)")
+                        .help("Ausblenden")
+                    }
+                    .accessibilityElement(children: .contain)
+                }
+            }
+        }
+    }
+
+    private static func insightSymbol(_ kind: SpendingInsight.Kind) -> String {
+        switch kind {
+        case .subscriptionPriceIncrease: "arrow.up.circle"
+        case .possibleDuplicate: "doc.on.doc"
+        case .unusuallyHigh: "exclamationmark.circle"
+        case .budgetRunsOut: "hourglass"
+        }
+    }
+
+    private static func insightTone(_ kind: SpendingInsight.Kind) -> AppTone {
+        switch kind {
+        case .possibleDuplicate: .critical
+        case .subscriptionPriceIncrease, .budgetRunsOut, .unusuallyHigh: .warning
+        }
+    }
 
     private var budgetSection: some View {
         PageSection(String(localized: "Budgets")) {
