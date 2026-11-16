@@ -4533,6 +4533,16 @@
         }
       }
     },
+    "Ausgaben diesen Monat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spending This Month"
+          }
+        }
+      }
+    },
     "Ausgaben im Analysebereich" : {
       "localizations" : {
         "de" : {
@@ -6578,6 +6588,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Until you assign them, outgoing amounts count as expenses and incoming amounts as income. Your choice applies to future imports into this account."
+          }
+        }
+      }
+    },
+    "Bis zum Monatsende sind noch etwa %@ verfügbar." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About %@ is still available until the end of the month."
           }
         }
       }
@@ -10531,6 +10551,16 @@
         }
       }
     },
+    "Diesen Monat hast du bisher %@ ausgegeben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So far this month you have spent %@."
+          }
+        }
+      }
+    },
     "Dieser Monat" : {
       "localizations" : {
         "de" : {
@@ -12640,6 +12670,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remember for This Merchant"
+          }
+        }
+      }
+    },
+    "Für diesen Monat gibt es noch keine Buchungen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no transactions for this month yet."
+          }
+        }
+      }
+    },
+    "Für eine Prognose fehlen noch Daten, zum Beispiel ein Gehalt oder Budgets." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A forecast needs more data, for example a salary or budgets."
           }
         }
       }
@@ -18808,6 +18858,16 @@
         }
       }
     },
+    "Noch verfügbar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still Available"
+          }
+        }
+      }
+    },
     "Notiz" : {
       "localizations" : {
         "de" : {
@@ -20583,6 +20643,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sinking fund budgets (e.g. car insurance) carry unspent money over to the next month."
+          }
+        }
+      }
+    },
+    "Sagt, wie viel du im laufenden Monat ausgegeben hast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tells you how much you have spent this month."
+          }
+        }
+      }
+    },
+    "Sagt, wie viel laut Prognose bis zum Monatsende verfügbar ist." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tells you how much is available until the end of the month according to the forecast."
           }
         }
       }

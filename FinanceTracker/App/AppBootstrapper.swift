@@ -30,6 +30,18 @@ final class AppBootstrapper {
         start()
     }
 
+    /// Wartet, bis die Datenbank offen ist (für Kurzbefehle, die vor dem
+    /// Fenster ankommen). Wirft, wenn das Öffnen fehlschlug.
+    func readyDependencies() async throws -> AppDependencies {
+        while true {
+            switch state {
+            case .ready(let dependencies): return dependencies
+            case .failed: throw AppBootstrapSimulatedError.simulatedStorageFailure
+            case .loading: try await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
     /// Öffnet die Datenbank (inklusive Migration) im Hintergrund: Eine
     /// große oder zu migrierende Datenbank blockiert so nicht das Fenster,
     /// und der Ladezustand ist tatsächlich zu sehen (Rule 24).

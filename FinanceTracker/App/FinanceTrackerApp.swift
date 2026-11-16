@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import os
 
@@ -77,12 +78,20 @@ struct FinanceTrackerApp: App {
     @NSApplicationDelegateAdaptor(WindowPresentationAppDelegate.self) private var appDelegate
     @State private var updateChecker = UpdateChecker()
     #endif
-    @State private var bootstrapper = AppBootstrapper()
+    @State private var bootstrapper: AppBootstrapper
     /// Katalog und Migrationen des Starts sind durch.
     @State private var startupFinished = false
     @State private var privacyState = PrivacyPresentationState(
         forcedHidesAmounts: AppLaunchEnvironment.live.forcedPrivacyHidesAmounts
     )
+    init() {
+        let bootstrapper = AppBootstrapper()
+        _bootstrapper = State(initialValue: bootstrapper)
+        // Kurzbefehle (App Intents) bekommen dieselben Abhängigkeiten wie die
+        // App, sobald die Datenbank offen ist.
+        AppDependencyManager.shared.add { try await bootstrapper.readyDependencies() }
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
