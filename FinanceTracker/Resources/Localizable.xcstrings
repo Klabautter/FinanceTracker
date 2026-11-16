@@ -9489,6 +9489,16 @@
         }
       }
     },
+    "Die Bank-Anmeldung ist noch nicht abgeschlossen. Unter Konten die Verbindung erneut freigeben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bank sign-in isn’t finished yet. Approve the connection again under Accounts."
+          }
+        }
+      }
+    },
     "Die Banken konnten nicht geladen werden. Prüfe die Internetverbindung." : {
       "localizations" : {
         "de" : {

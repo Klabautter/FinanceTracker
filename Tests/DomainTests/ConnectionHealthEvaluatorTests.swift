@@ -143,7 +143,7 @@ struct ConnectionHealthEvaluatorTests {
     func classifyAuthorizationErrors() {
         let evaluator = ConnectionHealthEvaluator()
         let conn = connection()
-        let pending = ImportError.unsupportedFormat(reason: "Die Bankverbindung ist noch nicht vollständig autorisiert.")
+        let pending = BankConnectionError.notAuthorized
         #expect(evaluator.classify(syncError: pending, connection: conn) == .reauthRequired)
         let revoked = connection(status: .revoked)
         #expect(evaluator.classify(syncError: BankProviderError.requestFailed(endpoint: "x", status: 500, body: nil), connection: revoked) == .blocked)

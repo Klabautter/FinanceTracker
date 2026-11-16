@@ -141,11 +141,6 @@ enum ImportError: Error, Equatable, Sendable {
         }
     }
 
-    /// Grund für einen noch nicht abgeschlossenen Bank-Login. Der
-    /// ConnectionHealthEvaluator erkennt ihn daran (sprachunabhängig).
-    static var connectionNotAuthorizedReason: String {
-        String(localized: "Die Bankverbindung ist noch nicht vollständig autorisiert.")
-    }
 }
 
 protocol ImportProvider: Sendable {

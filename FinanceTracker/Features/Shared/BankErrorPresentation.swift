@@ -9,6 +9,9 @@ enum BankErrorPresentation {
         if let provider = error as? BankProviderError {
             return message(for: provider)
         }
+        if error as? BankConnectionError == .notAuthorized {
+            return String(localized: "Die Bank-Anmeldung ist noch nicht abgeschlossen. Unter Konten die Verbindung erneut freigeben.")
+        }
         if let url = error as? URLError {
             switch url.code {
             case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:

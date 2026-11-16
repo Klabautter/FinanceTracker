@@ -120,15 +120,8 @@ struct ConnectionHealthEvaluator: Sendable {
         if let bankError = syncError as? BankProviderError {
             return classify(bankError: bankError)
         }
-        if let importError = syncError as? ImportError {
-            switch importError {
-            case .unsupportedFormat(let reason)
-                where reason == ImportError.connectionNotAuthorizedReason
-                    || reason.localizedCaseInsensitiveContains("autorisier"):
-                return .reauthRequired
-            default:
-                return .transientRetry
-            }
+        if syncError as? BankConnectionError == .notAuthorized {
+            return .reauthRequired
         }
         return .transientRetry
     }

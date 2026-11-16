@@ -187,7 +187,7 @@ struct BankSyncService: Sendable {
         }
         Self.logger.info("Sync \(Self.short(connection.id), privacy: .public): Status \(String(describing: state.authorization), privacy: .public), \(state.linkedAccountIDs.count, privacy: .public) Konten, Zustimmung bis \(state.consentValidUntil.map { AppDateFormatter.day($0) } ?? "unbekannt", privacy: .public)")
         guard state.authorization == .ready else {
-            throw ImportError.unsupportedFormat(reason: ImportError.connectionNotAuthorizedReason)
+            throw BankConnectionError.notAuthorized
         }
         let pipeline = ImportPipeline(
             providers: [],

@@ -57,6 +57,20 @@ struct RemoteBankAccountData: Sendable, Hashable {
     var balance: Money? = nil
 }
 
+/// Zustand einer Bankverbindung, der einen Abruf verhindert (Domain-Fehler,
+/// damit Domain-Logik keine Import-Fehlertexte vergleichen muss).
+enum BankConnectionError: Error, Equatable, LocalizedError, Sendable {
+    /// Der Bank-Login ist noch nicht abgeschlossen.
+    case notAuthorized
+
+    var errorDescription: String? {
+        switch self {
+        case .notAuthorized:
+            String(localized: "Die Bankverbindung ist noch nicht vollständig autorisiert.")
+        }
+    }
+}
+
 enum BankProviderError: Error, Equatable {
     case missingCredentials
     case invalidResponse(endpoint: String)
