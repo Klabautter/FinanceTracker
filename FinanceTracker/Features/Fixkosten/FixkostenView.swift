@@ -912,72 +912,65 @@ struct FixkostenOverviewRow: Identifiable, Sendable {
     }
 }
 
-/// Manuelle Erfassung (#112): Name, Richtung, Turnus, Betrag, Kategorie.
+/// Manuelle Erfassung (#112): Name, Richtung, Turnus, Betrag, Kategorie,
+/// optional Händler. Laden und Speichern liegen im `FixkostenCreateModel`.
 struct FixkostenCreateSheet: View {
     let dependencies: AppDependencies
     let onSaved: () -> Void
 
-    @State private var name = ""
-    @State private var direction: RecurringCommitment.Direction = .expense
-    @State private var cadence: RecurringCommitment.Cadence = .monthly
-    @State private var amount: Decimal?
-    @State private var categoryID: UUID?
-    @State private var nextExpectedDate = Date()
-    @State private var leafCategories: [Category] = []
-    @State private var merchantKey: String?
-    @State private var merchantSuggestions: [ManualCommitmentMerchantSuggestions.Suggestion] = []
-    @State private var errorMessage: String?
+    @State private var model: FixkostenCreateModel
     @Environment(\.dismiss) private var dismiss
+
+    init(dependencies: AppDependencies, onSaved: @escaping () -> Void) {
+        self.dependencies = dependencies
+        self.onSaved = onSaved
+        _model = State(initialValue: FixkostenCreateModel(dependencies: dependencies))
+    }
 
     private struct SuggestionInput: Equatable {
         let direction: RecurringCommitment.Direction
         let amount: Decimal?
     }
 
-    private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && amount != nil
-            && amount! > 0
-    }
-
     var body: some View {
-        AdaptiveSheet(title: FixkostenPresentation.creationTitle(for: direction)) {
+        @Bindable var model = model
+        AdaptiveSheet(title: FixkostenPresentation.creationTitle(for: model.direction)) {
             Form {
                 Section {
-                    TextField("Name (z. B. Miete, Spotify)", text: $name)
-                    DecimalInputField(title: String(localized: "Betrag (z. B. 10,99)"), value: $amount)
-                    Picker("Richtung", selection: $direction) {
+                    TextField("Name (z. B. Miete, Spotify)", text: $model.name)
+                    DecimalInputField(title: String(localized: "Betrag (z. B. 10,99)"), value: $model.amount)
+                    Picker("Richtung", selection: $model.direction) {
                         ForEach(RecurringCommitment.Direction.allCases, id: \.self) { direction in
                             Text(direction.displayName).tag(direction)
                         }
                     }
-                    Picker("Turnus", selection: $cadence) {
+                    Picker("Turnus", selection: $model.cadence) {
                         ForEach(RecurringCommitment.Cadence.allCases, id: \.self) { cadence in
                             Text(cadence.displayName).tag(cadence)
                         }
                     }
                     DatePicker(
-                        selection: $nextExpectedDate,
+                        selection: $model.nextExpectedDate,
                         displayedComponents: .date
                     ) {
-                        direction == .expense
+                        model.direction == .expense
                             ? Text("Start-/nächstes Fälligkeitsdatum")
                             : Text("Start-/nächstes Eingangsdatum")
                     }
                     CategorySelectionPicker(
                         title: String(localized: "Kategorie"),
-                        selection: $categoryID,
-                        categories: leafCategories,
+                        selection: $model.categoryID,
+                        categories: model.leafCategories,
                         dependencies: dependencies
                     )
                 } header: {
-                    direction == .expense ? Text("Zahlungsplan") : Text("Wiederkehrende Einnahme")
+                    model.direction == .expense ? Text("Zahlungsplan") : Text("Wiederkehrende Einnahme")
                 }
 
                 Section {
-                    Picker("Händler", selection: $merchantKey) {
+                    Picker("Händler", selection: $model.merchantKey) {
                         Text("Keiner (nur über den Betrag)").tag(String?.none)
-                        ForEach(merchantSuggestions) { suggestion in
+                        ForEach(model.merchantSuggestions) { suggestion in
                             Text("\(suggestion.label) (\(suggestion.count)×)").tag(String?.some(suggestion.merchantKey))
                         }
                     }
@@ -986,7 +979,7 @@ struct FixkostenCreateSheet: View {
                     Text("Mit Händler ordnet die App spätere Zahlungen sicher zu. Ohne Händler zählt eine Buchung mit gleichem Betrag als bezahlt.")
                 }
 
-                if let errorMessage {
+                if let errorMessage = model.actionError {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
                 }
@@ -1001,44 +994,77 @@ struct FixkostenCreateSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Speichern") {
-                        Task { await save() }
+                        Task {
+                            if await model.save() {
+                                onSaved()
+                                dismiss()
+                            }
+                        }
                     }
-                    .disabled(!canSave)
+                    .disabled(!model.canSave)
                 }
             }
-            .task { await loadCategories() }
-            .task(id: SuggestionInput(direction: direction, amount: amount)) {
-                await loadMerchantSuggestions()
+            .task { await model.loadCategories() }
+            .task(id: SuggestionInput(direction: model.direction, amount: model.amount)) {
+                // Kurz warten, damit nicht jede Ziffer eine Abfrage auslöst.
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+                await model.loadMerchantSuggestions()
             }
         }
         #if os(macOS)
         .frame(minWidth: 420, idealWidth: 460, maxWidth: 540, minHeight: 390, idealHeight: 450, maxHeight: 560)
         #endif
     }
+}
 
-    private func loadCategories() async {
+/// Zustand und Speichern des Anlegen-Formulars (Rule 1: keine
+/// Persistenz in der View).
+@MainActor
+@Observable
+final class FixkostenCreateModel {
+    private let dependencies: AppDependencies
+
+    var name = ""
+    var direction: RecurringCommitment.Direction = .expense
+    var cadence: RecurringCommitment.Cadence = .monthly
+    var amount: Decimal?
+    var categoryID: UUID?
+    var nextExpectedDate = Date()
+    var merchantKey: String?
+    private(set) var leafCategories: [Category] = []
+    private(set) var merchantSuggestions: [ManualCommitmentMerchantSuggestions.Suggestion] = []
+    private(set) var actionError: String?
+
+    init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+    }
+
+    var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && (amount ?? 0) > 0
+    }
+
+    func loadCategories() async {
         do {
             let all = try await dependencies.categoryRepository.categories()
             leafCategories = all
                 .filter { category in !all.contains { $0.parentID == category.id } }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         } catch {
-            errorMessage = String(localized: "Kategorien konnten nicht geladen werden.")
+            actionError = String(localized: "Kategorien konnten nicht geladen werden.")
         }
     }
 
-    private func loadMerchantSuggestions() async {
-        // Kurz warten, damit nicht jede Ziffer eine Abfrage auslöst.
-        try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled else { return }
+    func loadMerchantSuggestions(now: Date = Date()) async {
         var query = TransactionQuery()
-        query.dateInterval = Calendar.current.date(byAdding: .day, value: -120, to: Date()).map { DateInterval(start: $0, end: Date()) }
+        query.dateInterval = Calendar.current.date(byAdding: .day, value: -120, to: now).map { DateInterval(start: $0, end: now) }
         guard let recent = try? await dependencies.transactionRepository.transactions(matching: query) else { return }
         let suggestions = ManualCommitmentMerchantSuggestions.suggest(
             direction: direction,
             amount: amount,
             currency: dependencies.baseCurrency,
-            transactions: recent
+            transactions: recent,
+            now: now
         )
         merchantSuggestions = suggestions
         if let merchantKey, !suggestions.contains(where: { $0.merchantKey == merchantKey }) {
@@ -1046,10 +1072,11 @@ struct FixkostenCreateSheet: View {
         }
     }
 
-    private func save() async {
+    /// Speichert den Plan; `true` bei Erfolg.
+    func save() async -> Bool {
         guard let amount, amount > 0 else {
-            errorMessage = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
-            return
+            actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
+            return false
         }
         let draft = RecurringCommitmentDraft(
             name: name.trimmingCharacters(in: .whitespaces),
@@ -1064,10 +1091,11 @@ struct FixkostenCreateSheet: View {
         do {
             try await dependencies.recurringCommitmentRepository.upsert([commitment])
             dependencies.changeTracker.markChanged()
-            onSaved()
-            dismiss()
+            actionError = nil
+            return true
         } catch {
-            errorMessage = String(localized: "Speichern fehlgeschlagen.")
+            actionError = String(localized: "Speichern fehlgeschlagen.")
+            return false
         }
     }
 }
