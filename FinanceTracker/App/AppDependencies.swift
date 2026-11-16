@@ -111,6 +111,20 @@ struct AppDependencies: @unchecked Sendable {
         self.bankSyncCoordinator = bankSyncCoordinator
     }
 
+    /// Basiswährung für Summen und Prognosen (Einstellungen → Allgemein).
+    /// Nur Währungen mit Referenzkurs; sonst EUR. Wirkt ab dem nächsten Start.
+    static let baseCurrencyDefaultsKey = "baseCurrency"
+
+    static func storedBaseCurrency(in defaults: UserDefaults) -> CurrencyCode {
+        guard let raw = defaults.string(forKey: baseCurrencyDefaultsKey) else { return .eur }
+        let code = CurrencyCode(raw)
+        return selectableBaseCurrencies.contains(code) ? code : .eur
+    }
+
+    static var selectableBaseCurrencies: [CurrencyCode] {
+        ([CurrencyCode.eur] + CurrencyConverter.referenceEURRates.keys).sorted { $0.rawValue < $1.rawValue }
+    }
+
     static func live() throws -> AppDependencies {
         // Normale UI-/Visual-QA-Läufe verwenden bewusst den Live-Store.
         // Nur künstliche Empty-/Storage-Error-Zustände sind isoliert.
@@ -131,7 +145,7 @@ struct AppDependencies: @unchecked Sendable {
         #endif
         return make(
             container: store.container,
-            baseCurrency: .eur,
+            baseCurrency: Self.storedBaseCurrency(in: userDefaults),
             // Als Host der Unit-Tests keine Kurs-Historie aus dem Netz laden.
             fxRateProvider: ECBFXRateProvider(loadsHistory: AppDataDirectory.unitTestRoot() == nil),
             userDefaults: userDefaults,

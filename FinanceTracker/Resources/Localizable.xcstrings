@@ -22326,6 +22326,16 @@
         }
       }
     },
+    "Summen, Budgets und Prognose rechnen ab dem nächsten Start der App in %@. Konten behalten ihre Währung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Totals, budgets and the forecast use %@ from the next app launch. Accounts keep their currency."
+          }
+        }
+      }
+    },
     "Symbol suchen" : {
       "localizations" : {
         "de" : {

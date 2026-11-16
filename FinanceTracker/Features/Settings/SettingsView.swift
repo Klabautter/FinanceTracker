@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
     @State private var confirmsDeleteAll = false
+    @AppStorage(AppDependencies.baseCurrencyDefaultsKey) private var baseCurrency = CurrencyCode.eur.rawValue
     let dependencies: AppDependencies
     /// P1 UX: Echter Navigations-Link auf Konten & Verbindungen. Hosts mit
     /// eigener Navigation (z. B. Sidebar-Steuerung) übergeben einen
@@ -133,10 +134,16 @@ struct SettingsView: View {
     @ViewBuilder
     private var generalSections: some View {
             settingsSection(String(localized: "Allgemein", comment: "Settings-Sektion: allgemeine Angaben")) {
-                HStack {
-                    Text("Basiswährung")
-                    Spacer()
-                    Text(model.baseCurrency.rawValue).foregroundStyle(.secondary)
+                Picker("Basiswährung", selection: $baseCurrency) {
+                    ForEach(AppDependencies.selectableBaseCurrencies, id: \.self) { code in
+                        Text(code.rawValue).tag(code.rawValue)
+                    }
+                }
+                .accessibilityIdentifier("settings-base-currency")
+                if baseCurrency != model.baseCurrency.rawValue {
+                    Text("Summen, Budgets und Prognose rechnen ab dem nächsten Start der App in \(baseCurrency). Konten behalten ihre Währung.")
+                        .font(.footnote)
+                        .foregroundStyle(AppPalette.warning)
                 }
                 HStack {
                     Text("Version")
