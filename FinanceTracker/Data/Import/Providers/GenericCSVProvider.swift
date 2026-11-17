@@ -242,8 +242,31 @@ struct GenericCSVProvider: ImportProvider {
 
     func canHandle(_ file: ImportFile) async throws -> Bool {
         if forcedMapping != nil { return true }
-        guard let rows = try? CSVReader.parseRows(file.data) else { return false }
+        do {
+            return GenericCSVMapping.locate(in: try CSVReader.parseRows(file.data)) != nil
+        } catch CSVReadError.unterminatedQuote(let record) {
+            // Eine Tabelle dieser Art, aber beschädigt: Das wird gemeldet,
+            // statt als „kein passendes Format" zu enden (#18). Was gar keine
+            // solche Tabelle ist (ein Bild, ein Archiv), bleibt bei `false`.
+            guard Self.looksLikeTable(file.data) else { return false }
+            throw Self.unterminatedQuoteError(record: record)
+        } catch {
+            return false
+        }
+    }
+
+    /// Ob die ersten Zeilen für sich genommen eine Kopfzeile mit Datum und
+    /// Betrag ergeben.
+    static func looksLikeTable(_ data: Data) -> Bool {
+        let rows = CSVReader.text(from: data)
+            .split(whereSeparator: \.isNewline)
+            .prefix(40)
+            .compactMap { try? CSVReader.parseRows(String($0)).first }
         return GenericCSVMapping.locate(in: rows) != nil
+    }
+
+    static func unterminatedQuoteError(record: Int) -> ImportError {
+        .unsupportedFormat(reason: String(localized: "Ab Datenzeile \(record) beginnt ein Anführungszeichen, das bis zum Dateiende nicht geschlossen wird. Die Datei ist unvollständig oder beschädigt."))
     }
 
     func resolveMapping(in document: CSVDocument) -> GenericCSVMapping? {
@@ -253,15 +276,19 @@ struct GenericCSVProvider: ImportProvider {
     func parse(_ file: ImportFile) async throws -> ProviderParseResult {
         let document: CSVDocument
         let mapping: GenericCSVMapping
-        if let forcedMapping {
-            // Manuelle Zuordnung bezieht sich auf die erste Zeile der Datei.
-            document = try CSVReader.parse(file.data)
-            mapping = forcedMapping
-        } else {
-            guard let located = GenericCSVMapping.locate(in: try CSVReader.parseRows(file.data)) else {
-                throw ImportError.missingColumns(missing: ["Datum-Spalte", "Betrag-Spalte"])
+        do {
+            if let forcedMapping {
+                // Manuelle Zuordnung bezieht sich auf die erste Zeile der Datei.
+                document = try CSVReader.parse(file.data)
+                mapping = forcedMapping
+            } else {
+                guard let located = GenericCSVMapping.locate(in: try CSVReader.parseRows(file.data)) else {
+                    throw ImportError.missingColumns(missing: ["Datum-Spalte", "Betrag-Spalte"])
+                }
+                (document, mapping) = located
             }
-            (document, mapping) = located
+        } catch CSVReadError.unterminatedQuote(let record) {
+            throw Self.unterminatedQuoteError(record: record)
         }
 
         var transactions: [ImportedTransaction] = []
@@ -444,7 +471,10 @@ struct GenericCSVProvider: ImportProvider {
             unknownTypes: unknownTypes
                 .map { UnknownTransactionType(key: $0.key, label: $0.value.label, count: $0.value.count) }
                 .sorted { $0.count > $1.count },
-            assumedDecimalSeparator: assumedSeparator
+            assumedDecimalSeparator: assumedSeparator,
+            ambiguousAmountExample: assumedSeparator == nil
+                ? nil
+                : amountSamples.first(where: CSVMoneyParser.isAmbiguous)?.trimmingCharacters(in: .whitespaces)
         )
     }
 

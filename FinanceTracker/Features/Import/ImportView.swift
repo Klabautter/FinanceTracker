@@ -324,8 +324,8 @@ struct ImportView: View {
                 .id(prepared.unknownTypes)
             }
 
-            if let assumed = prepared.assumedDecimalSeparator {
-                DecimalSeparatorQuestion(assumed: assumed) { separator in
+            if prepared.assumedDecimalSeparator != nil {
+                DecimalSeparatorQuestion(example: prepared.ambiguousAmountExample ?? "1.000") { separator in
                     Task { await model.applyDecimalSeparator(separator) }
                 }
             }
@@ -660,15 +660,19 @@ struct ImportView: View {
     }
 }
 
-/// Die Datei verrät nicht, ob „1.000" tausend oder eins heißt. Der Import
-/// wartet auf die Antwort, die App merkt sie sich für das Konto.
-private struct DecimalSeparatorQuestion: View {
-    let assumed: Character
+/// Die Datei verrät nicht, ob ein Betrag wie „1.000" tausend oder eins
+/// heißt. Der Import wartet auf die Antwort, die App merkt sie sich für das
+/// Konto. Gefragt wird mit einem Betrag aus der Datei selbst und beide
+/// Lesarten stehen ausgeschrieben da („zweitausendfünfhundert" / „zwei
+/// Komma fünf"), weil Ziffern hier gerade das Mehrdeutige sind.
+struct DecimalSeparatorQuestion: View {
+    let example: String
     let apply: (Character) -> Void
 
     var body: some View {
+        let readings = Self.readings(of: example)
         VStack(alignment: .leading, spacing: AppSpacing.s) {
-            Label("Wie sind Beträge wie „1.000“ gemeint?", systemImage: "questionmark.circle")
+            Label("Wie ist der Betrag „\(example)“ gemeint?", systemImage: "questionmark.circle")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(AppPalette.warning)
             Text("Die Datei verrät nicht, ob Punkt oder Komma das Dezimalzeichen ist. Die Antwort gilt für künftige Importe in dieses Konto.")
@@ -676,14 +680,40 @@ private struct DecimalSeparatorQuestion: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button("1.000 = tausend") { apply(",") }
-                    .accessibilityIdentifier("import-decimal-comma")
-                Button("1.000 = eins") { apply(".") }
-                    .accessibilityIdentifier("import-decimal-dot")
+                Button(readings.asThousands.text) { apply(readings.asThousands.decimalSeparator) }
+                    .accessibilityIdentifier("import-decimal-thousands")
+                Button(readings.asDecimal.text) { apply(readings.asDecimal.decimalSeparator) }
+                    .accessibilityIdentifier("import-decimal-fraction")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, AppSpacing.xs)
         .accessibilityElement(children: .contain)
+    }
+
+    struct Reading: Equatable {
+        /// Ausgeschriebene Zahl dieser Lesart.
+        let text: String
+        /// Dezimaltrenner, mit dem die Datei dann gelesen wird.
+        let decimalSeparator: Character
+    }
+
+    /// Beide Lesarten eines Betrags mit genau einem Trenner vor drei Ziffern.
+    /// Steht im Betrag ein Punkt, ist er in der Tausender-Lesart das
+    /// Gruppenzeichen (Dezimaltrenner also das Komma) und umgekehrt.
+    nonisolated static func readings(of example: String, locale: Locale = .current) -> (asThousands: Reading, asDecimal: Reading) {
+        let separator: Character = example.contains(",") ? "," : "."
+        let other: Character = separator == "," ? "." : ","
+        func spelled(_ decimalSeparator: Character) -> String {
+            let value = CSVMoneyParser.parse(example, decimalSeparator: decimalSeparator).map(abs) ?? 0
+            let formatter = NumberFormatter()
+            formatter.locale = locale
+            formatter.numberStyle = .spellOut
+            return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+        }
+        return (
+            Reading(text: spelled(other), decimalSeparator: other),
+            Reading(text: spelled(separator), decimalSeparator: separator)
+        )
     }
 }
 

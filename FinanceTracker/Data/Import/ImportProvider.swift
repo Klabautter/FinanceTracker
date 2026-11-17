@@ -108,6 +108,9 @@ struct ProviderParseResult: Sendable, Equatable {
     /// wie „1.000", die tausend oder eins heißen können. Gelesen wurde mit
     /// `assumedDecimalSeparator`; die Vorschau fragt nach (#17).
     var assumedDecimalSeparator: Character?
+    /// Ein solcher Betrag, wie er in der Datei steht („2,500"), damit die
+    /// Rückfrage nach dem zeigt, was die Datei wirklich enthält.
+    var ambiguousAmountExample: String?
 
     static func empty(totalRows: Int = 0) -> ProviderParseResult {
         ProviderParseResult(totalRows: totalRows, transactions: [], issues: [])

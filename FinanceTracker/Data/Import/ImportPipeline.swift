@@ -132,6 +132,8 @@ struct PreparedImport: Sendable, Equatable {
     /// Dezimaltrenner, mit dem mehrdeutige Beträge vorläufig gelesen wurden;
     /// gesetzt heißt: der Import braucht eine Bestätigung.
     var assumedDecimalSeparator: Character?
+    /// Ein mehrdeutiger Betrag aus der Datei für die Rückfrage.
+    var ambiguousAmountExample: String?
     /// Stand nach der letzten Buchung der Datei (Saldo-Spalte), in der
     /// Währung des Zielkontos.
     var reportedBalance: ReportedBalance?
@@ -861,6 +863,7 @@ struct ImportPipeline: Sendable {
             crossSourceDuplicates: crossSourceDuplicates,
             unknownTypes: parseResult.unknownTypes,
             assumedDecimalSeparator: parseResult.assumedDecimalSeparator,
+            ambiguousAmountExample: parseResult.ambiguousAmountExample,
             reportedBalance: reportedBalance,
             reportedBalanceIsNew: reportedBalance.map { balance in
                 targetAccount?.reportedBalance.map { balance.asOf > $0.asOf } ?? true

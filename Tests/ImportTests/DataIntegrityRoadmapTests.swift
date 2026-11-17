@@ -211,6 +211,59 @@ struct DataIntegrityRoadmapTests {
         #expect(ones.transactions.map(\.amount.amount).sorted() == [-1, Decimal(string: "2.5")!])
     }
 
+    @Test("Rückfrage zeigt einen Betrag aus der Datei; Komma-Dateien werden nicht verkehrt herum gelesen")
+    func ambiguityQuestionFollowsTheFile() async throws {
+        let commaGrouped = """
+        Date,Description,Amount
+        2026-10-01,Rent,"-1,000"
+        2026-10-02,Salary,"2,500"
+        """
+        let file = ImportFile(fileName: "c.csv", data: Data(commaGrouped.utf8))
+        let unanswered = try await GenericCSVProvider().parse(file)
+        #expect(unanswered.assumedDecimalSeparator != nil)
+        #expect(unanswered.ambiguousAmountExample == "-1,000")
+
+        let german = Locale(identifier: "de_DE")
+        let readings = DecimalSeparatorQuestion.readings(of: "2,500", locale: german)
+        // „zweitausendfünfhundert" liest die Datei mit Punkt als Dezimaltrenner.
+        #expect(readings.asThousands.decimalSeparator == ".")
+        #expect(readings.asThousands.text.contains("tausend"))
+        #expect(readings.asDecimal.decimalSeparator == ",")
+        #expect(readings.asDecimal.text.lowercased().contains("komma"))
+        let thousands = try await GenericCSVProvider(decimalSeparatorChoice: readings.asThousands.decimalSeparator).parse(file)
+        #expect(thousands.transactions.map(\.amount.amount).sorted() == [-1000, 2500])
+        #expect(thousands.ambiguousAmountExample == nil)
+
+        // Punkt-Datei: dieselbe Antwort wählt hier das Komma als Dezimaltrenner.
+        let dotReadings = DecimalSeparatorQuestion.readings(of: "1.000", locale: german)
+        #expect(dotReadings.asThousands.decimalSeparator == ",")
+        #expect(dotReadings.asDecimal.decimalSeparator == ".")
+    }
+
+    @Test("Beschädigte CSV: offenes Anführungszeichen wird gemeldet, statt als fremdes Format zu enden")
+    func unterminatedQuoteIsReported() async throws {
+        let broken = """
+        Datum;Beschreibung;Betrag
+        01.10.2026;Miete;-900,00
+        02.10.2026;"Bäcker;-3,20
+        03.10.2026;Kino;-12,00
+        """
+        let file = ImportFile(fileName: "kaputt.csv", data: Data(broken.utf8))
+        await #expect(throws: ImportError.self) { try await GenericCSVProvider().canHandle(file) }
+        do {
+            _ = try await GenericCSVProvider().canHandle(file)
+        } catch let error as ImportError {
+            guard case .unsupportedFormat(let reason) = error else {
+                Issue.record("Unerwarteter Fehler: \(error)")
+                return
+            }
+            #expect(reason.contains("Anführungszeichen"))
+        }
+        // Was keine solche Tabelle ist, bleibt schlicht „nicht zuständig".
+        let other = ImportFile(fileName: "bild.png", data: Data("PNG \"binär ohne Tabelle".utf8))
+        #expect(try await GenericCSVProvider().canHandle(other) == false)
+    }
+
     @Test("CSV mit erkennbarem Trenner fragt nicht nach")
     func unambiguousCSVDoesNotAsk() async throws {
         let text = ambiguousCSV + "\n03.10.2026;Bäcker;-3,20"
