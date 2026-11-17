@@ -12,7 +12,8 @@
 # es gibt keinen Bankabruf.
 #
 # Aufruf: Scripts/smoke-test-app.sh [Pfad/zur/FinanceTracker.app]
-# Das Ergebnis jeder Zeile enthält overviewMs: erstes Laden der Übersicht.
+# Jede Ergebniszeile enthält die Ladezeiten der Übersicht (overview*Ms,
+# warm*Ms) und den höchsten Speicherbedarf (peakMemoryMB).
 # Ohne Pfad: der zuletzt gebaute Release-Build unter build/release.
 
 set -euo pipefail
