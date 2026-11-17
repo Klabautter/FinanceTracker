@@ -9,22 +9,39 @@ final class GatedTransactionRepository: TransactionRepository, @unchecked Sendab
     final class Gate: @unchecked Sendable {
         private let lock = NSLock()
         private var continuations: [CheckedContinuation<Void, Never>] = []
+        private var arrivals: [CheckedContinuation<Void, Never>] = []
         private var isOpen = false
 
         func wait() async {
             let shouldWait: Bool = lock.withLock { !isOpen }
             guard shouldWait else { return }
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                let resumeNow: Bool = lock.withLock {
+                let (resumeNow, waiting): (Bool, [CheckedContinuation<Void, Never>]) = lock.withLock {
                     if isOpen {
-                        return true
+                        return (true, [])
                     }
                     continuations.append(continuation)
-                    return false
+                    let waiting = arrivals
+                    arrivals = []
+                    return (false, waiting)
                 }
+                waiting.forEach { $0.resume() }
                 if resumeNow {
                     continuation.resume()
                 }
+            }
+        }
+
+        /// Kehrt zurück, sobald ein Laden am Gate wartet (statt einer
+        /// festen Wartezeit, die auf langsamen Rechnern zu kurz sein kann).
+        func untilSomeoneWaits() async {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let alreadyWaiting: Bool = lock.withLock {
+                    if !continuations.isEmpty || isOpen { return true }
+                    arrivals.append(continuation)
+                    return false
+                }
+                if alreadyWaiting { continuation.resume() }
             }
         }
 
@@ -235,8 +252,8 @@ struct AnalyticsLoadRaceTests {
         // 1) Filter A (langsam) starten: Load hängt im Gate.
         model.filterCategoryIDs = [slowCategory]
         let staleLoad = Task { await model.load() }
-        // Dem MainActor-Zyklus Zeit geben, bis der Load im Gate wartet.
-        try await Task.sleep(for: .milliseconds(200))
+        // Warten, bis der Load tatsächlich im Gate hängt.
+        await gate.untilSomeoneWaits()
 
         // 2) Filter B (schnell) laden, committet sofort.
         model.filterCategoryIDs = [fastCategory]
@@ -263,7 +280,7 @@ struct AnalyticsLoadRaceTests {
 
         gate.open()
         while model.isLoading {
-            try await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
         }
     }
 
@@ -333,7 +350,7 @@ struct AnalyticsLoadRaceTests {
 
         model.filterCategoryIDs = [slowCategory]
         let staleLoad = Task { await model.load() }
-        try await Task.sleep(for: .milliseconds(200))
+        await gate.untilSomeoneWaits()
 
         model.filterCategoryIDs = [fastCategory]
         await model.load()

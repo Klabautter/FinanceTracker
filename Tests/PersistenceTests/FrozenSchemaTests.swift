@@ -109,10 +109,12 @@ struct FrozenSchemaTests {
         )
         let url = directory.appendingPathComponent("FinanceTracker-v\(version)-wal.store")
         try? FileManager.default.removeItem(at: url)
+        #if DEBUG
         do {
             let store = try SwiftDataStore(url: url)
             PreviewDependencies.seedDemoData(into: store.container)
         }
+        #endif
     }
 
     @Test("Migration V16 → V17 legt die Indizes der Buchungstabelle an")

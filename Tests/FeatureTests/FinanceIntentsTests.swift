@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 import Testing
 
@@ -27,3 +28,4 @@ struct FinanceIntentsTests {
         #expect(summary == nil || summary?.spending == 0)
     }
 }
+#endif

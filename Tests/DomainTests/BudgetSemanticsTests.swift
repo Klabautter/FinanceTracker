@@ -3,12 +3,17 @@ import Testing
 
 @testable import FinanceTracker
 
+/// Fester Bezugstag statt der echten Uhr: Ergebnisse hängen nicht vom
+/// Testtag ab (Monatswechsel, Sommerzeit).
+private let budgetSemanticsNow = Calendar(identifier: .gregorian)
+    .date(from: DateComponents(year: 2026, month: 3, day: 15, hour: 12))!
+
 struct BudgetSemanticsTests {
     private let calculator = BudgetCalculator()
     private let calendar = Calendar(identifier: .gregorian)
 
     private var monthInterval: DateInterval {
-        let now = Date()
+        let now = budgetSemanticsNow
         let start = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         let end = calendar.date(byAdding: .month, value: 1, to: start)!
         return DateInterval(start: start, end: end)
@@ -29,7 +34,7 @@ struct BudgetSemanticsTests {
             status: status,
             kind: kind,
             amount: Money(amount: amount, currency: .eur),
-            bookedAt: Date(),
+            bookedAt: budgetSemanticsNow,
             rawDescription: "x",
             rawMerchantName: "X",
             merchantDisplayName: "X"
@@ -134,7 +139,7 @@ struct BudgetSemanticsTests {
     @Test("Buchungen außerhalb des Monats zählen nicht")
     func outsideMonthDoesNotCount() {
         var old = txn(amount: -Decimal(string: "77.00")!)
-        old.bookedAt = calendar.date(byAdding: .month, value: -2, to: Date())
+        old.bookedAt = calendar.date(byAdding: .month, value: -2, to: budgetSemanticsNow)
 
         let progress = progress([txn(amount: -Decimal(string: "42.50")!), old])
         #expect(progress.spent == Decimal(string: "42.50")!)
@@ -169,7 +174,7 @@ struct BudgetScopeTests {
     private let calendar = Calendar(identifier: .gregorian)
 
     private var monthInterval: DateInterval {
-        let now = Date()
+        let now = budgetSemanticsNow
         let start = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         let end = calendar.date(byAdding: .month, value: 1, to: start)!
         return DateInterval(start: start, end: end)
@@ -183,7 +188,7 @@ struct BudgetScopeTests {
             status: .booked,
             kind: .purchase,
             amount: Money(amount: -amount, currency: .eur),
-            bookedAt: Date(),
+            bookedAt: budgetSemanticsNow,
             rawDescription: "x",
             rawMerchantName: "X",
             merchantDisplayName: "X"

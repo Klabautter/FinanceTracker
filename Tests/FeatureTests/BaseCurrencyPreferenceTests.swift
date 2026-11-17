@@ -16,6 +16,7 @@ struct BaseCurrencyPreferenceTests {
         #expect(AppDependencies.storedBaseCurrency(in: defaults) == .eur)
     }
 
+    #if DEBUG
     @Test("Übersicht rechnet Euro-Buchungen in die gewählte Basiswährung um")
     func dashboardUsesBaseCurrency() async throws {
         let store = try SwiftDataStore(inMemory: true)
@@ -32,4 +33,5 @@ struct BaseCurrencyPreferenceTests {
         #expect(euroSpending > 0 && francSpending > 0)
         #expect(euroSpending != francSpending)
     }
+    #endif
 }
