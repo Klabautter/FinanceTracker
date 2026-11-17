@@ -21,6 +21,8 @@ struct ECBFXRateProvider: FXRateProvider, Sendable {
     /// Tageskurse für Buchungen. Nur die App schaltet sie ein (`live()`),
     /// Tests und Previews laden keine Historie.
     private let history: ECBFXHistory?
+    /// Verhindert, dass parallele Ladevorgänge mehrere Abrufe starten.
+    private let backgroundRefresh = FXBackgroundRefreshGate()
 
     init(
         transport: any HTTPTransport = URLSessionTransport(),
@@ -66,6 +68,24 @@ struct ECBFXRateProvider: FXRateProvider, Sendable {
         // A normal read reuses a valid cache. Explicit refresh always attempts the feed.
         if !forceRefresh, let cached, isFresh(cached, at: currentTime) {
             return cached
+        }
+        // Veralteter Cache: sofort mit dem alten, als veraltet markierten
+        // Kurs antworten und im Hintergrund nachladen. Sonst wartet die
+        // Übersicht einmal am Tag auf die EZB, bevor sie etwas zeigt.
+        // Erst ohne jeden Cache (erster Start) wird auf das Netz gewartet.
+        if !forceRefresh, let cached {
+            let provider = self
+            await backgroundRefresh.startIfIdle {
+                _ = await provider.resolve(forceRefresh: true)
+            }
+            return FXRateSnapshot(
+                eurPerUnit: cached.eurPerUnit,
+                quoteDate: cached.quoteDate,
+                fetchedAt: cached.fetchedAt,
+                source: .cache,
+                isStale: true,
+                refreshFailed: false
+            )
         }
         do {
             let feed = try await fetchLiveRates()
@@ -245,4 +265,22 @@ enum ECBFXError: Error, Equatable {
     case missingQuoteDate
     case invalidQuoteDate
     case emptyFeed
+}
+
+/// Startet höchstens einen Hintergrund-Abruf gleichzeitig.
+actor FXBackgroundRefreshGate {
+    private var isRunning = false
+
+    func startIfIdle(_ work: @escaping @Sendable () async -> Void) {
+        guard !isRunning else { return }
+        isRunning = true
+        Task {
+            await work()
+            self.finish()
+        }
+    }
+
+    private func finish() {
+        isRunning = false
+    }
 }

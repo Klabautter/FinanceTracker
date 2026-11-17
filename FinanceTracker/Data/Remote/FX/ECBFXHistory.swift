@@ -22,6 +22,11 @@ actor ECBFXHistory {
     private let now: @Sendable () -> Date
     private var loaded: (fetchedAt: Date, rates: DailyFXRates)?
     private var didLoadCache = false
+    private var isRefreshingInBackground = false
+
+    private func finishBackgroundRefresh() {
+        isRefreshingInBackground = false
+    }
 
     init(transport: any HTTPTransport, cacheURL: URL?, now: @escaping @Sendable () -> Date) {
         self.transport = transport
@@ -41,6 +46,18 @@ actor ECBFXHistory {
             loaded = loadCache()
         }
         if let loaded, !forceRefresh, now().timeIntervalSince(loaded.fetchedAt) < Self.refreshInterval {
+            return loaded.rates
+        }
+        // Veraltete Historie: sofort verwenden, im Hintergrund nachladen
+        // (wie beim Tageskurs; die Übersicht wartet nicht auf das Netz).
+        if let loaded, !forceRefresh {
+            if !isRefreshingInBackground {
+                isRefreshingInBackground = true
+                Task {
+                    _ = await self.rates(forceRefresh: true)
+                    self.finishBackgroundRefresh()
+                }
+            }
             return loaded.rates
         }
         // Ohne Bestand die ganze Historie, sonst nur die letzten 90 Tage.

@@ -175,6 +175,34 @@ struct FXRateProviderTests {
         #expect(refreshed.refreshFailed)
     }
 
+    @Test("Veralteter Cache antwortet sofort (als veraltet markiert) und lädt im Hintergrund nach")
+    func staleCacheAnswersImmediatelyAndRefreshesInBackground() async throws {
+        let cacheURL = tempCacheURL()
+        let written = Date(timeIntervalSince1970: 1_790_000_000)
+        let initial = ECBFXRateProvider(
+            transport: StubTransport(data: Data(Self.ecbFixture.utf8), status: 200),
+            cacheURL: cacheURL,
+            now: { written }
+        )
+        let first = await initial.snapshot()
+        #expect(first.source == .live)
+
+        // Zwei Tage später, Netz nicht erreichbar.
+        let later = written.addingTimeInterval(2 * 24 * 60 * 60)
+        let transport = CountingFailingTransport()
+        let provider = ECBFXRateProvider(transport: transport, cacheURL: cacheURL, now: { later })
+        let stale = await provider.snapshot()
+        #expect(stale.source == .cache)
+        #expect(stale.isStale)
+        #expect(stale.eurPerUnit == first.eurPerUnit)
+
+        // Der Abruf läuft trotzdem, nur eben nicht vor der Antwort.
+        for _ in 0..<100 where await transport.requests == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await transport.requests == 1)
+    }
+
     @Test("EZB-Feed muss ein strikt gültiges Kursdatum enthalten")
     func quoteDateIsRequiredAndStrict() {
         let noDate = Self.ecbFixture.replacingOccurrences(of: " time=\"2026-08-28\"", with: "")

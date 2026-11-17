@@ -42,9 +42,22 @@ struct PerformanceBudgetTests {
             try await dependencies.transactionRepository.upsert(Array(rows[start..<min(start + 5_000, rows.count)]))
         }
 
+        // Optional: den 100k-Store für den Rauchtest des Release-Builds
+        // ablegen (Scripts/smoke-test-app.sh --store), keine echten Daten.
+        if let export = ProcessInfo.processInfo.environment["PERF_EXPORT_STORE"] {
+            let target = URL(fileURLWithPath: export)
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let source = directory.appendingPathComponent("budget.store")
+            for suffix in ["", "-wal", "-shm"] where FileManager.default.fileExists(atPath: source.path + suffix) {
+                try? FileManager.default.removeItem(atPath: target.path + suffix)
+                try FileManager.default.copyItem(atPath: source.path + suffix, toPath: target.path + suffix)
+            }
+        }
+
         let clock = ContinuousClock()
         let model = DashboardModel(dependencies: dependencies)
-        let firstLoad = await clock.measure { await model.load() }
+        let (firstVisible, firstLoad) = await model.measureLoad()
         let monthSwitch = await clock.measure { await model.showPreviousMonth() }
         let firstPage = try await clock.measure {
             _ = try await dependencies.transactionRepository.transactionPage(
@@ -93,13 +106,14 @@ struct PerformanceBudgetTests {
         let importDuration = prepareDuration + commitDuration
         print("PERF import 20k: prepare \(prepareDuration), commit \(commitDuration)")
 
-        print("PERF budget 100k: first load \(firstLoad), month switch \(monthSwitch), first page \(firstPage), search \(search) (warm \(warmSearch)), import 20k \(importDuration)")
+        print("PERF budget 100k: overview visible \(firstVisible), complete \(firstLoad), month switch \(monthSwitch), first page \(firstPage), search \(search) (warm \(warmSearch)), import 20k \(importDuration)")
 
         #expect(model.snapshot != nil)
         #expect(imported == 20_000)
         // Gemessen am 17.11.2026 (Debug): erstes Laden 4,2 s, Monatswechsel
         // 0,26 s, erste Seite 0,01 s, Suche 0,04 s (vorher 2,6 s), Import
         // von 20.000 Zeilen 14 s (vorher 80 s). Grenzen mit Reserve.
+        #expect(firstVisible < .seconds(1))
         #expect(firstLoad < .seconds(7))
         #expect(monthSwitch < .milliseconds(500))
         #expect(firstPage < .milliseconds(300))

@@ -15,12 +15,22 @@ struct AppSmokeTest: Sendable {
         return AppSmokeTest(resultURL: root.appendingPathComponent("smoke-result.txt"))
     }
 
+    @MainActor
     func recordOpened(_ dependencies: AppDependencies) async {
         do {
+            // Erstes Laden der Übersicht, wie beim Öffnen des Fensters; so
+            // misst der Rauchtest auch die Zeit im fertigen Release-Build.
+            let cold = await DashboardModel(dependencies: dependencies).measureLoad()
+            // Zweites Laden mit frischem Model: wie jeder spätere Start, wenn
+            // Kurse schon im Cache liegen.
+            let warm = await DashboardModel(dependencies: dependencies).measureLoad()
             let accounts = try await dependencies.accountRepository.accounts().count
             let transactions = try await dependencies.transactionRepository.transactions(matching: TransactionQuery()).count
             let categories = try await dependencies.categoryRepository.categories().count
-            write("ok accounts=\(accounts) transactions=\(transactions) categories=\(categories)")
+            func milliseconds(_ duration: Duration) -> Int64 {
+                duration.components.seconds * 1_000 + duration.components.attoseconds / 1_000_000_000_000_000
+            }
+            write("ok accounts=\(accounts) transactions=\(transactions) categories=\(categories) overviewVisibleMs=\(milliseconds(cold.visible)) overviewCompleteMs=\(milliseconds(cold.complete)) warmVisibleMs=\(milliseconds(warm.visible)) warmCompleteMs=\(milliseconds(warm.complete))")
         } catch {
             write("failed: read \(type(of: error))")
         }

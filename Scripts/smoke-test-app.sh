@@ -12,6 +12,7 @@
 # es gibt keinen Bankabruf.
 #
 # Aufruf: Scripts/smoke-test-app.sh [Pfad/zur/FinanceTracker.app]
+# Das Ergebnis jeder Zeile enthält overviewMs: erstes Laden der Übersicht.
 # Ohne Pfad: der zuletzt gebaute Release-Build unter build/release.
 
 set -euo pipefail
@@ -93,6 +94,12 @@ for fixture in "$ROOT"/Tests/Fixtures/stores/FinanceTracker-v*.store; do
     version="${version#FinanceTracker-}"
     run_case "fixture-$version" "$fixture" 1
 done
+# Optional ein großer Store (z. B. 100.000 Buchungen aus PerformanceBudgetTests
+# mit PERF_EXPORT_STORE), um die Ladezeit der Übersicht im fertigen Build zu
+# sehen: FT_SMOKE_EXTRA_STORE=/pfad/budget.store
+if [ -n "${FT_SMOKE_EXTRA_STORE:-}" ]; then
+    run_case "extra" "$FT_SMOKE_EXTRA_STORE" 1
+fi
 rmdir "$SMOKE_BASE" 2>/dev/null || true
 
 if [ "$FAILED" = 1 ]; then

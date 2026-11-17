@@ -167,10 +167,6 @@ final class DashboardModel {
         let needsLightRows = balancesCache?.revision != revision
             || !(hasLoadedReviewSummary && reviewSummaryRevision == revision)
         let repository = dependencies.transactionRepository
-        let lightRowsTask: Task<[Transaction], Error>? = needsLightRows
-            ? Task { try await repository.reviewCandidateTransactions() }
-            : nil
-        async let reviewSummaryLoad: Void = loadReviewSummary(lightRows: lightRowsTask)
         // Alles Sichtbare wird erst am Ende in einem Schritt ausgetauscht.
         // Zwischenstände (geleerte Hinweise, Budgets ohne Zahlen …) ließen
         // die Seite beim Monatswechsel mehrfach springen.
@@ -220,7 +216,6 @@ final class DashboardModel {
                 calendar: calendar
             )
             let balanceConverter = await dependencies.fxRateProvider.converter()
-            async let balancesTask = cachedBalances(converter: balanceConverter, lightRows: lightRowsTask)
             async let latestBatchTask = dependencies.importBatchRepository.latestBatch()
             async let transactionCountTask = dependencies.transactionRepository.count()
 
@@ -369,20 +364,6 @@ final class DashboardModel {
                 calendar: calendar
             )
             monthlyPoints = result.monthlyPoints
-            if isCurrentMonth, let balances = try? await balancesTask {
-                let calculator = LiquidityCalculator(
-                    baseCurrency: dependencies.baseCurrency,
-                    converter: balanceConverter
-                )
-                let overview = calculator.overview(of: balances.active)
-                liquidity = overview.shares.isEmpty ? nil : overview
-                runway = liquidity.flatMap {
-                    calculator.runway(total: $0.total, monthlyPoints: result.monthlyPoints, now: today, calendar: calendar)
-                }
-            } else {
-                liquidity = nil
-                runway = nil
-            }
             recentTransactions = result.recentTransactions
             if isCurrentMonth {
                 let dismissed = Set(dependencies.userDefaults.stringArray(forKey: Self.dismissedInsightsKey) ?? [])
@@ -404,13 +385,41 @@ final class DashboardModel {
             categoriesByID = Dictionary(
                 uniqueKeysWithValues: result.categories.map { ($0.id, $0) }
             )
+            // Die Monatsansicht steht: sofort zeigen. Kontostände und die
+            // Zahl offener Prüfungen brauchen den ganzen Bestand (bei
+            // 100.000 Buchungen Sekunden) und füllen ihre Bereiche danach.
+            // Beim Monatswechsel liegen sie im Cache, dort springt nichts.
+            loadState = .loaded
+            fxIsLoading = false
+            hasLoaded = true
+            // Erst jetzt die große Abfrage: Alle Abfragen laufen über einen
+            // Persistenz-Actor, parallel gestartet stünde die Monatsansicht
+            // hinter ihr in der Schlange.
+            let lightRowsTask: Task<[Transaction], Error>? = needsLightRows
+                ? Task { try await repository.reviewCandidateTransactions() }
+                : nil
+            async let reviewSummaryLoad: Void = loadReviewSummary(lightRows: lightRowsTask)
+            if isCurrentMonth, let balances = try? await cachedBalances(converter: balanceConverter, lightRows: lightRowsTask) {
+                let calculator = LiquidityCalculator(
+                    baseCurrency: dependencies.baseCurrency,
+                    converter: balanceConverter
+                )
+                let overview = calculator.overview(of: balances.active)
+                liquidity = overview.shares.isEmpty ? nil : overview
+                runway = liquidity.flatMap {
+                    calculator.runway(total: $0.total, monthlyPoints: result.monthlyPoints, now: today, calendar: calendar)
+                }
+            } else {
+                liquidity = nil
+                runway = nil
+            }
+            // Die Zahl offener Prüfungen gilt für alle Monate.
+            await reviewSummaryLoad
         } catch {
             failure = String(localized: "Die Auswertung konnte nicht geladen werden.")
+            await loadReviewSummary()
         }
         PerfSignpost.signposter.endInterval("DashboardLoad", signpost)
-        // Die Zahl offener Prüfungen gilt für alle Monate; sie wurde parallel
-        // gestartet und verzögert die Monatsansicht nicht.
-        await reviewSummaryLoad
     }
 
     /// WP13 (§96-99): Der Review-Count ist GLOBAL (leichte Projection +
@@ -506,3 +515,24 @@ final class DashboardModel {
     }
 
 }
+
+extension DashboardModel {
+    /// Lädt und misst, wann die Monatsansicht sichtbar ist und wann alles
+    /// (inklusive Kontostände und Prüfzahl) fertig ist. Für Leistungstests
+    /// und den Rauchtest der fertigen App.
+    func measureLoad() async -> (visible: Duration, complete: Duration) {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let task = Task { await self.load() }
+        var visible: Duration?
+        while visible == nil {
+            switch loadState {
+            case .loaded, .failed: visible = clock.now - start
+            case .idle, .loading: try? await Task.sleep(for: .milliseconds(2))
+            }
+        }
+        await task.value
+        return (visible ?? clock.now - start, clock.now - start)
+    }
+}
+
