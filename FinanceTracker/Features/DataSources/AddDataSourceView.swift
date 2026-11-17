@@ -14,12 +14,16 @@ struct AddDataSourceView: View {
     /// Optional: Konto manuell anlegen (Bargeld, Konto ohne Anbindung).
     /// Der Aufrufer öffnet den Editor und schließt diesen Dialog.
     var onManualAccount: (() -> Void)? = nil
+    /// Eine von außen gekommene Datei (aufs Fenster oder Dock-Symbol
+    /// gezogen): Der Dialog beginnt dann direkt im Import mit dieser Datei.
+    var initialImportFile: URL? = nil
 
     @State private var path: [AddDataSourceRoute] = []
     /// Ohne Callback des Aufrufers öffnet der Dialog den Konto-Editor selbst,
     /// so gibt es „Konto manuell anlegen“ von überall (Übersicht,
     /// Transaktionen, Sammlungen), nicht nur unter Konten.
     @State private var showsAccountEditor = false
+    @State private var openedInitialImport = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -70,6 +74,13 @@ struct AddDataSourceView: View {
                     Button("Abbrechen") { onDismiss() }
                 }
             }
+            .task {
+                // Nur einmal: „Zurück" führt danach zur Auswahl wie sonst.
+                if initialImportFile != nil, path.isEmpty, !openedInitialImport {
+                    openedInitialImport = true
+                    path = [.fileImport]
+                }
+            }
             .sheet(isPresented: $showsAccountEditor) {
                 AccountEditorSheet(
                     dependencies: dependencies,
@@ -88,7 +99,7 @@ struct AddDataSourceView: View {
                             }
                         }
                 case .fileImport:
-                    ImportView(dependencies: dependencies)
+                    ImportView(dependencies: dependencies, initialFile: initialImportFile)
                         .toolbar {
                             ToolbarItem(placement: .navigation) {
                                 Button("Zurück") { path.removeLast() }

@@ -4,7 +4,22 @@ struct MacRootView: View {
     let dependencies: AppDependencies
     @State private var navigationState = AppSectionNavigationState()
     @State private var dashboardModel: DashboardModel
-    @State private var showsCommandPalette = false
+    /// Ein item-basiertes Sheet für alles, was das Hauptfenster selbst zeigt
+    /// (mehrere `sheet(isPresented:)` am selben View erzeugen leere Sheets).
+    enum RootSheet: Identifiable {
+        case commandPalette
+        case importFile(ImportFileInbox.PendingFile)
+
+        var id: String {
+            switch self {
+            case .commandPalette: "command-palette"
+            case .importFile(let file): "import-\(file.id.uuidString)"
+            }
+        }
+    }
+    @State private var rootSheet: RootSheet?
+    /// Optional: Vorschauen und Layout-Tests bauen das Fenster ohne Eingangsfach.
+    @Environment(ImportFileInbox.self) private var importFileInbox: ImportFileInbox?
     /// WP24: Ausstehende Palette-Deep-Links für die Ziel-Screens.
     @State private var pendingRoute: PaletteRoute?
     @Environment(\.openSettings) private var openSettings
@@ -76,7 +91,7 @@ struct MacRootView: View {
         // WP22: ⌘K läuft über die native Command-Bar (FinanceCommands),
         // der unsichtbare 0×0-Shortcut-Button ist entfernt.
         .focusedSceneValue(\.openCommandPalette, OpenCommandPaletteAction {
-            showsCommandPalette = true
+            rootSheet = .commandPalette
         })
         .focusedSceneValue(\.openReviewQueue, OpenReviewQueueAction {
             openReviewQueue()
@@ -85,14 +100,35 @@ struct MacRootView: View {
             navigationState.select(section)
         })
         .focusedSceneValue(\.syncAllBanks, bankSyncAction)
-        .sheet(isPresented: $showsCommandPalette) {
-            CommandPaletteView(
-                dependencies: dependencies,
-                reviewCount: dashboardModel.hasLoadedReviewSummary ? dashboardModel.reviewSummary.totalCount : nil,
-                onSelect: { route in
-                    handleRoute(route)
-                }
-            )
+        .sheet(item: $rootSheet) { sheet in
+            switch sheet {
+            case .commandPalette:
+                CommandPaletteView(
+                    dependencies: dependencies,
+                    reviewCount: dashboardModel.hasLoadedReviewSummary ? dashboardModel.reviewSummary.totalCount : nil,
+                    onSelect: { route in
+                        handleRoute(route)
+                    }
+                )
+            case .importFile(let file):
+                AddDataSourceView(
+                    dependencies: dependencies,
+                    onDismiss: { rootSheet = nil },
+                    initialImportFile: file.url
+                )
+                .frame(minWidth: 560, minHeight: 560)
+            }
+        }
+        // CSV, Excel oder PDF-Kontoauszug aufs Fenster ziehen: öffnet den
+        // Import mit dieser Datei. Belege zieht man auf die Buchung selbst.
+        .dropDestination(for: URL.self) { urls, _ in
+            importFileInbox?.offer(firstOf: urls) ?? false
+        }
+        // Dateien aus dem Eingangsfach (Fenster, Dock-Symbol, „Öffnen mit"),
+        // auch eine, die schon vor dem Öffnen der Datenbank ankam.
+        .onChange(of: importFileInbox?.pending, initial: true) { _, pending in
+            guard pending != nil, let file = importFileInbox?.take() else { return }
+            rootSheet = .importFile(file)
         }
     }
 

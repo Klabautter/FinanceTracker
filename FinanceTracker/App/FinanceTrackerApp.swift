@@ -81,6 +81,8 @@ struct FinanceTrackerApp: App {
     @State private var bootstrapper: AppBootstrapper
     /// Katalog und Migrationen des Starts sind durch.
     @State private var startupFinished = false
+    /// Dateien, die aufs Dock-Symbol gezogen oder mit der App geöffnet werden.
+    @State private var importFileInbox = ImportFileInbox()
     @State private var privacyState = PrivacyPresentationState(
         forcedHidesAmounts: AppLaunchEnvironment.live.forcedPrivacyHidesAmounts
     )
@@ -183,10 +185,16 @@ struct FinanceTrackerApp: App {
             }
             #endif
             .environment(privacyState)
+            .environment(importFileInbox)
+            // Eine Datei (Dock-Symbol, „Öffnen mit") geht in den Import; der
             // Rücksprung der Bank-Anmeldung (financetracker://bank-callback)
-            // an den offenen Verbindungsdialog weiterreichen.
+            // an den offenen Verbindungsdialog.
             .onOpenURL { url in
-                NotificationCenter.default.post(name: .financeTrackerOpenURL, object: url)
+                if url.isFileURL {
+                    importFileInbox.offer(url)
+                } else {
+                    NotificationCenter.default.post(name: .financeTrackerOpenURL, object: url)
+                }
             }
             #if os(macOS)
             .handlesExternalEvents(preferring: ["*"], allowing: ["*"])

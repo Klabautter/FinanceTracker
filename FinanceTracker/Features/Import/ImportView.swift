@@ -22,8 +22,13 @@ struct ImportView: View {
     @State private var mapExternalID = ""
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    init(dependencies: Dependencies) {
+    /// Datei, mit der der Import beginnt (aufs Fenster oder Dock gezogen).
+    private let initialFile: URL?
+    @State private var preparedInitialFile = false
+
+    init(dependencies: Dependencies, initialFile: URL? = nil) {
         _model = State(initialValue: ImportModel(dependencies: dependencies))
+        self.initialFile = initialFile
     }
 
     var body: some View {
@@ -39,7 +44,7 @@ struct ImportView: View {
         .accessibilityIdentifier("screen-ready-import")
         // Datei aus dem Finder hineinziehen statt über den Dialog wählen.
         .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first(where: \.isFileURL) else { return false }
+            guard let url = urls.first(where: ImportFileInbox.isImportFile) else { return false }
             Task { await model.prepareFile(at: url) }
             return true
         }
@@ -80,6 +85,11 @@ struct ImportView: View {
         .task {
             await model.loadAccounts()
             await model.loadHistory()
+            // Erst nach den Konten: Die Vorschau braucht das Zielkonto.
+            if let initialFile, !preparedInitialFile {
+                preparedInitialFile = true
+                await model.prepareFile(at: initialFile)
+            }
         }
     }
 
