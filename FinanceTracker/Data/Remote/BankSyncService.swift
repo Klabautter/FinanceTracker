@@ -272,6 +272,14 @@ struct BankSyncService: Sendable {
                         transactionRepository: backgroundDependencies.transactionRepository
                     ).run(accountIDs: [account.id])
                 }
+                // Ein gebuchter Umsatz ohne Buchungs- und Wertstellungsdatum
+                // bekäme den Abrufzeitpunkt und landete im falschen Monat
+                // (Rule 17). Enable Banking weist solche Zeilen schon beim
+                // Lesen ab; diese Prüfung gilt für jeden Provider.
+                if data.transactions.contains(where: { $0.state == .booked && $0.bookingDate == nil && $0.valueDate == nil }) {
+                    Self.logger.error("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) gebuchter Umsatz ohne Datum, Abruf verworfen")
+                    throw BankProviderError.invalidResponse(endpoint: "/transactions (booking_date fehlt)")
+                }
                 let ownerNames = [data.account.ownerName].compactMap { $0 }.filter { !$0.isEmpty }
                 let importedTxns: [ImportedTransaction] = data.transactions.compactMap { remoteTxn in
                     // Händler ist die Gegenseite, bei Gutschriften der Absender,

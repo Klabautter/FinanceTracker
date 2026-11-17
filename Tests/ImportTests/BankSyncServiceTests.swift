@@ -116,6 +116,40 @@ struct BankSyncServiceTests {
         #expect(stored.first { $0.externalID == "CORRECTION" }?.categoryID == nil)
     }
 
+    @Test("Gebuchter Umsatz ohne jedes Datum wird bei keinem Provider mit dem Abrufzeitpunkt gespeichert")
+    func bookedWithoutAnyDateFailsTheFetch() async throws {
+        let dependencies = try makeDependencies()
+        let provider = MockBankDataProvider() // meldet sich als GoCardless
+        let service = BankSyncService(dependencies: dependencies, provider: provider)
+        let connection = try await service.connect(
+            institution: provider.stubbedInstitutions[0],
+            providerConnectionID: "req-1",
+            linkedAccountIDs: provider.stubbedLinkedAccountIDs
+        )
+        provider.stubbedTransactions = [
+            remoteTxn("OK", "-5.00", day: 20),
+            RemoteBankTransaction(
+                externalID: "NODATE", state: .booked, amount: Money(amount: -9, currency: .eur),
+                bookingDate: nil, valueDate: nil,
+                creditorName: "REWE", debtorName: nil, remittanceInformation: "REWE"
+            )
+        ]
+
+        await #expect(throws: BankProviderError.self) { try await service.sync(connection: connection) }
+        #expect(try await dependencies.transactionRepository.count() == 0)
+
+        // Nur Wertstellung vorhanden: sie wird das Buchungsdatum.
+        let valueDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 21)))
+        provider.stubbedTransactions = [RemoteBankTransaction(
+            externalID: "VALUE", state: .booked, amount: Money(amount: -9, currency: .eur),
+            bookingDate: nil, valueDate: valueDay,
+            creditorName: "REWE", debtorName: nil, remittanceInformation: "REWE"
+        )]
+        _ = try await service.sync(connection: connection)
+        let stored = try #require(await dependencies.transactionRepository.transactions(matching: TransactionQuery()).first)
+        #expect(stored.bookedAt == valueDay)
+    }
+
     @Test("Re-Sync erkennt alles als Duplikat, neue Zeile wird importiert")
     func reSyncDeduplicates() async throws {
         let dependencies = try makeDependencies()
