@@ -4,14 +4,14 @@
     <title>FinanceTracker</title>
     <link>https://github.com/Klabautter/FinanceTracker</link>
     <item>
-      <title>Version 0.5.5</title>
-      <pubDate>Sat, 14 Nov 2026 10:41:28 +0000</pubDate>
-      <sparkle:version>17</sparkle:version>
-      <sparkle:shortVersionString>0.5.5</sparkle:shortVersionString>
+      <title>Version 0.6.0</title>
+      <pubDate>Tue, 17 Nov 2026 20:40:30 +0000</pubDate>
+      <sparkle:version>18</sparkle:version>
+      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[Connecting a new bank now tells you up front to link it in the Enable Banking control panel first.]]></description>
-      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.5.5/FinanceTracker-0.5.5.zip"
-                 sparkle:edSignature="cmQta9pSUr+0hby57tKQUTItB0gPqXPmU38/iq5OfAZvoMxPI1Nbgidr+mWKlIUg0rwonM9wdIzBLQyQkf3ABA==" length="16025175" type="application/octet-stream"/>
+      <description><![CDATA[Widgets, Siri and plain-language questions, a faster app for large histories, and many fixes for amounts, imports and backups.]]></description>
+      <enclosure url="https://github.com/Klabautter/FinanceTracker/releases/download/v0.6.0/FinanceTracker-0.6.0.zip"
+                 sparkle:edSignature="uPaJrSO6/bRwUKE5qOPr7n7Z9EyEe/ht7GRfhWN95VpqnmoOJM4VpyoQkjobA66sKLWc0WKiX9njOuQaPpgOCQ==" length="17562159" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
