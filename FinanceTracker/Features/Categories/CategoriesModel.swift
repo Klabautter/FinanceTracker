@@ -96,6 +96,7 @@ final class CategoriesModel {
     }
 
     func deleteRule(_ rule: CategoryRule) async {
+        actionError = nil
         do {
             try await dependencies.ruleRepository.delete(id: rule.id)
             rules.removeAll { $0.id == rule.id }
@@ -108,6 +109,7 @@ final class CategoriesModel {
     // MARK: - Category CRUD (Roadmap #47–50)
 
     func createCategory(name: String, icon: String, color: CategoryColorToken, parentID: UUID?) async {
+        actionError = nil
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else {
             actionError = String(localized: "Bitte einen Namen eingeben.")
@@ -129,6 +131,7 @@ final class CategoriesModel {
     }
 
     func update(_ category: Category) async {
+        actionError = nil
         do {
             try await dependencies.categoryRepository.upsert([category])
             dependencies.changeTracker.markChanged()
@@ -141,6 +144,7 @@ final class CategoriesModel {
     /// Löscht eine Kategorie. Parent-Kategorien mit Kindern werden
     /// abgelehnt (erst Kinder entfernen oder verschieben).
     func delete(_ category: Category, reassignTo newCategoryID: UUID?) async {
+        actionError = nil
         if category.parentID == nil {
             let hasChildren = groups.contains { $0.parent.id == category.id && !$0.children.isEmpty }
             if hasChildren {
@@ -208,6 +212,7 @@ final class CategoriesModel {
     }
 
     private func persist(_ rule: CategoryRule) async {
+        actionError = nil
         do {
             try await dependencies.ruleRepository.upsert([rule])
             if let index = rules.firstIndex(where: { $0.id == rule.id }) {

@@ -190,10 +190,7 @@ struct CategoriesView: View {
                 // Eingabe-, Speicher- und Löschfehler: eigener Hinweis, nie
                 // als „konnte nicht geladen werden“.
                 if let actionError = model.actionError {
-                    HStack(spacing: AppSpacing.m) {
-                        InlineNotice(message: actionError, tone: .critical)
-                        Button("OK") { model.dismissActionError() }
-                    }
+                    InlineNotice(message: actionError, tone: .critical, onDismiss: { model.dismissActionError() })
                 }
             }
             .padding(.horizontal, AppLayout.pageHorizontalPadding)

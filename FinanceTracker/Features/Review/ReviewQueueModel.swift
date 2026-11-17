@@ -428,6 +428,11 @@ final class ReviewQueueModel {
     /// sodass alle ähnlichen mitgeprüft werden und der Händler nie wieder
     /// auftaucht. Ohne Merkregel-Möglichkeit gilt die Auswahl nur für diese
     /// Transaktion.
+    /// Schließt den Hinweis zur letzten fehlgeschlagenen Aktion.
+    func dismissActionError() {
+        actionError = nil
+    }
+
     func acceptSuggestion(_ entry: ReviewQueueEntry) async {
         guard let suggestion = suggestions[entry.id] else { return }
         await assignCategory(

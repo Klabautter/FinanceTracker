@@ -99,7 +99,7 @@ struct TagsView: View {
                     }
                 }
                 if let actionError = model.actionError {
-                    InlineNotice(message: actionError, tone: .critical)
+                    InlineNotice(message: actionError, tone: .critical, onDismiss: { model.dismissActionError() })
                 }
                 PageSection(
                     String(localized: "Deine Tags"),

@@ -45,6 +45,7 @@ final class TagsModel {
     func createTag(named name: String, colorToken: TagColorToken = .blue) async {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
+        actionError = nil
         let tag = Tag(name: trimmed, colorToken: colorToken)
         do {
             try await dependencies.tagRepository.upsert([tag])
@@ -56,6 +57,7 @@ final class TagsModel {
     }
 
     func update(_ tag: Tag) async {
+        actionError = nil
         do {
             try await dependencies.tagRepository.upsert([tag])
             dependencies.changeTracker.markChanged()
@@ -68,6 +70,7 @@ final class TagsModel {
     /// Löscht den Tag und entfernt ihn aus allen Annotationen
     /// (Roadmap #14: Relationen weg, Transaktionen bleiben).
     func delete(_ tag: Tag) async {
+        actionError = nil
         do {
             try await dependencies.tagRepository.delete(id: tag.id)
             dependencies.changeTracker.markChanged()
@@ -75,6 +78,11 @@ final class TagsModel {
         } catch {
             actionError = String(localized: "Tag konnte nicht gelöscht werden.")
         }
+    }
+
+    /// Schließt den Hinweis zum letzten fehlgeschlagenen Speichern oder Löschen.
+    func dismissActionError() {
+        actionError = nil
     }
 
     func usageCount(for tagID: UUID) -> Int {

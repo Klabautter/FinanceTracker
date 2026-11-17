@@ -78,7 +78,7 @@ struct ReviewQueueView: View {
                     }
                 }
                 if let actionError = model.actionError {
-                    InlineNotice(message: actionError, tone: .warning)
+                    InlineNotice(message: actionError, tone: .warning, onDismiss: { model.dismissActionError() })
                 }
 
                 reviewSection(

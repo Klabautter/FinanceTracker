@@ -148,6 +148,7 @@ final class PocketsModel {
     }
 
     func delete(_ collection: TransactionCollection) async {
+        actionError = nil
         guard !isMutating else { return }
         isMutating = true
         defer { isMutating = false }
@@ -179,6 +180,7 @@ final class PocketsModel {
     }
 
     func restoreAutomation(for transaction: Transaction) async {
+        actionError = nil
         guard let collectionID = selectedCollectionID,
               let collection = selectedItem?.collection,
               !isMutating else { return }
@@ -268,6 +270,7 @@ final class PocketsModel {
     ) async {
         guard !isMutating else { return }
         isMutating = true
+        actionError = nil
         defer { isMutating = false }
 
         do {
