@@ -92,6 +92,12 @@ FEED="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' Config/FinanceTracker.macO
 [ "$FEED" = "https://raw.githubusercontent.com/$REPO/main/appcast.xml" ] || {
     echo "SUFeedURL ($FEED) passt nicht zu REPO=$REPO." >&2; exit 1; }
 
+# Der Rauchtest am Ende arbeitet im Container der App. Fehlt diesem Terminal
+# die Erlaubnis dafür (macOS: „Daten anderer Apps"), scheiterte der Lauf erst
+# nach Build und Notarisierung: deshalb jetzt prüfen und auf die Antwort der
+# System-Abfrage warten.
+"$ROOT/Scripts/smoke-test-app.sh" --check-access || exit 1
+
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     echo "Arbeitsbaum ist nicht sauber, erst committen, das Release zeigt auf HEAD:" >&2
     git status --short --untracked-files=no >&2
