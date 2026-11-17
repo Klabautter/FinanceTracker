@@ -3,9 +3,12 @@ import Foundation
 @MainActor
 @Observable
 final class SettingsModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBackupRestoreService & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasFxRateProvider & HasImportBatchRepository & HasMerchantRepository & HasNotificationScheduler & HasPreferences & HasRecurringCommitmentRepository & HasRuleRepository & HasSharedExpenseShareRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionCollectionOverrideRepository & HasTransactionCollectionRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     static let notificationsEnabledKey = "localNotificationsEnabled"
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let defaults: UserDefaults
     private let notificationService: any LocalNotificationScheduling
     private let healthEvaluator = ConnectionHealthEvaluator()
@@ -148,7 +151,7 @@ final class SettingsModel {
     private(set) var fxIsLoading = false
 
     init(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         defaults: UserDefaults = .standard,
         notificationService: any LocalNotificationScheduling = LocalNotificationService()
     ) {

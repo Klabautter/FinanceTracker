@@ -165,7 +165,7 @@ struct DashboardView: View {
                     Task { await model.load() }
                 }
             case .reviewQueue:
-                ReviewQueueView(dependencies: model.dependenciesForReview)
+                ReviewQueueView(dependencies: dependencies)
                     #if os(macOS)
                     .frame(width: 720, height: 540)
                     #else

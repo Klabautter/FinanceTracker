@@ -19,6 +19,9 @@ import os
 ///   deaktivierte System-Regeln bleiben deaktiviert.
 @MainActor
 struct SystemCatalogSeeder {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasChangeTracker & HasMerchantRepository & HasRecurringCommitmentRepository & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasUserDefaults
+
     private static let logger = Logger(
         subsystem: "de.klabautter.FinanceTracker",
         category: "SystemCatalogSeeder"
@@ -47,13 +50,13 @@ struct SystemCatalogSeeder {
     /// to SEK", Revolut) sind Umbuchungen statt Ausgabe und Einnahme.
     static let catalogVersion = 12
 
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     private let defaults: UserDefaults
 
     /// Ohne eigene Angabe der Einstellungsbereich der Abhängigkeiten: In
     /// isolierten Läufen (Rauchtest, Demo) bleibt die Katalog-Version so
     /// beim isolierten Store, statt die der echten Installation zu setzen.
-    init(dependencies: AppDependencies, defaults: UserDefaults? = nil) {
+    init(dependencies: Dependencies, defaults: UserDefaults? = nil) {
         self.dependencies = dependencies
         self.defaults = defaults ?? dependencies.userDefaults
     }

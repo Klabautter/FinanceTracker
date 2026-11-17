@@ -4,11 +4,14 @@ import Foundation
 /// die Metadaten (wie beim Einzel-Löschen, §218). Wirft beim ersten Fehler;
 /// der Aufrufer löscht die Buchungen dann nicht, damit nichts verwaist.
 enum AttachmentCleanup {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasTransactionAttachmentRepository
+
     /// Liefert die Anzahl entfernter Belege.
     @discardableResult
     static func removeAttachments(
         of transactionIDs: Set<UUID>,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         baseDirectory: URL? = nil
     ) async throws -> Int {
         guard !transactionIDs.isEmpty else { return 0 }

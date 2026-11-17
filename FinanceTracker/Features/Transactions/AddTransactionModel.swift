@@ -4,6 +4,9 @@ import Foundation
 @MainActor
 @Observable
 final class AddTransactionModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasRuleRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     enum EntryKind: String, CaseIterable, Identifiable {
         case expense = "Ausgabe"
         case income = "Einnahme"
@@ -37,7 +40,7 @@ final class AddTransactionModel {
         var note: String = ""
     }
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     /// Gesetzt im Bearbeiten-Modus: die bestehende manuelle Buchung.
     let editing: Transaction?
     var isEditing: Bool { editing != nil }
@@ -102,7 +105,6 @@ final class AddTransactionModel {
         draft.categoryID = category.id
     }
 
-    var dependenciesForCategoryEditor: AppDependencies { dependencies }
 
     /// Nach einem Wechsel der Art: Kategorie leeren, wenn sie nicht mehr passt.
     func dropUnavailableCategory() {
@@ -129,7 +131,7 @@ final class AddTransactionModel {
 
     var draft = Draft()
 
-    init(dependencies: AppDependencies, editing: Transaction? = nil) {
+    init(dependencies: Dependencies, editing: Transaction? = nil) {
         self.dependencies = dependencies
         self.editing = editing
         if let editing {

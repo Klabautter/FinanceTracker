@@ -7,8 +7,11 @@ import WidgetKit
 /// Kurzbefehle und Dashboard) und legt ihn im App-Group-Ordner ab.
 @MainActor
 enum WidgetSnapshotPublisher {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasImportBatchRepository & HasRecurringCommitmentRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository & HasUserDefaults
+
     static func makeSnapshot(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         hidesAmounts: Bool,
         now: Date = Date()
     ) async -> WidgetSnapshot? {
@@ -37,7 +40,7 @@ enum WidgetSnapshotPublisher {
 
     /// Schreibt den Stand und lässt die Widgets neu zeichnen. Ohne App-Group
     /// (Debug-Build ohne Team-ID) passiert nichts.
-    static func publish(dependencies: AppDependencies, hidesAmounts: Bool, store: WidgetSnapshotStore? = .shared()) async {
+    static func publish(dependencies: Dependencies, hidesAmounts: Bool, store: WidgetSnapshotStore? = .shared()) async {
         guard let store,
               let snapshot = await makeSnapshot(dependencies: dependencies, hidesAmounts: hidesAmounts) else { return }
         do {

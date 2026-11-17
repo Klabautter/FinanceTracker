@@ -34,10 +34,13 @@ struct TransactionsCSVDocument: FileDocument {
 /// geladen (DB-seitiges Paging via fetchOffset/fetchLimit) statt einer
 /// Voll-Hydration, gleiche Spalten/Reihenfolge, gleiche Domain-API.
 enum CSVExportService {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasCategoryRepository & HasTagRepository & HasTransactionRepository
+
     /// Batch-Größe für den Streaming-Export (DB-Paging).
     static let exportPageSize = 1000
 
-    static func makeDocument(dependencies: AppDependencies) async throws -> TransactionsCSVDocument {
+    static func makeDocument(dependencies: Dependencies) async throws -> TransactionsCSVDocument {
         async let accountsTask = dependencies.accountRepository.accounts()
         async let categoriesTask = dependencies.categoryRepository.categories()
         async let tagsTask = dependencies.tagRepository.tags()
@@ -61,7 +64,7 @@ enum CSVExportService {
     /// nicht auf dem MainActor (Repository-Calls sind ModelActor-gebunden,
     /// String-Bau detached).
     private static func buildCSVStreaming(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         input: TransactionsCSVExporter.Input
     ) async throws -> String {
         let exporter = TransactionsCSVExporter(input: input)

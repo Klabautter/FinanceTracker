@@ -45,12 +45,15 @@ struct ReviewCategoryGroup: Identifiable, Hashable, Sendable {
 @MainActor
 @Observable
 final class ReviewQueueModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryAdvisor & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     enum CategoryAssignmentScope: Sendable {
         case transactionOnly
         case merchant
     }
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let effectiveTransactionResolver = EffectiveTransactionResolver()
     private let suggestionService = CategorySuggestionService()
 
@@ -111,7 +114,6 @@ final class ReviewQueueModel {
 
     var categoryCreationRequest: CategoryCreationRequest?
 
-    var dependenciesForCategoryEditor: AppDependencies { dependencies }
 
     func requestCategoryCreation(for entry: ReviewQueueEntry, suggestedName: String? = nil, suggestedParentID: Category.ID? = nil) {
         categoryCreationRequest = CategoryCreationRequest(
@@ -132,7 +134,7 @@ final class ReviewQueueModel {
         applyCachedAdvice()
     }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 

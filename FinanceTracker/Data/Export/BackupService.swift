@@ -184,12 +184,15 @@ enum BackupError: Error, Equatable, LocalizedError {
 /// geladen (DB-Paging statt Voll-Hydration). Domain-API unverändert:
 /// nur der Export-Pfad nutzt Paging. Kleine Tabellen laden weiter direkt.
 enum BackupService {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBudgetRepository & HasCategoryRepository & HasConnectionRepository & HasImportBatchRepository & HasMerchantRepository & HasRecurringCommitmentRepository & HasRuleRepository & HasSharedExpenseShareRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionCollectionOverrideRepository & HasTransactionCollectionRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     /// Batch-Größe für den Transaktions-Paging-Pfad.
     static let transactionPageSize = 1000
 
     /// - Parameter validate: Nur Tests schalten die Prüfung ab, um gezielt
     ///   ungültige Backups für die Restore-Prüfung zu bauen.
-    nonisolated static func makeBackup(dependencies: AppDependencies, validate: Bool = true) async throws -> FinanceTrackerBackup {
+    nonisolated static func makeBackup(dependencies: Dependencies, validate: Bool = true) async throws -> FinanceTrackerBackup {
         async let accountsTask = dependencies.accountRepository.accounts()
         async let annotationsTask = dependencies.transactionAnnotationRepository.annotations()
         async let collectionsTask = dependencies.transactionCollectionRepository.collections()
@@ -300,7 +303,7 @@ enum BackupService {
     nonisolated static let maxTotalAttachmentBytesDefault = 500 * 1024 * 1024
 
     nonisolated static func makeBackupPackage(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         appVersion: String = BackupService.appVersion,
         includeAttachments: Bool = true,
         maxTotalAttachmentBytes: Int = BackupService.maxTotalAttachmentBytesDefault,
@@ -453,7 +456,7 @@ enum BackupService {
     /// Merge. Ein vollständiges Backup-Restore bleibt eine eigene Operation.
     nonisolated static func importTransactionCollections(
         from backup: FinanceTrackerBackup,
-        dependencies: AppDependencies
+        dependencies: Dependencies
     ) async throws {
         let collectionIDs = Set(backup.transactionCollections.map(\.id))
         let transactionIDs = Set(backup.transactions.map(\.id))

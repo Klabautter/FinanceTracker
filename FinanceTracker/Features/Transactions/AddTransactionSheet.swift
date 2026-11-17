@@ -180,7 +180,7 @@ struct AddTransactionSheet: View {
             .task { await model.load() }
             .sheet(isPresented: $createsCategory) {
                 CategoryEditorSheet(
-                    dependencies: model.dependenciesForCategoryEditor,
+                    dependencies: dependencies,
                     editing: nil,
                     onSaved: {},
                     onCreated: { category in model.categoryCreated(category) }

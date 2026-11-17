@@ -3,7 +3,10 @@ import Foundation
 @MainActor
 @Observable
 final class DashboardModel {
-    private let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasImportBatchRepository & HasRecurringCommitmentRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository & HasUserDefaults
+
+    private let dependencies: Dependencies
     private let loader: LoadDashboard
     private let budgetProgressLoader: LoadBudgetProgresses
     private let calendar: Calendar
@@ -105,7 +108,7 @@ final class DashboardModel {
     private(set) var runway: LiquidityRunway?
 
     init(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         calendar: Calendar = .current,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
@@ -480,7 +483,6 @@ final class DashboardModel {
 
     var dataRevision: Int { dependencies.changeTracker.revision }
 
-    var dependenciesForReview: AppDependencies { dependencies }
 
     var spendingTrendPercent: Decimal? {
         guard let current = snapshot?.totalSpending,

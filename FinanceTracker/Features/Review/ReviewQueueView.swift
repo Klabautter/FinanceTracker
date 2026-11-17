@@ -4,8 +4,10 @@ struct ReviewQueueView: View {
     @State private var model: ReviewQueueModel
     @Environment(\.dismiss) private var dismiss
     let showsDismissButton: Bool
+    private let dependencies: AppDependencies
 
     init(dependencies: AppDependencies, showsDismissButton: Bool = true) {
+        self.dependencies = dependencies
         _model = State(initialValue: ReviewQueueModel(dependencies: dependencies))
         self.showsDismissButton = showsDismissButton
     }
@@ -46,7 +48,7 @@ struct ReviewQueueView: View {
         .task { await model.load() }
         .sheet(item: $model.categoryCreationRequest) { request in
             CategoryEditorSheet(
-                dependencies: model.dependenciesForCategoryEditor,
+                dependencies: dependencies,
                 editing: nil,
                 onSaved: {},
                 onCreated: { category in

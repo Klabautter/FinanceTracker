@@ -17,13 +17,16 @@ import Foundation
 /// „Alle App-Daten und Verbindungen löschen"-Flow mit Keychain-Wipe wäre
 /// eine separate, explizite Nutzeraktion.
 struct LocalDataResetService: Sendable {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasImportBatchRepository & HasMerchantRepository & HasRecurringCommitmentRepository & HasRuleRepository & HasSharedExpenseShareRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionCollectionOverrideRepository & HasTransactionCollectionRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     enum Scope: Sendable {
         /// Alle lokalen Finanzdaten inkl. abgeleiteter Indizes und
         /// Attachment-Dateien, ohne Keychain-Credentials (§16).
         case allLocalFinanceData
     }
 
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
 
     func wipe(scope: Scope = .allLocalFinanceData) async throws {
         // Attachment-Dateien VOR dem Metadata-Wipe entfernen (§15).
