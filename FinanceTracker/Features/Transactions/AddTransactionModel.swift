@@ -131,13 +131,17 @@ final class AddTransactionModel {
 
     var draft = Draft()
 
-    init(dependencies: Dependencies, editing: Transaction? = nil) {
+    /// Sprache der Betragseingabe: „1.500" ist auf Deutsch 1500.
+    let locale: Locale
+
+    init(dependencies: Dependencies, editing: Transaction? = nil, locale: Locale = .current) {
         self.dependencies = dependencies
         self.editing = editing
+        self.locale = locale
         if let editing {
             draft = Draft(
                 kind: editing.amount.isNegative ? .expense : .income,
-                amountText: Self.editText(for: abs(editing.amount.amount)),
+                amountText: Self.editText(for: abs(editing.amount.amount), locale: locale),
                 merchant: editing.effectiveMerchantName,
                 accountID: editing.accountID,
                 categoryID: editing.categoryID,
@@ -148,17 +152,22 @@ final class AddTransactionModel {
         }
     }
 
-    /// Betrag als reine Eingabezahl mit Komma (ohne Währung/Tausenderpunkte).
-    static func editText(for amount: Decimal) -> String {
+    /// Betrag als reine Eingabezahl im Format der Sprache (ohne Währung
+    /// und Tausendertrenner), auf zwei Stellen gerundet.
+    static func editText(for amount: Decimal, locale: Locale = .current) -> String {
         var value = amount
         var rounded = Decimal()
         NSDecimalRound(&rounded, &value, 2, .plain)
-        let text = NSDecimalNumber(decimal: rounded).stringValue
-        return text.replacingOccurrences(of: ".", with: ",")
+        return DecimalInputField.editText(rounded, locale: locale)
+    }
+
+    /// Der eingegebene Betrag, wie ihn die Sprache des Nutzers liest.
+    var parsedAmount: Decimal? {
+        DecimalInputField.parse(draft.amountText, locale: locale)
     }
 
     var canSave: Bool {
-        guard !isSaving, !didSave, DecimalParser.parse(draft.amountText).map({ $0 > 0 }) == true else {
+        guard !isSaving, !didSave, parsedAmount.map({ $0 > 0 }) == true else {
             return false
         }
         if draft.kind == .transfer {
@@ -219,7 +228,7 @@ final class AddTransactionModel {
         actionError = nil
         defer { isSaving = false }
 
-        guard let amount = DecimalParser.parse(draft.amountText), amount > 0 else {
+        guard let amount = parsedAmount, amount > 0 else {
             actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
             return false
         }

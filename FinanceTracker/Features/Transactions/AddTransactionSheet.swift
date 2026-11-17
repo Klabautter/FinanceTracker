@@ -70,6 +70,7 @@ struct AddTransactionSheet: View {
                         #endif
                         .font(.title3.monospacedDigit())
                         .accessibilityLabel("Betrag")
+                    DecimalInputEcho(text: model.draft.amountText, locale: model.locale)
                 }
 
                 Section("Details") {

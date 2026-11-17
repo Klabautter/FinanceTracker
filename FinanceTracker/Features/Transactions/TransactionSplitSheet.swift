@@ -47,7 +47,7 @@ final class TransactionSplitEditorModel {
     func setAmountText(_ text: String, for lineID: UUID) {
         guard let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
         amountTexts[lineID] = text
-        guard let amount = Self.parseAmountText(text) else {
+        guard let amount = Self.parseAmountText(text, locale: locale) else {
             validationMessage = String(localized: "Bitte für jede Position einen gültigen Betrag eingeben.")
             return
         }
@@ -152,18 +152,19 @@ final class TransactionSplitEditorModel {
         return canonical.replacingOccurrences(of: ".", with: separator)
     }
 
-    static func parseAmountText(_ text: String) -> Decimal? {
+    /// Liest den Betrag in der Sprache des Nutzers: „1.500" ist auf Deutsch 1500.
+    static func parseAmountText(_ text: String, locale: Locale = .current) -> Decimal? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let allowed = CharacterSet(charactersIn: "0123456789.,-")
         guard trimmed.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
-        return DecimalParser.parse(trimmed)
+        return DecimalInputField.parse(trimmed, locale: locale)
     }
 
     private var parsedAmounts: [UUID: Decimal] {
         Dictionary(uniqueKeysWithValues: lines.compactMap { line in
             guard let text = amountTexts[line.id],
-                  let amount = Self.parseAmountText(text) else { return nil }
+                  let amount = Self.parseAmountText(text, locale: locale) else { return nil }
             return (line.id, amount)
         })
     }
@@ -243,11 +244,14 @@ struct TransactionSplitSheet: View {
                                 onCreated: { model.categoryCreated($0) }
                             )
                             Spacer()
-                            TextField("0,00", text: amountBinding(line.id))
-                                .multilineTextAlignment(.trailing)
-                                .font(.callout.monospacedDigit())
-                                .frame(width: 90)
-                                .accessibilityLabel("Betrag der Split-Position")
+                            VStack(alignment: .trailing, spacing: AppSpacing.xs) {
+                                TextField("0,00", text: amountBinding(line.id))
+                                    .multilineTextAlignment(.trailing)
+                                    .font(.callout.monospacedDigit())
+                                    .frame(width: 90)
+                                    .accessibilityLabel("Betrag der Split-Position")
+                                DecimalInputEcho(text: model.amountText(for: line.id))
+                            }
                         }
                     }
                     .onDelete { offsets in

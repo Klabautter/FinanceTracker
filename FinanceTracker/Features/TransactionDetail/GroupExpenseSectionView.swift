@@ -436,6 +436,7 @@ private struct GroupExpenseAddShareSheet: View {
                             .font(.body.monospacedDigit())
                             .accessibilityLabel("Anteil, Betrag")
                             .accessibilityIdentifier("group-expense-amount")
+                        DecimalInputEcho(text: amountText)
                     }
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
                         Text("Währung")

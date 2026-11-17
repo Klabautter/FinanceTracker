@@ -110,13 +110,13 @@ final class GroupExpenseSectionModel {
     /// Fügt einen Anteil hinzu. Liefert true bei Erfolg, sonst false mit
     /// sichtbarem `actionError` (kein stiller Fallback, #17/#18).
     @discardableResult
-    func addShare(paidBy: String, owedBy: String, amountText: String, currency: CurrencyCode) async -> Bool {
+    func addShare(paidBy: String, owedBy: String, amountText: String, currency: CurrencyCode, locale: Locale = .current) async -> Bool {
         guard !isSaving else { return false }
         isSaving = true
         actionError = nil
         defer { isSaving = false }
 
-        guard let amount = DecimalParser.parse(amountText), amount > 0 else {
+        guard let amount = DecimalInputField.parse(amountText, locale: locale), amount > 0 else {
             actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
             return false
         }

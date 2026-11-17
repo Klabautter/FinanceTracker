@@ -29,12 +29,8 @@ struct DecimalInputField: View {
                 Label("Bitte einen gültigen Betrag eingeben.", systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(AppPalette.critical)
-            } else if let value, Self.needsEcho(text) {
-                // Zeigt, wie die Eingabe verstanden wurde („1.500" → 1.500,00).
-                Text("= \(Self.display(value))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(Text("Verstanden als \(Self.display(value))"))
+            } else {
+                DecimalInputEcho(text: text)
             }
         }
     }
@@ -100,5 +96,24 @@ struct DecimalInputField: View {
     /// Nur bei Trennzeichen lohnt der Hinweis; „500" versteht jeder.
     nonisolated static func needsEcho(_ text: String) -> Bool {
         text.contains(",") || text.contains(".")
+    }
+}
+
+/// Zeigt unter einem freien Betragsfeld, wie die Eingabe verstanden wurde
+/// („1.500" → „= 1.500,00"). Für Felder, die ihren Text selbst halten
+/// (neue Buchung, Split, Gruppenanteil) und deshalb nicht
+/// `DecimalInputField` verwenden.
+struct DecimalInputEcho: View {
+    let text: String
+    var locale: Locale = .current
+
+    var body: some View {
+        if DecimalInputField.needsEcho(text), let value = DecimalInputField.parse(text, locale: locale) {
+            let shown = DecimalInputField.display(value, locale: locale)
+            Text("= \(shown)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(Text("Verstanden als \(shown)"))
+        }
     }
 }

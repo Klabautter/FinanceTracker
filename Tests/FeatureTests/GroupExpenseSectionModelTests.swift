@@ -49,6 +49,32 @@ struct GroupExpenseSectionModelTests {
         #expect(model.shares.isEmpty)
     }
 
+    @Test("Anteil folgt der Sprache: „1.500“ ist auf Deutsch 1500")
+    func shareAmountFollowsLocale() async throws {
+        let dependencies = try makeDependencies()
+        // Groß genug, dass ein Anteil von 1500 unter dem Betrag bleibt.
+        let txn = Transaction(
+            accountID: UUID(),
+            source: .manual,
+            status: .booked,
+            kind: .purchase,
+            amount: Money(amount: -3000, currency: .eur),
+            bookedAt: Date(),
+            rawDescription: "Ferienhaus",
+            merchantDisplayName: "Ferienhaus"
+        )
+        try await dependencies.transactionRepository.upsert([txn])
+        let model = GroupExpenseSectionModel(transaction: txn, dependencies: dependencies)
+        await model.load()
+
+        let added = await model.addShare(
+            paidBy: "Alex", owedBy: "Mara", amountText: "1.500", currency: .eur,
+            locale: Locale(identifier: "de_DE")
+        )
+        #expect(added)
+        #expect(model.shares.first?.shareAmount == 1500)
+    }
+
     @Test("Hinzufügen + Salden je Währung getrennt (#19/#35)")
     func addAndSeparateCurrencies() async throws {
         let dependencies = try makeDependencies()

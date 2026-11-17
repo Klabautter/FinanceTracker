@@ -72,6 +72,32 @@ struct AddTransactionTests {
         #expect(txn.note == "Wocheneinkauf")
     }
 
+    @Test("Betrag folgt der Sprache: „1.500“ ist auf Deutsch 1500, „1,500“ auf Englisch ebenso")
+    func amountFollowsLocale() async throws {
+        for (identifier, text) in [("de_DE", "1.500"), ("en_US", "1,500")] {
+            let dependencies = try makeDependencies()
+            try await dependencies.accountRepository.upsert([
+                Account(name: "Giro", type: .checking, currency: .eur, source: .demo)
+            ])
+            let model = AddTransactionModel(dependencies: dependencies, locale: Locale(identifier: identifier))
+            await model.load()
+            model.draft.kind = .expense
+            model.draft.amountText = text
+            model.draft.merchant = "Vermieter"
+            model.draft.accountID = model.accounts.first?.id
+            #expect(model.parsedAmount == 1500)
+            #expect(await model.save())
+
+            let page = try await dependencies.transactionRepository.transactionPage(
+                matching: TransactionQuery(), sort: .dateDescending, offset: 0, limit: 10
+            )
+            #expect(page.transactions.first?.amount.amount == -1500)
+        }
+        // Vorbelegung beim Bearbeiten im Format der Sprache.
+        #expect(AddTransactionModel.editText(for: Decimal(string: "1500.5")!, locale: Locale(identifier: "de_DE")) == "1500,5")
+        #expect(AddTransactionModel.editText(for: Decimal(string: "1500.5")!, locale: Locale(identifier: "en_US")) == "1500.5")
+    }
+
     @Test("Einnahme wird mit positivem Betrag und kind income gespeichert")
     func saveIncome() async throws {
         let dependencies = try makeDependencies()

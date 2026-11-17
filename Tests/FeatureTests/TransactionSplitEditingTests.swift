@@ -44,6 +44,9 @@ struct TransactionSplitEditingTests {
         #expect(TransactionSplitEditorModel.parseAmountText(german) == value)
         #expect(TransactionSplitEditorModel.parseAmountText(english) == value)
         #expect(TransactionSplitEditorModel.parseAmountText("12 €") == nil)
+        // Der Tausenderpunkt der Sprache ist kein Dezimaltrenner.
+        #expect(TransactionSplitEditorModel.parseAmountText("1.500", locale: Locale(identifier: "de_DE")) == 1500)
+        #expect(TransactionSplitEditorModel.parseAmountText("1,500", locale: Locale(identifier: "en_US")) == 1500)
     }
 
     @Test("Ungültige Texteingabe wird nicht als 0 übernommen und löscht keinen Bestand")
