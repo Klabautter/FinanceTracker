@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct FixkostenView: View {
-    private let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasUserDefaults
+
+    private let dependencies: Dependencies
     @Environment(\.isWorkspaceActive) private var isWorkspaceActive
     @State private var model: FixkostenModel
     @State private var commitmentPendingDeletion: RecurringCommitment?
@@ -38,7 +41,7 @@ struct FixkostenView: View {
         }
     }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
         _model = State(initialValue: FixkostenModel(dependencies: dependencies))
     }
@@ -917,13 +920,16 @@ struct FixkostenOverviewRow: Identifiable, Sendable {
 /// Manuelle Erfassung (#112): Name, Richtung, Turnus, Betrag, Kategorie,
 /// optional Händler. Laden und Speichern liegen im `FixkostenCreateModel`.
 struct FixkostenCreateSheet: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let onSaved: () -> Void
 
     @State private var model: FixkostenCreateModel
     @Environment(\.dismiss) private var dismiss
 
-    init(dependencies: AppDependencies, onSaved: @escaping () -> Void) {
+    init(dependencies: Dependencies, onSaved: @escaping () -> Void) {
         self.dependencies = dependencies
         self.onSaved = onSaved
         _model = State(initialValue: FixkostenCreateModel(dependencies: dependencies))

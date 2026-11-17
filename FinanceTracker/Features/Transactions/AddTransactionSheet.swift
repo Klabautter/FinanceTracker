@@ -3,14 +3,17 @@ import SwiftUI
 /// Manual Transaction Quick-Add (Roadmap #73/#74):
 /// Ausgabe/Einnahme auf ein Konto, Transfer als From/To-Paar.
 struct AddTransactionSheet: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasRuleRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let onSaved: () -> Void
 
     @State private var model: AddTransactionModel
     @Environment(\.dismiss) private var dismiss
 
     /// `editing` gesetzt = bestehende manuelle Buchung bearbeiten.
-    init(dependencies: AppDependencies, editing: Transaction? = nil, onSaved: @escaping () -> Void) {
+    init(dependencies: Dependencies, editing: Transaction? = nil, onSaved: @escaping () -> Void) {
         self.dependencies = dependencies
         self.onSaved = onSaved
         _model = State(initialValue: AddTransactionModel(dependencies: dependencies, editing: editing))

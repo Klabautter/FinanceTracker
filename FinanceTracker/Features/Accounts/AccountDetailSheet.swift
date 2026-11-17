@@ -3,10 +3,13 @@ import SwiftUI
 /// Account-Detail (Roadmap #136–138): Quelle, Sync-Status, Währung,
 /// Netto-Bewegung und die letzten Transaktionen.
 struct AccountDetailSheet: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository
+
     let account: Account
     let connectionName: String?
     let lastSync: Date?
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     /// Gesetzt = Konto ist löschbar (manuell angelegt). Führt die Löschung aus.
     let onDelete: (@MainActor () async -> Void)?
 
@@ -18,7 +21,7 @@ struct AccountDetailSheet: View {
         account: Account,
         connectionName: String?,
         lastSync: Date?,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         onDelete: (@MainActor () async -> Void)? = nil
     ) {
         self.account = account

@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct BudgetsView: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasRecurringCommitmentRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
+    let dependencies: Dependencies
     @Environment(\.isWorkspaceActive) private var isWorkspaceActive
     @State private var model: BudgetsModel
     @State private var budgetPendingDeletion: Budget?
@@ -29,7 +32,7 @@ struct BudgetsView: View {
         }
     }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
         _model = State(initialValue: BudgetsModel(dependencies: dependencies))
     }

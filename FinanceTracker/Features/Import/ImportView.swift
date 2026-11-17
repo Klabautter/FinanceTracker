@@ -2,6 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ImportView: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasImportBatchRepository & HasImportProviders & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository & HasUserDefaults
+
     @State private var model: ImportModel
     @State private var showsFileImporter = false
     @State private var rollbackBatchID: UUID?
@@ -19,7 +22,7 @@ struct ImportView: View {
     @State private var mapExternalID = ""
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         _model = State(initialValue: ImportModel(dependencies: dependencies))
     }
 

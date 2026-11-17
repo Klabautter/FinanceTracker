@@ -2,7 +2,10 @@ import SwiftUI
 
 /// Command Palette (Roadmap #158–160, ⌘K): schnelle Suche + Navigation.
 struct CommandPaletteView: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasFxRateProvider & HasMerchantRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let reviewCount: Int?
     /// Wird bei Auswahl einer Sektion gerufen (Navigation im Root).
     /// WP24: Typed Deep-Link-Route (Transaktion/Konto/Kategorie/Tag mit ID).

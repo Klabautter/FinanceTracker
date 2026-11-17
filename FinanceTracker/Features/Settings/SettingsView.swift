@@ -2,10 +2,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBackupRestoreService & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasFxRateProvider & HasImportBatchRepository & HasImportProviders & HasMerchantRepository & HasNotificationScheduler & HasPreferences & HasRecurringCommitmentRepository & HasRuleRepository & HasSharedExpenseShareRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionCollectionOverrideRepository & HasTransactionCollectionRepository & HasTransactionRepository & HasTransactionSplitRepository & HasUserDefaults
+
     @AppStorage(AppearancePreference.defaultsKey) private var appearance = AppearancePreference.system.rawValue
     @State private var confirmsDeleteAll = false
     @AppStorage(AppDependencies.baseCurrencyDefaultsKey) private var baseCurrency = CurrencyCode.eur.rawValue
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     /// P1 UX: Echter Navigations-Link auf Konten & Verbindungen. Hosts mit
     /// eigener Navigation (z. B. Sidebar-Steuerung) übergeben einen
     /// Callback; ohne Callback fällt die Sektion auf einen internen
@@ -25,7 +28,7 @@ struct SettingsView: View {
     /// WP30 (§210): Große Exporte zeigen Fortschritt statt stiller Blockade.
     @State private var showsBackupImporter = false
     @State private var showsRestoreConfirmation = false
-    init(dependencies: AppDependencies, onShowAccounts: (() -> Void)? = nil, updatesContent: AnyView? = nil) {
+    init(dependencies: Dependencies, onShowAccounts: (() -> Void)? = nil, updatesContent: AnyView? = nil) {
         self.dependencies = dependencies
         self.onShowAccounts = onShowAccounts
         self.updatesContent = updatesContent

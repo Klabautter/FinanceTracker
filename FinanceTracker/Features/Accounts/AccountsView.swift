@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct AccountsView: View {
-    private let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasFxRateProvider & HasImportBatchRepository & HasImportProviders & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository & HasUserDefaults
+
+    private let dependencies: Dependencies
     @State private var model: AccountsModel
     @State private var activeSheet: AccountSheet?
     @State private var syncingConnectionID: UUID?
@@ -35,7 +38,7 @@ struct AccountsView: View {
         }
     }
 
-    init(dependencies: AppDependencies, pendingRoute: Binding<PaletteRoute?>) {
+    init(dependencies: Dependencies, pendingRoute: Binding<PaletteRoute?>) {
         self.dependencies = dependencies
         _model = State(initialValue: AccountsModel(dependencies: dependencies))
         self.pendingRoute = pendingRoute

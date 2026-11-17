@@ -3,9 +3,12 @@ import SwiftUI
 @MainActor
 @Observable
 final class TransactionSplitEditorModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasChangeTracker & HasTransactionSplitRepository
+
     let parent: Transaction
 
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     private let locale: Locale
     private var originalLines: [TransactionSplitLine] = []
 
@@ -16,7 +19,7 @@ final class TransactionSplitEditorModel {
     private(set) var isLoading = false
     private(set) var isSaving = false
 
-    init(parent: Transaction, dependencies: AppDependencies, locale: Locale = .current) {
+    init(parent: Transaction, dependencies: Dependencies, locale: Locale = .current) {
         self.parent = parent
         self.dependencies = dependencies
         self.locale = locale
@@ -195,15 +198,18 @@ final class TransactionSplitEditorModel {
 /// Split-Editor (Roadmap #70): Beträge auf Kategorien aufteilen.
 /// Speichern nur bei erfüllter Invariant (Roadmap #69).
 struct TransactionSplitSheet: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasChangeTracker & HasTransactionSplitRepository
+
     let parent: Transaction
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     let onSaved: () -> Void
 
     @State private var model: TransactionSplitEditorModel
     @Environment(\.dismiss) private var dismiss
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    init(parent: Transaction, dependencies: AppDependencies, onSaved: @escaping () -> Void) {
+    init(parent: Transaction, dependencies: Dependencies, onSaved: @escaping () -> Void) {
         self.parent = parent
         self.dependencies = dependencies
         self.onSaved = onSaved

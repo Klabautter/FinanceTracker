@@ -3,6 +3,9 @@ import Foundation
 @MainActor
 @Observable
 final class BankConnectModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasImportBatchRepository & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     /// GoCardless Sandbox Finance (Spec: Bank Account Data Sandbox):
     /// Mock-Bank für den kompletten Integrationstest ohne PSD2-Login:
     /// beliebige Werte für User-ID und Code-Generator im Auth-Flow.
@@ -57,7 +60,7 @@ final class BankConnectModel {
         case institutions
     }
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let credentialStore: any GoCardlessCredentialStoring
     private let enableBankingCredentialStore: any EnableBankingCredentialStoring
     private let providerFactory: any BankProviderResolving
@@ -121,7 +124,7 @@ final class BankConnectModel {
 
     init(
         kind: ProviderKind = .enablebanking,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         credentialStore: any GoCardlessCredentialStoring = KeychainGoCardlessCredentialStore(),
         enableBankingCredentialStore: (any EnableBankingCredentialStoring)? = nil,
         providerFactory: (any BankProviderResolving)? = nil

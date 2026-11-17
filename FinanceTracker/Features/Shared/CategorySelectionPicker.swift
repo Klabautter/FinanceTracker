@@ -7,7 +7,7 @@ struct CategorySelectionPicker: View {
     let title: String
     @Binding var selection: UUID?
     let categories: [Category]
-    let dependencies: AppDependencies
+    let dependencies: any HasCategoryRepository
     /// Eintrag für „keine Kategorie"; `nil` blendet ihn aus.
     var noneTitle: String? = Category.uncategorizedDisplayName
     var showsIcons = false

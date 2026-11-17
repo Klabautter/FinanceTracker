@@ -7,8 +7,11 @@ import SwiftUI
 /// (#19/#35) werden ausschließlich als manuelle Transfer-Buchungen
 /// (`kind: .transfer`, neutral) angelegt.
 struct GroupExpenseSectionView: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasChangeTracker & HasSharedExpenseShareRepository & HasTransactionRepository
+
     let transaction: Transaction
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
 
     @State private var model: GroupExpenseSectionModel
     @State private var showsAddSheet = false
@@ -17,7 +20,7 @@ struct GroupExpenseSectionView: View {
     @State private var sharePendingDeletion: SharedExpenseShare?
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    init(transaction: Transaction, dependencies: AppDependencies) {
+    init(transaction: Transaction, dependencies: Dependencies) {
         self.transaction = transaction
         self.dependencies = dependencies
         _model = State(initialValue: GroupExpenseSectionModel(

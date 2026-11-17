@@ -3,6 +3,9 @@ import Foundation
 @MainActor
 @Observable
 final class ImportModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasImportBatchRepository & HasImportProviders & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository & HasUserDefaults
+
     enum Phase: Equatable {
         case idle
         case running
@@ -13,7 +16,7 @@ final class ImportModel {
         case failed(String)
     }
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
 
     private(set) var phase: Phase = .idle
     private(set) var accounts: [Account] = []
@@ -41,7 +44,7 @@ final class ImportModel {
     /// demselben Format erneut vorbereiten kann.
     private var lastPreparation: (file: ImportFile, providerDisplayName: String, provider: any ImportProvider)?
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 

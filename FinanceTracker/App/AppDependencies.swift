@@ -222,7 +222,7 @@ struct AppDependencies: Sendable {
 }
 
 extension MirrorCashWithdrawal {
-    init(dependencies: AppDependencies) {
+    init(dependencies: any HasTransactionRepository & HasTransactionAnnotationRepository & HasAccountRepository & HasPreferences) {
         self.init(
             transactionRepository: dependencies.transactionRepository,
             annotationRepository: dependencies.transactionAnnotationRepository,

@@ -5,7 +5,10 @@ import UniformTypeIdentifiers
 /// Konten oder Sandbox; GoCardless-Sign-ups sind eingefroren) und GoCardless
 /// (Bestands-Keys). Salt Edge später über denselben Provider-Slot.
 struct BankConnectView: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasImportBatchRepository & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let onDone: () -> Void
     /// Direkt mit der neuen Freigabe für diese Verbindung starten.
     var renewal: (connection: Connection, purpose: BankConnectModel.RenewalPurpose)?
@@ -19,7 +22,7 @@ struct BankConnectView: View {
     @FocusState private var searchFocused: Bool
 
     init(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         renewal: (connection: Connection, purpose: BankConnectModel.RenewalPurpose)? = nil,
         onDone: @escaping () -> Void
     ) {

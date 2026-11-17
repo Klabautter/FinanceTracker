@@ -3,13 +3,16 @@ import SwiftUI
 /// Rule Builder V1 (Roadmap #55–57): verständliche Bedingungen, Ziel-
 /// Kategorie, Live-Preview über Pushdown-Query, keine nackten Prioritäten.
 struct RuleBuilderSheet: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasRuleRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let onSaved: () -> Void
 
     @State private var model: RuleBuilderModel
     @Environment(\.dismiss) private var dismiss
 
-    init(dependencies: AppDependencies, onSaved: @escaping () -> Void) {
+    init(dependencies: Dependencies, onSaved: @escaping () -> Void) {
         self.dependencies = dependencies
         self.onSaved = onSaved
         _model = State(initialValue: RuleBuilderModel(dependencies: dependencies))

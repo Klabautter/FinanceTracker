@@ -47,13 +47,13 @@ struct TransactionDetailSheet: View {
         .task(id: transactionID) {
             await model.load(transactionID: transactionID)
         }
-        .manualTransactionPresenter(model)
+        .manualTransactionPresenter(model, dependencies: dependencies)
     }
 
     @ViewBuilder
     private var sheetContent: some View {
         if model.transaction(withID: transactionID) != nil {
-            TransactionDetailView(model: model, transactionID: transactionID)
+            TransactionDetailView(model: model, transactionID: transactionID, dependencies: dependencies)
         } else if let errorMessage = model.loadState.failureMessage {
             ErrorStateView(message: errorMessage) {
                 Task { await model.load(transactionID: transactionID) }

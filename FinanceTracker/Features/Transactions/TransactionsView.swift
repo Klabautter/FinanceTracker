@@ -24,6 +24,7 @@ struct TransactionsView: View {
 #if os(macOS)
 
 private struct MacTransactionsContent: View {
+    private let dependencies: AppDependencies
     @Environment(\.isWorkspaceActive) private var isWorkspaceActive
     @State private var model: TransactionsModel
     @State private var selection: Set<Transaction.ID> = []
@@ -45,6 +46,7 @@ private struct MacTransactionsContent: View {
     var pendingRoute: Binding<PaletteRoute?>
 
     init(dependencies: AppDependencies, pendingRoute: Binding<PaletteRoute?>, reviewCount: Int?) {
+        self.dependencies = dependencies
         _model = State(initialValue: TransactionsModel(dependencies: dependencies))
         self.pendingRoute = pendingRoute
         self.reviewCount = reviewCount
@@ -117,7 +119,7 @@ private struct MacTransactionsContent: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } pane: {
-            TransactionInspectorPane(model: model, selection: selection, isPresented: inspector.isPresented)
+            TransactionInspectorPane(model: model, dependencies: dependencies, selection: selection, isPresented: inspector.isPresented)
         }
         .background(AppPalette.canvas)
         .workspaceToolbar { macToolbar }
@@ -127,20 +129,20 @@ private struct MacTransactionsContent: View {
             undoActions: transactionUndoActions,
             model: model
         ))
-        .manualTransactionPresenter(model)
+        .manualTransactionPresenter(model, dependencies: dependencies)
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .addTransaction:
-                AddTransactionSheet(dependencies: model.dependencies) {
+                AddTransactionSheet(dependencies: dependencies) {
                     Task { await model.refresh() }
                 }
             case .addDataSource:
-                AddDataSourceView(dependencies: model.dependencies) {
+                AddDataSourceView(dependencies: dependencies) {
                     activeSheet = nil
                 }
                 .frame(width: 520, height: 620)
             case .reviewQueue:
-                ReviewQueueView(dependencies: model.dependencies, showsDismissButton: true)
+                ReviewQueueView(dependencies: dependencies, showsDismissButton: true)
                     .frame(width: 720, height: 540)
             }
         }
@@ -1019,6 +1021,7 @@ private struct MacTransactionsTable: View {
 /// offenen Inspector wird sofort gewechselt (keine Verzögerung).
 private struct TransactionInspectorPane: View {
     let model: TransactionsModel
+    let dependencies: AppDependencies
     let selection: Set<Transaction.ID>
     let isPresented: Bool
 
@@ -1051,7 +1054,7 @@ private struct TransactionInspectorPane: View {
             // einer einzelnen zufälligen Transaktion.
             multiSelectionSummary
         } else if let id = selection.first, model.transaction(withID: id) != nil {
-            TransactionDetailView(model: model, transactionID: id)
+            TransactionDetailView(model: model, transactionID: id, dependencies: dependencies)
         } else {
             ContentUnavailableView(
                 "Keine Auswahl",
@@ -1098,6 +1101,7 @@ private struct TransactionInspectorPane: View {
 #else
 
 private struct MobileTransactionsContent: View {
+    private let dependencies: AppDependencies
     @State private var model: TransactionsModel
     @State private var activeSheet: MobileTransactionSheet?
     @FocusState private var isSearchFocused: Bool
@@ -1115,6 +1119,7 @@ private struct MobileTransactionsContent: View {
     let reviewCount: Int?
 
     init(dependencies: AppDependencies, pendingRoute: Binding<PaletteRoute?>, reviewCount: Int?) {
+        self.dependencies = dependencies
         _model = State(initialValue: TransactionsModel(dependencies: dependencies))
         self.pendingRoute = pendingRoute
         self.reviewCount = reviewCount
@@ -1125,11 +1130,11 @@ private struct MobileTransactionsContent: View {
         mobileContent
             .searchable(text: $model.searchText, prompt: "Händler oder Beschreibung")
             .toolbar { mobileToolbar }
-            .manualTransactionPresenter(model)
+            .manualTransactionPresenter(model, dependencies: dependencies)
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
                 case .addTransaction:
-                    AddTransactionSheet(dependencies: model.dependencies) {
+                    AddTransactionSheet(dependencies: dependencies) {
                         Task { await model.refresh() }
                     }
                 case .filters:
@@ -1137,7 +1142,7 @@ private struct MobileTransactionsContent: View {
                         Task { await model.loadMoreForTagFilter() }
                     }
                 case .reviewQueue:
-                    ReviewQueueView(dependencies: model.dependencies, showsDismissButton: true)
+                    ReviewQueueView(dependencies: dependencies, showsDismissButton: true)
                 }
             }
             .navigationTitle("Transaktionen")
@@ -1288,7 +1293,7 @@ private struct MobileTransactionsContent: View {
         }
         .navigationDestination(for: UUID.self) { id in
             if model.transaction(withID: id) != nil {
-                TransactionDetailView(model: model, transactionID: id)
+                TransactionDetailView(model: model, transactionID: id, dependencies: dependencies)
             } else {
                 EmptyView()
             }

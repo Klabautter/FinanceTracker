@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct CategoriesView: View {
-    private let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasMerchantRepository & HasRuleRepository & HasTagRepository & HasTransactionRepository
+
+    private let dependencies: Dependencies
     @State private var model: CategoriesModel
     @State private var rulePendingDeletion: CategoryRule?
     @State private var categoryPendingDeletion: Category?
@@ -42,7 +45,7 @@ struct CategoriesView: View {
     }
     @State private var activeTab: CategoriesTab = .categories
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
         _model = State(initialValue: CategoriesModel(dependencies: dependencies))
     }

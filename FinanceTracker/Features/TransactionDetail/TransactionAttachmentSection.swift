@@ -18,7 +18,7 @@ struct TransactionAttachmentSection: View {
     /// Beleg, dessen Löschen bestätigt werden muss (Datei ist danach weg).
     @State private var attachmentPendingDeletion: TransactionAttachment?
 
-    init(transaction: Transaction, dependencies: AppDependencies, baseDirectory: URL? = nil) {
+    init(transaction: Transaction, dependencies: any HasTransactionAttachmentRepository, baseDirectory: URL? = nil) {
         self.transaction = transaction
         _model = State(initialValue: TransactionAttachmentModel(
             transactionID: transaction.id,

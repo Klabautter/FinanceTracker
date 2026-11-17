@@ -1,12 +1,15 @@
 import SwiftUI
 
 struct ReviewQueueView: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryAdvisor & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     @State private var model: ReviewQueueModel
     @Environment(\.dismiss) private var dismiss
     let showsDismissButton: Bool
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
 
-    init(dependencies: AppDependencies, showsDismissButton: Bool = true) {
+    init(dependencies: Dependencies, showsDismissButton: Bool = true) {
         self.dependencies = dependencies
         _model = State(initialValue: ReviewQueueModel(dependencies: dependencies))
         self.showsDismissButton = showsDismissButton

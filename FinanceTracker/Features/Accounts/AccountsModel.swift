@@ -3,7 +3,10 @@ import Foundation
 @MainActor
 @Observable
 final class AccountsModel {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasFxRateProvider & HasImportBatchRepository & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     /// Single Source für Consent/SCA-Einstufung (T-10d, RTS Art. 10),
     /// keine duplizierte Ablauf-Logik neben `BankConnectModel` (#11).
     private let healthEvaluator = ConnectionHealthEvaluator()
@@ -36,7 +39,7 @@ final class AccountsModel {
     /// Ablageort der Beleg-Dateien; `nil` = Standardverzeichnis der App.
     private let attachmentsBaseDirectory: URL?
 
-    init(dependencies: AppDependencies, attachmentsBaseDirectory: URL? = nil) {
+    init(dependencies: Dependencies, attachmentsBaseDirectory: URL? = nil) {
         self.dependencies = dependencies
         self.attachmentsBaseDirectory = attachmentsBaseDirectory
     }
@@ -274,9 +277,12 @@ extension Account {
 @MainActor
 @Observable
 final class AccountDetailModel {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasCategoryRepository & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository
+
     /// Wird beim Laden aus dem Repository aufgefrischt (nach „Bearbeiten").
     private(set) var account: Account
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private(set) var transactions: [Transaction] = []
     private(set) var netMovement: Decimal = 0
     /// Aktueller Stand wie in der Kontenliste: gemeldeter Stand (Bank oder
@@ -290,7 +296,7 @@ final class AccountDetailModel {
     var isLoading: Bool { loadState.isLoading }
     private var categoriesByID: [UUID: Category] = [:]
 
-    init(account: Account, dependencies: AppDependencies) {
+    init(account: Account, dependencies: Dependencies) {
         self.account = account
         self.dependencies = dependencies
     }

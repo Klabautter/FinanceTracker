@@ -5,8 +5,13 @@ import SwiftUI
 /// und erlaubt direkte Korrekturen (Kategorie, Tags, Geprüft,
 /// Analyse-Ausschluss), die Aktionen rufen nur Model-Methoden auf.
 struct TransactionDetailView: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasCategoryRepository & HasChangeTracker & HasPreferences & HasRuleRepository & HasSharedExpenseShareRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository
+
     let model: TransactionsModel
     let transactionID: Transaction.ID
+    /// Für Unteransichten (Teilen, Belege); das Model hält nur, was es nutzt.
+    let dependencies: Dependencies
 
     var body: some View {
         Group {
@@ -53,12 +58,12 @@ struct TransactionDetailView: View {
                     },
                     categoryFooter: merchantCategoryOffer(for: txn)
                 )
-                GroupExpenseSectionView(transaction: txn, dependencies: model.dependencies)
+                GroupExpenseSectionView(transaction: txn, dependencies: dependencies)
                     .id(txn.id)
                     .financeCard(padding: AppSpacing.l)
                 TransactionAttachmentSection(
                     transaction: txn,
-                    dependencies: model.dependencies,
+                    dependencies: dependencies,
                     baseDirectory: model.attachmentsBaseDirectory
                 )
                 .id(txn.id)
@@ -135,12 +140,12 @@ struct TransactionDetailView: View {
                 },
                 categoryFooter: merchantCategoryOffer(for: txn)
             )
-            GroupExpenseSectionView(transaction: txn, dependencies: model.dependencies)
+            GroupExpenseSectionView(transaction: txn, dependencies: dependencies)
                 .id(txn.id)
             Section {
                 TransactionAttachmentSection(
                     transaction: txn,
-                    dependencies: model.dependencies,
+                    dependencies: dependencies,
                     baseDirectory: model.attachmentsBaseDirectory
                 )
                 .id(txn.id)

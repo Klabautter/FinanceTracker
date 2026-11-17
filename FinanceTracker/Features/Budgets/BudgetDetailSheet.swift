@@ -3,14 +3,17 @@ import Charts
 
 /// Eingebettetes Budget-Detail für Navigation und macOS-Inspector.
 struct BudgetDetailSheet: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBudgetRepository & HasCategoryRepository & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     let progress: BudgetProgress
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     let onEdit: () -> Void
 
     @State private var model: BudgetDetailModel
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    init(progress: BudgetProgress, dependencies: AppDependencies, onEdit: @escaping () -> Void) {
+    init(progress: BudgetProgress, dependencies: Dependencies, onEdit: @escaping () -> Void) {
         self.progress = progress
         self.dependencies = dependencies
         self.onEdit = onEdit

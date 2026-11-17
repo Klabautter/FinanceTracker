@@ -122,11 +122,14 @@ final class MerchantDetailModel {
 /// Händler-Detail für exakt denselben Query-Scope und dieselbe effektive
 /// Transaktionssemantik wie die Ausgangsanalyse.
 struct MerchantDetailSheet: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository
+
     @State private var model: MerchantDetailModel
     @Environment(\.dismiss) private var dismiss
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    init(merchantName: String, scope: AnalyticsScope, dependencies: AppDependencies) {
+    init(merchantName: String, scope: AnalyticsScope, dependencies: Dependencies) {
         _model = State(initialValue: MerchantDetailModel(
             merchantName: merchantName,
             scope: scope,

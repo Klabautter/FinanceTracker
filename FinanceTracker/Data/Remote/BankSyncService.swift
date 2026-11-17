@@ -15,15 +15,18 @@ struct BankSyncResult: Sendable {
 /// laufen im Hintergrund (nonisolated + Task.detached); nur UI-relevante
 /// State-Updates (DataChangeTracker) hüpfen auf den MainActor.
 struct BankSyncService: Sendable {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasImportBatchRepository & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     /// Console.app-Filter für einen echten Banklauf: subsystem
     /// de.klabautter.FinanceTracker, category "banking". Es werden nur
     /// Zähler, Status und gekürzte Kennungen protokolliert.
     static let logger = Logger(subsystem: "de.klabautter.FinanceTracker", category: "banking")
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let provider: any BankDataProvider
 
-    init(dependencies: AppDependencies, provider: any BankDataProvider) {
+    init(dependencies: Dependencies, provider: any BankDataProvider) {
         self.dependencies = dependencies
         self.provider = provider
     }

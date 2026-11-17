@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CategoryEditorSheet: View {
-    let dependencies: AppDependencies
+    let dependencies: any HasCategoryRepository
     /// Existierende Kategorie = Bearbeiten, nil = Neu anlegen.
     let editing: Category?
     let onSaved: () -> Void
@@ -16,7 +16,7 @@ struct CategoryEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     init(
-        dependencies: AppDependencies,
+        dependencies: any HasCategoryRepository,
         editing: Category?,
         onSaved: @escaping () -> Void,
         onCreated: ((Category) -> Void)? = nil,

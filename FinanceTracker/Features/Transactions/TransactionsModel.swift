@@ -16,7 +16,10 @@ enum TagFilterMode: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class TransactionsModel {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasCategoryRepository & HasChangeTracker & HasPreferences & HasRuleRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let effectiveTransactionResolver = EffectiveTransactionResolver()
 
     var transactions: [Transaction] = []
@@ -218,7 +221,7 @@ final class TransactionsModel {
     }
     var transactionPendingDeletion: Transaction?
 
-    init(dependencies: AppDependencies, attachmentsBaseDirectory: URL? = nil) {
+    init(dependencies: Dependencies, attachmentsBaseDirectory: URL? = nil) {
         self.dependencies = dependencies
         self.attachmentsBaseDirectory = attachmentsBaseDirectory
         self.tableSortOrder = [KeyPathComparator(\.displayDate, order: .reverse)]

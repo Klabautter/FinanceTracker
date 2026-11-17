@@ -17,7 +17,10 @@ enum BudgetPeriodFormSelection {
 /// Budget 2.0 Form (Roadmap #109): Name, Icon, Betrag, Multi-Kategorien,
 /// Rollover.
 struct AddBudgetSheet: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository
+
+    let dependencies: Dependencies
     /// Existierendes Budget = Bearbeiten.
     var editing: Budget?
     let onSaved: () -> Void
@@ -26,7 +29,7 @@ struct AddBudgetSheet: View {
     @State private var createsCategory = false
     @Environment(\.dismiss) private var dismiss
 
-    init(dependencies: AppDependencies, editing: Budget? = nil, onSaved: @escaping () -> Void) {
+    init(dependencies: Dependencies, editing: Budget? = nil, onSaved: @escaping () -> Void) {
         self.dependencies = dependencies
         self.editing = editing
         self.onSaved = onSaved

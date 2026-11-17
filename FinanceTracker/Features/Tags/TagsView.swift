@@ -24,6 +24,9 @@ struct TagChip: View {
 }
 
 struct TagsView: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasChangeTracker & HasTagRepository
+
     @State private var model: TagsModel
     @State private var newTagName = ""
     @State private var newTagColor: TagColorToken = .blue
@@ -33,7 +36,7 @@ struct TagsView: View {
     /// Eingebettet (Segment in „Kategorien & Regeln"): kein eigener Seitenkopf.
     private let embedded: Bool
 
-    init(dependencies: AppDependencies, embedded: Bool = false) {
+    init(dependencies: Dependencies, embedded: Bool = false) {
         self.embedded = embedded
         _model = State(initialValue: TagsModel(dependencies: dependencies))
     }

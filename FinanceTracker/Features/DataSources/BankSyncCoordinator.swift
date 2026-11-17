@@ -80,6 +80,9 @@ enum BankSyncCoordinatorError: LocalizedError {
 @MainActor
 @Observable
 final class BankSyncCoordinator {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankProviderFactory & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasImportBatchRepository & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     private(set) var syncingConnectionIDs: Set<UUID> = []
     private(set) var isSyncingAll = false
     /// Letzter Sammelabruf, der etwas zu melden hatte.
@@ -116,7 +119,7 @@ final class BankSyncCoordinator {
     /// Zählt die abrufbaren Verbindungen (für die Sichtbarkeit des Knopfs)
     /// und räumt Meldungen zu inzwischen entfernten oder erneuerten
     /// Verbindungen ab.
-    func refreshAvailability(dependencies: AppDependencies, now: Date = Date()) async {
+    func refreshAvailability(dependencies: Dependencies, now: Date = Date()) async {
         guard let connections = try? await dependencies.connectionRepository.connections() else { return }
         syncableConnectionCount = connections.count {
             policy.decision(for: $0, trigger: .manual, now: now) != .notSyncable
@@ -143,7 +146,7 @@ final class BankSyncCoordinator {
         _ connection: Connection,
         historyStart: Date? = nil,
         provider: (any BankDataProvider)? = nil,
-        dependencies: AppDependencies
+        dependencies: Dependencies
     ) async throws -> BankSyncResult {
         await acquire()
         defer { release() }
@@ -166,7 +169,7 @@ final class BankSyncCoordinator {
     @discardableResult
     func syncAll(
         trigger: BankSyncPolicy.Trigger,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         now: Date = Date()
     ) async -> BankSyncRunSummary? {
         if trigger == .automatic, !dependencies.preferences.automaticBankSyncEnabled { return nil }
@@ -206,7 +209,7 @@ final class BankSyncCoordinator {
     private func syncIfDue(
         _ connectionID: UUID,
         trigger: BankSyncPolicy.Trigger,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         now: Date,
         into summary: inout BankSyncRunSummary
     ) async {
@@ -256,7 +259,7 @@ final class BankSyncCoordinator {
         _ connection: Connection,
         historyStart: Date?,
         provider: (any BankDataProvider)?,
-        dependencies: AppDependencies
+        dependencies: Dependencies
     ) async throws -> BankSyncResult {
         syncingConnectionIDs.insert(connection.id)
         defer { syncingConnectionIDs.remove(connection.id) }

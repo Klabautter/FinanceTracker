@@ -2,8 +2,11 @@ import SwiftUI
 
 /// Split-Sektion im Transaction Detail (Roadmap #67/#70).
 struct TransactionSplitSection: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasChangeTracker & HasTransactionSplitRepository
+
     let transaction: Transaction
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
 
     @State private var splits: [TransactionSplitLine] = []
     @State private var showsSplitEditor = false

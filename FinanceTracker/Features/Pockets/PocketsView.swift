@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct PocketsView: View {
-    private let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasImportBatchRepository & HasImportProviders & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionCollectionOverrideRepository & HasTransactionCollectionRepository & HasTransactionRepository & HasUserDefaults
+
+    private let dependencies: Dependencies
     @State private var model: PocketsModel
     @State private var activeSheet: PocketSheet?
     @State private var pendingDeletion: TransactionCollection?
@@ -23,7 +26,7 @@ struct PocketsView: View {
         }
     }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
         _model = State(initialValue: PocketsModel(dependencies: dependencies))
     }

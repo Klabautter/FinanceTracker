@@ -5,7 +5,10 @@ import SwiftUI
 /// echten Kontostand; Buchungen trägt der Nutzer manuell ein oder
 /// importiert sie per Datei.
 struct AccountEditorSheet: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasChangeTracker
+
+    let dependencies: Dependencies
     let editing: Account?
     let onSaved: () -> Void
 
@@ -13,7 +16,7 @@ struct AccountEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     init(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         editing: Account? = nil,
         transactionCount: Int = 0,
         onSaved: @escaping () -> Void

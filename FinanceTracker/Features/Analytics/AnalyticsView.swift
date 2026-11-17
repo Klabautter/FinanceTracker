@@ -100,7 +100,10 @@ struct AnalyticsFilterControls: View {
 }
 
 struct AnalyticsView: View {
-    private let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
+    private let dependencies: Dependencies
     @State private var model: AnalyticsModel
     @State private var showsFilterSheet = false
 
@@ -118,7 +121,7 @@ struct AnalyticsView: View {
     var onShowTransactionsInMonth: ((AnalyticsScope) -> Void)?
 
     init(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         pendingRoute: Binding<PaletteRoute?>,
         onOpenRecurring: (() -> Void)? = nil,
         onShowTransactionsInMonth: ((AnalyticsScope) -> Void)? = nil

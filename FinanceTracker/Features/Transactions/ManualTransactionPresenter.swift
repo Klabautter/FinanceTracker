@@ -4,18 +4,23 @@ import SwiftUI
 /// Buchungen. Kontextmenü und Detailbereich setzen nur den Zustand am
 /// Model; dieser Modifier hängt einmal am jeweiligen Screen-Root.
 struct ManualTransactionPresenter: ViewModifier {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasPreferences & HasRuleRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository
+
     let model: TransactionsModel
+    /// Für die Formulare; das Model selbst hält nur, was es nutzt.
+    let dependencies: Dependencies
 
     func body(content: Content) -> some View {
         @Bindable var model = model
         content
             .sheet(item: $model.transactionPendingEdit) { transaction in
-                AddTransactionSheet(dependencies: model.dependencies, editing: transaction) {
+                AddTransactionSheet(dependencies: dependencies, editing: transaction) {
                     Task { await model.refresh() }
                 }
             }
             .sheet(item: $model.categoryCreationTarget) { target in
-                CategoryEditorSheet(dependencies: model.dependencies, editing: nil, onSaved: {}, onCreated: { category in
+                CategoryEditorSheet(dependencies: dependencies, editing: nil, onSaved: {}, onCreated: { category in
                     Task { await model.categoryCreated(category, for: target) }
                 })
             }
@@ -43,7 +48,7 @@ struct ManualTransactionPresenter: ViewModifier {
 }
 
 extension View {
-    func manualTransactionPresenter(_ model: TransactionsModel) -> some View {
-        modifier(ManualTransactionPresenter(model: model))
+    func manualTransactionPresenter(_ model: TransactionsModel, dependencies: AppDependencies) -> some View {
+        modifier(ManualTransactionPresenter(model: model, dependencies: dependencies))
     }
 }

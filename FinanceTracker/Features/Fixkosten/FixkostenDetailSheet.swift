@@ -3,14 +3,17 @@ import SwiftUI
 /// Recurring-Detail (Roadmap #115): Bearbeiten, Pausieren, letzte
 /// Zahlungen, manuelle Zuordnung (#110), Löschen.
 struct FixkostenDetailSheet: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
     let onChanged: () -> Void
 
     @State private var model: FixkostenDetailModel
     @State private var showsDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
 
-    init(commitment: RecurringCommitment, dependencies: AppDependencies, onChanged: @escaping () -> Void) {
+    init(commitment: RecurringCommitment, dependencies: Dependencies, onChanged: @escaping () -> Void) {
         self.dependencies = dependencies
         self.onChanged = onChanged
         _model = State(initialValue: FixkostenDetailModel(commitment: commitment, dependencies: dependencies))

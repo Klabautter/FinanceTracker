@@ -4,6 +4,9 @@ import SwiftUI
 /// stabiler Identifier), rekursive Descendants, scoped Query mit
 /// Pagination statt Full-History-Load und sichtbarem Fehler-State.
 struct CategoryDrilldownSheet: View {
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     let categoryID: UUID?
     let categoryName: String
     let dateInterval: DateInterval
@@ -17,7 +20,7 @@ struct CategoryDrilldownSheet: View {
         categoryName: String,
         dateInterval: DateInterval,
         currency: CurrencyCode,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         scope: AnalyticsScope? = nil
     ) {
         self.categoryID = categoryID

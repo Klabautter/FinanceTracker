@@ -6,7 +6,10 @@ enum AddDataSourceRoute: Hashable {
 }
 
 struct AddDataSourceView: View {
-    let dependencies: AppDependencies
+    /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBankInstitutionCache & HasBankProviderFactory & HasBankSyncCoordinator & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasConnectionRepository & HasEnableBankingCredentialStore & HasImportBatchRepository & HasImportProviders & HasMerchantRepository & HasPreferences & HasRuleRepository & HasTransactionAnnotationRepository & HasTransactionAttachmentRepository & HasTransactionRepository & HasUserDefaults
+
+    let dependencies: Dependencies
     let onDismiss: () -> Void
     /// Optional: Konto manuell anlegen (Bargeld, Konto ohne Anbindung).
     /// Der Aufrufer öffnet den Editor und schließt diesen Dialog.
