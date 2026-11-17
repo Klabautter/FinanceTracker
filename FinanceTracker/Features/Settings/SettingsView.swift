@@ -28,6 +28,11 @@ struct SettingsView: View {
     /// WP30 (§210): Große Exporte zeigen Fortschritt statt stiller Blockade.
     @State private var showsBackupImporter = false
     @State private var showsRestoreConfirmation = false
+    /// Passwort-Dialog für ein geschütztes Backup (Export oder Öffnen).
+    @State private var passwordRequest: BackupPasswordRequest?
+    /// Das verschlüsselte Backup ist fertig; der Speichern-Dialog folgt,
+    /// sobald der Passwort-Dialog geschlossen ist.
+    @State private var exportsAfterPasswordSheet = false
     init(dependencies: Dependencies, onShowAccounts: (() -> Void)? = nil, updatesContent: AnyView? = nil) {
         self.dependencies = dependencies
         self.onShowAccounts = onShowAccounts
@@ -49,10 +54,46 @@ struct SettingsView: View {
             case .success(let url):
                 Task {
                     await model.prepareRestore(from: url)
-                    showsRestoreConfirmation = model.preparedRestore != nil
+                    if let locked = model.lockedRestore {
+                        passwordRequest = .restore(fileName: locked.fileName)
+                    } else {
+                        showsRestoreConfirmation = model.preparedRestore != nil
+                    }
                 }
             case .failure(let error): exportErrorMessage = error.localizedDescription
             }
+        }
+        .sheet(item: $passwordRequest, onDismiss: {
+            // Erst jetzt: Ein Dateidialog oder Hinweis über einem Sheet, das
+            // sich gerade schließt, erscheint auf macOS nicht.
+            if exportsAfterPasswordSheet {
+                exportsAfterPasswordSheet = false
+                showsBackupExporter = backupDocument != nil
+            }
+            // Ohne Passwort geschlossen: das wartende Backup verwerfen.
+            model.cancelLockedRestore()
+            showsRestoreConfirmation = model.preparedRestore != nil
+        }) { request in
+            BackupPasswordSheet(
+                request: request,
+                errorMessage: model.restorePasswordError,
+                onExport: { password, includeAttachments in
+                    exportSuccessMessage = nil
+                    backupDocument = await model.prepareBackupExport(
+                        includeAttachments: includeAttachments, password: password
+                    )
+                    exportsAfterPasswordSheet = backupDocument != nil
+                    passwordRequest = nil
+                },
+                onUnlock: { password in
+                    if await model.unlockRestore(password: password) {
+                        passwordRequest = nil
+                    } else if model.lockedRestore == nil {
+                        // Kein Passwortfehler: die Meldung steht im Abschnitt „Daten".
+                        passwordRequest = nil
+                    }
+                }
+            )
         }
         .alert("Daten durch Backup ersetzen?", isPresented: $showsRestoreConfirmation) {
             Button("Abbrechen", role: .cancel) { model.cancelRestore() }
@@ -284,11 +325,15 @@ struct SettingsView: View {
                     }
                 }
                     .disabled(model.isBusyWithData)
+                    Button("Backup mit Passwort exportieren…", systemImage: "lock") {
+                        passwordRequest = .export
+                    }
+                    .disabled(model.isBusyWithData)
                 } label: {
                     Label("Daten exportieren", systemImage: "square.and.arrow.up")
                 }
                 .disabled(model.isBusyWithData)
-                Text("Ohne Belege ist das Backup kleiner, Belegdateien fehlen dann nach einer Wiederherstellung.")
+                Text("Ohne Belege ist das Backup kleiner, Belegdateien fehlen dann nach einer Wiederherstellung. Ein Backup enthält alle Buchungen und Kontokennungen; mit Passwort ist es verschlüsselt.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Button("Backup wiederherstellen…", systemImage: "arrow.counterclockwise") {
                     showsBackupImporter = true

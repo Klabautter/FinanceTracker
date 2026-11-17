@@ -19,6 +19,15 @@ final class SettingsModel {
     private(set) var isPreparingExport = false
     private(set) var isRestoring = false
     private(set) var preparedRestore: PreparedBackupRestore?
+    /// Ein mit Passwort geschütztes Backup, das auf sein Passwort wartet.
+    struct LockedBackup: Equatable {
+        let fileName: String
+        let data: Data
+    }
+    private(set) var lockedRestore: LockedBackup?
+    /// Fehler der Passworteingabe beim Wiederherstellen (falsches Passwort).
+    private(set) var restorePasswordError: String?
+    private(set) var isUnlockingRestore = false
     private(set) var dataMessage: String?
     /// Sicherheitskopie vor der letzten Wiederherstellung (zum Anzeigen im Finder).
     private(set) var lastSafetyBackupURL: URL?
@@ -33,7 +42,14 @@ final class SettingsModel {
         catch { dataMessage = String(localized: "Export konnte nicht erstellt werden."); return nil }
     }
 
-    func prepareBackupExport(includeAttachments: Bool = true) async -> BackupPackageDocument? {
+    /// Was an einem neuen Backup-Passwort nicht stimmt; `nil`, wenn es passt.
+    static func backupPasswordProblem(_ password: String, repeated: String) -> String? {
+        BackupEncryption.passwordProblem(password, repeated: repeated)
+    }
+
+    /// - Parameter password: Mit Passwort wird das fertige Archiv
+    ///   verschlüsselt (Roadmap 9.3). Das Passwort wird nicht gespeichert.
+    func prepareBackupExport(includeAttachments: Bool = true, password: String? = nil) async -> BackupPackageDocument? {
         guard !isBusyWithData else { return nil }
         isPreparingExport = true
         dataMessage = nil
@@ -42,9 +58,14 @@ final class SettingsModel {
             // Kein Bankabruf währenddessen: sonst könnten Zeilen zwischen den
             // einzelnen Ladeschritten fehlen oder doppelt sein.
             let dependencies = dependencies
-            let data = try await dependencies.bankSyncCoordinator.runExclusively {
+            let package = try await dependencies.bankSyncCoordinator.runExclusively {
                 try await BackupService.makeBackupPackage(dependencies: dependencies, includeAttachments: includeAttachments)
             }
+            guard let password else { return BackupPackageDocument(data: package) }
+            // Schlüsselableitung und Verschlüsselung dauern spürbar: nicht auf dem MainActor.
+            let data = try await Task.detached(priority: .userInitiated) {
+                try BackupEncryption.encrypt(package, password: password)
+            }.value
             return BackupPackageDocument(data: data)
         } catch { dataMessage = String(localized: "Backup konnte nicht erstellt werden: \(error.localizedDescription)"); return nil }
     }
@@ -84,18 +105,55 @@ final class SettingsModel {
         isRestoring = true
         dataMessage = nil
         preparedRestore = nil
+        lockedRestore = nil
+        restorePasswordError = nil
         defer { isRestoring = false }
         do {
-            preparedRestore = try await Task.detached(priority: .userInitiated) {
+            let loaded: (prepared: PreparedBackupRestore?, locked: Data?) = try await Task.detached(priority: .userInitiated) {
                 let scoped = url.startAccessingSecurityScopedResource()
                 defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-                guard let size, size <= BackupRestoreService.maxArchiveBytes else {
+                guard let size, size <= BackupRestoreService.maxArchiveBytes + BackupEncryption.overhead else {
                     throw BackupError.invalidRestore(String(localized: "Backup-Datei ist zu groß."))
                 }
-                return try BackupRestoreService.prepare(Data(contentsOf: url))
+                let data = try Data(contentsOf: url)
+                // Ein geschütztes Backup wird erst mit Passwort geprüft.
+                if BackupEncryption.isEncrypted(data) { return (nil, data) }
+                return (try BackupRestoreService.prepare(data), nil)
             }.value
+            preparedRestore = loaded.prepared
+            lockedRestore = loaded.locked.map { LockedBackup(fileName: url.lastPathComponent, data: $0) }
         } catch { dataMessage = String(localized: "Backup wurde nicht übernommen: \(error.localizedDescription)") }
+    }
+
+    /// Öffnet das wartende Backup mit dem Passwort und prüft es wie jedes
+    /// andere. Liefert `true`, wenn es zur Bestätigung bereitsteht.
+    func unlockRestore(password: String) async -> Bool {
+        guard !isUnlockingRestore, let locked = lockedRestore else { return false }
+        isUnlockingRestore = true
+        restorePasswordError = nil
+        defer { isUnlockingRestore = false }
+        do {
+            let data = locked.data
+            preparedRestore = try await Task.detached(priority: .userInitiated) {
+                try BackupRestoreService.prepare(BackupEncryption.decrypt(data, password: password))
+            }.value
+            lockedRestore = nil
+            return true
+        } catch let error as BackupEncryptionError {
+            // Eingabefehler: bleibt im Passwort-Dialog, das Backup wartet weiter.
+            restorePasswordError = error.localizedDescription
+            return false
+        } catch {
+            lockedRestore = nil
+            dataMessage = String(localized: "Backup wurde nicht übernommen: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    func cancelLockedRestore() {
+        lockedRestore = nil
+        restorePasswordError = nil
     }
 
     func cancelRestore() { preparedRestore = nil }

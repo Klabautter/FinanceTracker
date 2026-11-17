@@ -47,6 +47,9 @@ actor BackupRestoreService {
     nonisolated static let maxArchiveBytes = BackupService.maxTotalAttachmentBytesDefault + 50 * 1024 * 1024
 
     nonisolated static func prepare(_ data: Data) throws -> PreparedBackupRestore {
+        guard !BackupEncryption.isEncrypted(data) else {
+            throw BackupError.invalidRestore(String(localized: "Dieses Backup ist mit einem Passwort geschützt."))
+        }
         let archive = try ZipArchiveReader(data: data, maxArchiveBytes: maxArchiveBytes, maxEntryBytes: maxArchiveBytes, verifyChecksums: true)
         let checked = try checkedContents(of: archive)
         let files = try checked.backup.attachments.map { attachment in
