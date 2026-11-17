@@ -1,0 +1,46 @@
+{
+  "sourceLanguage": "de",
+  "strings": {
+    "Wie viel habe ich diesen Monat mit ${applicationName} ausgegeben": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much did I spend this month with ${applicationName}"
+          }
+        }
+      }
+    },
+    "Ausgaben in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spending in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Wie viel ist in ${applicationName} noch verfügbar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much is still available in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Verfügbar bis Monatsende in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available until month end in ${applicationName}"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
