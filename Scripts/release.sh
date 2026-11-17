@@ -99,6 +99,15 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 fi
 
 command -v xcodegen >/dev/null || { echo "xcodegen fehlt: brew install xcodegen" >&2; exit 1; }
+# Dieselbe XcodeGen-Version wie in der CI (dort gepinnt): Eine andere Version
+# erzeugt eine andere Projektdatei als die, gegen die getestet wurde.
+XCODEGEN_PINNED=$(sed -n 's/^ *XCODEGEN_VERSION: *//p' .github/workflows/ci.yml | head -1)
+XCODEGEN_INSTALLED=$(xcodegen --version | sed 's/^Version: *//')
+if [ -z "$XCODEGEN_PINNED" ] || [ "$XCODEGEN_INSTALLED" != "$XCODEGEN_PINNED" ]; then
+    echo "XcodeGen $XCODEGEN_INSTALLED ist installiert, festgelegt ist ${XCODEGEN_PINNED:-keine Version} (.github/workflows/ci.yml)." >&2
+    echo "Passende Version installieren oder die festgelegte Version dort bewusst anheben." >&2
+    exit 1
+fi
 command -v gh >/dev/null || { echo "gh fehlt: brew install gh, dann gh auth login" >&2; exit 1; }
 if [ "$DRY_RUN" = 0 ]; then
     gh auth status -h github.com >/dev/null 2>&1 || { echo "gh ist nicht angemeldet: gh auth login" >&2; exit 1; }
