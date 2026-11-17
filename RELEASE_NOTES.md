@@ -1,3 +1,23 @@
-Connecting a new bank now tells you up front to link it in the Enable Banking control panel first.
+Widgets, Siri and plain-language questions, a faster app for large histories, and many fixes for amounts, imports and backups.
 
-- **Connecting a bank:** The bank list starts with a short note: link a new bank under your existing Enable Banking application first ("Link" in the control panel), then choose it here. Without that step the bank login works but no accounts arrive. The note used to sit below the list, where a long list hid it.
+- **Widgets:** A small and a medium widget show what you can still spend this month and the budgets that need attention. Privacy mode hides the amounts there too.
+- **Questions in plain language:** Type a question such as "How much on restaurants this summer?" into the command palette to get the total and the number of transactions. Shortcuts and Siri answer "Spending This Month" and "Available Until Month End".
+- **Forecast what-if:** The month-end card lists the payment plans still due; untick one to see the amount without it. Nothing is saved.
+- **Noticed:** The overview points out possible double charges, subscriptions that got more expensive, unusually high amounts at a known merchant and budgets that will run out at the current pace. Each notice can be dismissed.
+- **Base currency:** Choose the currency for totals, budgets and the forecast in Settings. Accounts keep their own currency.
+- **Appearance:** Choose System, Light or Dark in Settings.
+- **Receipts:** Attach PDFs and images to a transaction in its detail view, or drag them in from the Finder. Import files and the Enable Banking key file can be dropped in too.
+- **Working with many transactions:** Right-click a selection to set category, tags, review state or analytics for all of it; the selection stays after bulk actions. Command-Z in text fields undoes typing again.
+- **Large histories:** With 100,000 transactions the overview appears in about a quarter of a second, switching months is instant, search answers in well under a second and the app needs a fraction of the memory it used before. A 20,000-row import is several times faster.
+- **Amounts:** Amount fields follow your number format, so 1.500 means fifteen hundred in German, and show how the input was read. CSV files whose amounts are ambiguous now ask once instead of guessing.
+- **Bank bookings:** Bookings without a booking date use the value date; rows without any readable date are reported instead of being stored with the sync time. Bank errors now name the likely cause and the next step.
+- **Bank sign-in:** If financetracker://bank-callback is added as a redirect URL of your Enable Banking application, the sign-in returns straight to the app. Otherwise nothing changes.
+- **Forecast:** A manually entered salary plan is no longer counted twice.
+- **Recurring payments:** Fuel and grocery stops are no longer suggested as monthly payments.
+- **Backups:** Undoing an import now removes everything attached to its transactions, so later backups restore again. Leftovers from earlier undos are cleaned up on launch. Backups no longer contain the bank session ID.
+- **Delete All Data:** Settings can remove all finance data on this Mac after writing a full backup first.
+- **Privacy:** Logs show only the last four characters of account and session IDs, bank requests use no disk cache, and CSV exports can no longer be run as spreadsheet formulas.
+- **Narrow windows:** Tables keep the amount column fully visible, analytics filters wrap, and the detail pane can be resized.
+- **Accessibility:** Stronger lines with Increase Contrast, and VoiceOver reads the values of the spending pace chart.
+- **English:** The whole interface is now available in English, including the Siri phrases.
+- **Data:** The database gets an index for faster queries; the update migrates it automatically on first launch.
