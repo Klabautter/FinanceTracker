@@ -139,6 +139,12 @@ final class DashboardModel {
         }
     }
 
+    /// Wartet, bis der vorbereitete Vormonat fertig ist (Leistungstest:
+    /// misst den Wechsel, wie ihn jemand nach dem Lesen der Übersicht auslöst).
+    func waitForPreparedMonth() async {
+        _ = try? await prefetchedMonth?.task.value
+    }
+
     private func prefetchPreviousMonth(revision: Int, today: Date) {
         guard let request = dashboardRequest(monthOffset: monthOffset - 1, today: today) else { return }
         prefetchedMonth = (PrefetchKey(revision: revision, request: request), loaderTask(for: request))
@@ -437,7 +443,6 @@ final class DashboardModel {
             loadState = .loaded
             fxIsLoading = false
             hasLoaded = true
-            prefetchPreviousMonth(revision: revision, today: today)
             // Erst jetzt die große Abfrage: Alle Abfragen laufen über einen
             // Persistenz-Actor, parallel gestartet stünde die Monatsansicht
             // hinter ihr in der Schlange.
@@ -461,6 +466,9 @@ final class DashboardModel {
             }
             // Die Zahl offener Prüfungen gilt für alle Monate.
             await reviewSummaryLoad
+            // Erst nach den großen Abfragen, sonst konkurrieren sie um
+            // Speicher und Kerne und die Übersicht wird später fertig.
+            prefetchPreviousMonth(revision: revision, today: today)
         } catch {
             failure = String(localized: "Die Auswertung konnte nicht geladen werden.")
             await loadReviewSummary()

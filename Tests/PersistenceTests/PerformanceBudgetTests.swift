@@ -64,8 +64,9 @@ struct PerformanceBudgetTests {
         let clock = ContinuousClock()
         let model = DashboardModel(dependencies: dependencies)
         let (firstVisible, firstLoad) = await model.measureLoad()
-        // Der Vormonat ist vorbereitet, sobald die Übersicht steht; zurück
+        // Der Vormonat wird vorbereitet, sobald die Übersicht steht; zurück
         // zum laufenden Monat lädt ohne Vorbereitung.
+        await model.waitForPreparedMonth()
         let monthSwitch = await clock.measure { await model.showPreviousMonth() }
         let unpreparedMonthSwitch = await clock.measure { await model.showNextMonth() }
         let firstPage = try await clock.measure {
