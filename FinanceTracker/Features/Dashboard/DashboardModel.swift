@@ -217,12 +217,7 @@ final class DashboardModel {
         fxIsLoading = true
         var failure: String?
         let signpost = PerfSignpost.signposter.beginInterval("DashboardLoad")
-        // Kontostände und Prüfzahl brauchen den ganzen Bestand: EINE leichte
-        // Abfrage für beide, parallel zur Monatsansicht.
         let revision = dependencies.changeTracker.revision
-        let needsLightRows = balancesCache?.revision != revision
-            || !(hasLoadedReviewSummary && reviewSummaryRevision == revision)
-        let repository = dependencies.transactionRepository
         // Alles Sichtbare wird erst am Ende in einem Schritt ausgetauscht.
         // Zwischenstände (geleerte Hinweise, Budgets ohne Zahlen …) ließen
         // die Seite beim Monatswechsel mehrfach springen.
@@ -446,11 +441,14 @@ final class DashboardModel {
             // Erst jetzt die große Abfrage: Alle Abfragen laufen über einen
             // Persistenz-Actor, parallel gestartet stünde die Monatsansicht
             // hinter ihr in der Schlange.
-            let lightRowsTask: Task<[Transaction], Error>? = needsLightRows
-                ? Task { try await repository.reviewCandidateTransactions() }
-                : nil
-            async let reviewSummaryLoad: Void = loadReviewSummary(lightRows: lightRowsTask)
-            if isCurrentMonth, let balances = try? await cachedBalances(converter: balanceConverter, lightRows: lightRowsTask) {
+            await loadWholeStoreFigures(
+                needsBalances: isCurrentMonth && balancesCache?.revision != revision,
+                needsSummary: !(hasLoadedReviewSummary && reviewSummaryRevision == revision),
+                balanceConverter: balanceConverter,
+                revision: revision
+            )
+            let balances = isCurrentMonth && balancesCache?.revision == revision ? balancesCache?.balances : nil
+            if let balances {
                 let calculator = LiquidityCalculator(
                     baseCurrency: dependencies.baseCurrency,
                     converter: balanceConverter
@@ -464,64 +462,90 @@ final class DashboardModel {
                 liquidity = nil
                 runway = nil
             }
-            // Die Zahl offener Prüfungen gilt für alle Monate.
-            await reviewSummaryLoad
             // Erst nach den großen Abfragen, sonst konkurrieren sie um
             // Speicher und Kerne und die Übersicht wird später fertig.
             prefetchPreviousMonth(revision: revision, today: today)
         } catch {
             failure = String(localized: "Die Auswertung konnte nicht geladen werden.")
-            await loadReviewSummary()
+            // Die Zahl offener Prüfungen gilt für alle Monate.
+            await loadWholeStoreFigures(
+                needsBalances: false,
+                needsSummary: !(hasLoadedReviewSummary && reviewSummaryRevision == dependencies.changeTracker.revision),
+                balanceConverter: nil,
+                revision: dependencies.changeTracker.revision
+            )
         }
         PerfSignpost.signposter.endInterval("DashboardLoad", signpost)
     }
 
-    /// WP13 (§96-99): Der Review-Count ist GLOBAL (leichte Projection +
-    /// Annotation-Join), nicht auf 6 Monate begrenzt. Ältere offene
-    /// Prüfungen zählen mit; die Review-Queue erreicht sie. Alle Annotationen
-    /// direkt zu laden vermeidet ein riesiges `IN (...)` mit bis zu 50k IDs.
-    private func cachedBalances(converter: CurrencyConverter, lightRows: Task<[Transaction], Error>?) async throws -> AccountBalances {
-        let revision = dependencies.changeTracker.revision
-        if let balancesCache, balancesCache.revision == revision { return balancesCache.balances }
-        let movements = try await lightRows?.value.map(AccountMovementRow.init(transaction:))
-        let balances = try await LoadAccountBalances(
-            accountRepository: dependencies.accountRepository,
-            transactionRepository: dependencies.transactionRepository
-        ).execute(converter: converter, calendar: calendar, knownMovements: movements)
-        balancesCache = (revision, balances)
-        return balances
-    }
-
-    private func loadReviewSummary(lightRows: Task<[Transaction], Error>? = nil) async {
-        let revision = dependencies.changeTracker.revision
-        guard !(hasLoadedReviewSummary && reviewSummaryRevision == revision) else { return }
+    /// Kontostände und Prüfzahl brauchen den ganzen Bestand. Beide entstehen
+    /// in EINEM Durchgang über die leichten Zeilen, Scheibe für Scheibe
+    /// zusammengezählt: Bei 100.000 Buchungen liegen so nie alle Buchungen
+    /// gleichzeitig im Speicher. Der Review-Count ist GLOBAL (WP13), nicht
+    /// auf 6 Monate begrenzt; ältere offene Prüfungen zählen mit. Ein
+    /// unlesbarer Wert lässt nur die Kontostände weg (§23), die Prüfzahl
+    /// bleibt; schlägt das Lesen fehl, fehlen beide, die Monatsansicht bleibt.
+    @discardableResult
+    private func loadWholeStoreFigures(
+        needsBalances: Bool,
+        needsSummary: Bool,
+        balanceConverter: CurrencyConverter?,
+        revision: Int
+    ) async -> Bool {
+        guard needsBalances || needsSummary else { return true }
         do {
+            let accounts = try await dependencies.accountRepository.accounts()
+            let annotations = needsSummary ? try await dependencies.transactionAnnotationRepository.annotations() : []
+            let reviewConverter = await dependencies.fxRateProvider.converter()
             let repository = dependencies.transactionRepository
-            let rowsTask = lightRows ?? Task { try await repository.reviewCandidateTransactions() }
-            async let lightAnnotationsTask = dependencies.transactionAnnotationRepository.annotations()
-            let lightEffective = effectiveTransactionResolver.applying(
-                annotations: try await lightAnnotationsTask,
-                to: try await rowsTask.value
-            )
             let baseCurrency = dependencies.baseCurrency
-            let reviewCalendar = calendar
-            let accountCurrencies = Dictionary(
-                uniqueKeysWithValues: try await dependencies.accountRepository.accounts().map { ($0.id, $0.currency) }
-            )
-            let converter = await dependencies.fxRateProvider.converter()
-            reviewSummary = await Task.detached(priority: .userInitiated) {
-                ReviewQueueBuilder().buildSummary(
-                    transactions: lightEffective,
-                    baseCurrency: baseCurrency,
-                    accountCurrencies: accountCurrencies,
-                    converter: converter,
-                    calendar: reviewCalendar
+            let resolver = effectiveTransactionResolver
+            let calendar = calendar
+            let figures = try await Task.detached(priority: .userInitiated) {
+                let annotationsByID = Dictionary(
+                    annotations.map { ($0.transactionID, $0) },
+                    uniquingKeysWith: { first, _ in first }
                 )
+                var movements = AccountMovementAccumulator(accounts: accounts)
+                var movementsFailed = false
+                var review = ReviewSummaryAccumulator(
+                    baseCurrency: baseCurrency,
+                    accountCurrencies: Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0.currency) }),
+                    converter: reviewConverter
+                )
+                for try await slice in repository.lightTransactionSlices() {
+                    for transaction in slice {
+                        if needsBalances, !movementsFailed {
+                            do {
+                                try movements.add(AccountMovementRow(transaction: transaction))
+                            } catch {
+                                movementsFailed = true
+                            }
+                        }
+                        if needsSummary {
+                            review.add(annotationsByID[transaction.id].map {
+                                resolver.applying(annotation: $0, to: transaction)
+                            } ?? transaction)
+                        }
+                    }
+                }
+                let balances = needsBalances && !movementsFailed
+                    ? LoadAccountBalances.balances(accounts: accounts, movements: movements, converter: balanceConverter, calendar: calendar)
+                    : nil
+                return (balances: balances, summary: needsSummary ? review.summary(calendar: calendar) : nil)
             }.value
-            hasLoadedReviewSummary = true
-            reviewSummaryRevision = revision
+            if let balances = figures.balances {
+                balancesCache = (revision, balances)
+            }
+            if let summary = figures.summary {
+                reviewSummary = summary
+                hasLoadedReviewSummary = true
+                reviewSummaryRevision = revision
+            }
+            return true
         } catch {
-            // Die Monatsansicht bleibt gültig; der Prüfhinweis fehlt nur.
+            // Die Monatsansicht bleibt gültig; Stände und Prüfhinweis fehlen nur.
+            return false
         }
     }
 

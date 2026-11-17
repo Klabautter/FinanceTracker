@@ -253,7 +253,13 @@ struct AnalyticsCalculator: Sendable {
                 }
                 return CategoryTotal(categoryID: key, name: name, amount: value)
             }
-            .sorted { $0.amount > $1.amount }
+            // Gleich hohe Beträge nach Name (dann ID): Wörterbuch-Reihenfolge
+            // ist zufällig, die Liste spränge sonst bei jedem Laden.
+            .sorted {
+                if $0.amount != $1.amount { return $0.amount > $1.amount }
+                if $0.name != $1.name { return $0.name < $1.name }
+                return ($0.categoryID?.uuidString ?? "") < ($1.categoryID?.uuidString ?? "")
+            }
 
         var byMerchant: [String: Decimal] = [:]
         for txn in expenses {
@@ -261,7 +267,7 @@ struct AnalyticsCalculator: Sendable {
         }
         let spendingByMerchant = byMerchant
             .map { MerchantTotal(name: $0.key, amount: $0.value) }
-            .sorted { $0.amount > $1.amount }
+            .sorted { $0.amount != $1.amount ? $0.amount > $1.amount : $0.name < $1.name }
 
         var byDay: [Date: Decimal] = [:]
         for txn in expenses {

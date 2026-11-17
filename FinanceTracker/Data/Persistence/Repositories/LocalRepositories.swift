@@ -141,38 +141,63 @@ final class LocalTransactionRepository: TransactionRepository {
 
     /// WP13/WP14 (§98): Leichte Review-Projection, propertiesToFetch-Pfad.
     func reviewCandidateTransactions() async throws -> [Transaction] {
-        // Große Bestände: SwiftData legt jede Zeile als Objekt an (rund
-        // 9 KB je Zeile) und gibt den Speicher danach nicht ans System
-        // zurück. Deshalb in Scheiben von etwa `lightRowSliceSize` Zeilen
-        // nach Buchungsdatum lesen, je Scheibe ein eigener, kurzlebiger
-        // Actor (eigene Verbindung), höchstens `lightRowConcurrency`
-        // gleichzeitig: Das begrenzt die Speicherspitze und nutzt mehrere
-        // Kerne. Jede Zeile liegt in genau einer Scheibe; die äußeren
-        // Scheiben sind offen, damit auch eine zwischendurch gespeicherte
-        // Zeile dabei ist.
-        let count = try await persistence.countTransactions()
-        guard count >= Self.lightRowSliceSize * 2 else {
-            return try await persistence.loadReviewCandidateTransactions()
-        }
-        let slices = try await persistence.lightRowSlices(sliceSize: Self.lightRowSliceSize)
+        var all: [Transaction] = []
+        for try await slice in lightTransactionSlices() { all += slice }
+        return all
+    }
+
+    /// Große Bestände: SwiftData legt jede Zeile als Objekt an (rund 9 KB je
+    /// Zeile) und gibt den Speicher danach nicht ans System zurück. Deshalb
+    /// in Scheiben von etwa `lightRowSliceSize` Zeilen nach Buchungsdatum
+    /// lesen, je Scheibe ein eigener, kurzlebiger Actor (eigene
+    /// Verbindung), höchstens `lightRowConcurrency` gleichzeitig: Das
+    /// begrenzt die Speicherspitze und nutzt mehrere Kerne. Jede Zeile liegt
+    /// in genau einer Scheibe; die äußeren Scheiben sind offen, damit auch
+    /// eine zwischendurch gespeicherte Zeile dabei ist.
+    func lightTransactionSlices() -> AsyncThrowingStream<[Transaction], Error> {
+        let persistence = persistence
         let container = modelContainer
-        return try await withThrowingTaskGroup(of: [Transaction].self) { group in
-            var pending = slices[...]
-            func startNext() {
-                guard let slice = pending.popFirst() else { return }
-                group.addTask {
-                    try await PersistenceModelActor(modelContainer: container)
-                        .loadReviewCandidateTransactions(slice: slice)
+        let sliceSize = Self.lightRowSliceSize
+        let concurrency = Self.lightRowConcurrency
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let count = try await persistence.countTransactions()
+                    if count < sliceSize * 2 {
+                        continuation.yield(try await persistence.loadReviewCandidateTransactions())
+                    } else {
+                        let slices = try await persistence.lightRowSlices(sliceSize: sliceSize)
+                        // Scheiben in fester Reihenfolge weitergeben, egal welche
+                        // zuerst fertig ist: Gleichstände (etwa gleich hohe
+                        // Händler) ordnen sich sonst bei jedem Laden anders.
+                        try await withThrowingTaskGroup(of: (Int, [Transaction]).self) { group in
+                            var pending = Array(slices.enumerated())[...]
+                            func startNext() {
+                                guard let (index, slice) = pending.popFirst() else { return }
+                                group.addTask {
+                                    (index, try await PersistenceModelActor(modelContainer: container)
+                                        .loadReviewCandidateTransactions(slice: slice))
+                                }
+                            }
+                            for _ in 0..<concurrency { startNext() }
+                            var finished: [Int: [Transaction]] = [:]
+                            var nextIndex = 0
+                            for try await (index, part) in group {
+                                finished[index] = part
+                                while let ready = finished.removeValue(forKey: nextIndex) {
+                                    continuation.yield(ready)
+                                    nextIndex += 1
+                                }
+                                startNext()
+                            }
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
                 }
             }
-            for _ in 0..<Self.lightRowConcurrency { startNext() }
-            var all: [Transaction] = []
-            all.reserveCapacity(count)
-            for try await part in group {
-                all += part
-                startNext()
-            }
-            return all
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -190,19 +215,24 @@ final class LocalTransactionRepository: TransactionRepository {
             index == parts ? interval.end : interval.start.addingTimeInterval(interval.duration * Double(index) / Double(parts))
         }
         let container = modelContainer
-        return try await withThrowingTaskGroup(of: [Transaction].self) { group in
+        // Teile in fester Reihenfolge zusammensetzen (siehe
+        // `lightTransactionSlices`): sonst wechseln Gleichstände ihre Reihenfolge.
+        let finishedParts = try await withThrowingTaskGroup(of: (Int, [Transaction]).self) { group in
             for index in 0..<parts {
                 let start = bounds[index], end = bounds[index + 1]
                 group.addTask {
-                    try await PersistenceModelActor(modelContainer: container)
-                        .loadTransactions(intervalStart: start, intervalEnd: end)
+                    (index, try await PersistenceModelActor(modelContainer: container)
+                        .loadTransactions(intervalStart: start, intervalEnd: end))
                 }
             }
-            var all: [Transaction] = []
-            all.reserveCapacity(count)
-            for try await part in group { all += part }
-            return all
+            var byIndex: [Int: [Transaction]] = [:]
+            for try await (index, part) in group { byIndex[index] = part }
+            return byIndex
         }
+        var all: [Transaction] = []
+        all.reserveCapacity(count)
+        for index in 0..<parts { all += finishedParts[index] ?? [] }
+        return all
     }
 
     static let parallelIntervalThreshold = 2_000

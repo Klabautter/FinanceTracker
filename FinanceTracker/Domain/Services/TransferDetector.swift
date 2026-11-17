@@ -27,31 +27,45 @@ struct TransferDetector: Sendable {
         baseCurrency: CurrencyCode,
         calendar: Calendar = .current
     ) -> [TransferCandidate] {
+        var collector = Collector(baseCurrency: baseCurrency)
+        for transaction in transactions { collector.add(transaction) }
+        return detect(collector, calendar: calendar)
+    }
+
+    /// Sammelt Ab- und Gutschriften Buchung für Buchung, als schlanke
+    /// Datensätze: So lässt sich ein großer Bestand in Scheiben lesen, ohne
+    /// alle Buchungen gleichzeitig im Speicher zu halten.
+    struct Collector: Sendable {
+        let baseCurrency: CurrencyCode
+        fileprivate var debits: [TransferDebit] = []
+        fileprivate var credits: [TransferCreditInput] = []
+
+        init(baseCurrency: CurrencyCode) {
+            self.baseCurrency = baseCurrency
+        }
+
+        mutating func add(_ transaction: Transaction) {
+            guard transaction.status.isEffective else { return }
+            if CashflowPolicy.shared.contribution(for: transaction).isSpendingLike, transaction.amount.isNegative {
+                debits.append(TransferDebit(transaction))
+            }
+            if transaction.amount.isPositive,
+               transaction.categoryID == nil
+                || transaction.categoryID == Category.transfers.id
+                || transaction.categoryID == Category.investments.id,
+               transaction.amount.currency == baseCurrency {
+                credits.append(TransferCreditInput(transaction))
+            }
+        }
+    }
+
+    func detect(_ collector: Collector, calendar: Calendar = .current) -> [TransferCandidate] {
         guard maxDaysApart >= 0, amountTolerance >= 0 else { return [] }
 
-        let policy = CashflowPolicy.shared
-        // Nur die benötigten Felder sortieren, keine Kopien ganzer
-        // Buchungen (bei 100.000 Buchungen sonst rund 80 MB zusätzlich).
-        let outflows = transactions.compactMap { transaction -> TransferDebit? in
-            guard transaction.status.isEffective,
-                  policy.contribution(for: transaction).isSpendingLike,
-                  transaction.amount.isNegative else { return nil }
-            return TransferDebit(transaction)
-        }
-        .sorted(by: TransferDebit.comesBefore)
-
-        let inflows = transactions.filter { transaction in
-            transaction.status.isEffective
-                && transaction.amount.isPositive
-                && (transaction.categoryID == nil
-                    || transaction.categoryID == Category.transfers.id
-                    || transaction.categoryID == Category.investments.id)
-                && transaction.amount.currency == baseCurrency
-        }
-
-        var index = TransferCreditIndex(transactions: inflows, calendar: calendar)
+        let outflows = collector.debits.sorted(by: TransferDebit.comesBefore)
+        var index = TransferCreditIndex(credits: collector.credits, calendar: calendar)
         var candidates: [TransferCandidate] = []
-        candidates.reserveCapacity(Swift.min(outflows.count, inflows.count))
+        candidates.reserveCapacity(Swift.min(outflows.count, collector.credits.count))
         // Kalendertage einmal je Tag statt je Buchung und Abstand berechnen.
         var dayCache: [Date: Int] = [:]
         let toleranceUnits = TransferCredit.units(amountTolerance)
@@ -84,11 +98,25 @@ struct TransferDetector: Sendable {
 
         return candidates
     }
+}
 
+/// Eine mögliche Gutschrift, wie sie gesammelt wird.
+fileprivate struct TransferCreditInput: Sendable {
+    let id: UUID
+    let accountID: UUID
+    let amount: Money
+    let displayDate: Date
+
+    init(_ transaction: Transaction) {
+        id = transaction.id
+        accountID = transaction.accountID
+        amount = transaction.amount
+        displayDate = transaction.displayDate
+    }
 }
 
 /// Eine Abbuchung für den Abgleich: nur die Felder, die er braucht.
-private struct TransferDebit {
+fileprivate struct TransferDebit: Sendable {
     let id: UUID
     let accountID: UUID
     let bookedAt: Date?
@@ -152,21 +180,21 @@ private struct TransferCreditIndex {
     /// damit „±n Tage“ eine Addition ist statt einer Kalenderrechnung.
     private let origin: Date
 
-    init(transactions: [Transaction], calendar: Calendar) {
+    init(credits: [TransferCreditInput], calendar: Calendar) {
         origin = Date(timeIntervalSinceReferenceDate: 0)
         var cache: [Date: Int] = [:]
         var grouped: [Key: [TransferCredit]] = [:]
-        grouped.reserveCapacity(transactions.count)
-        for transaction in transactions {
+        grouped.reserveCapacity(credits.count)
+        for credit in credits {
             let key = Key(
-                currency: transaction.amount.currency,
-                day: Self.dayNumber(for: transaction.displayDate, origin: origin, calendar: calendar, cache: &cache)
+                currency: credit.amount.currency,
+                day: Self.dayNumber(for: credit.displayDate, origin: origin, calendar: calendar, cache: &cache)
             )
             grouped[key, default: []].append(TransferCredit(
-                id: transaction.id,
-                accountID: transaction.accountID,
-                amount: TransferCredit.units(transaction.amount.amount),
-                displayDate: transaction.displayDate
+                id: credit.id,
+                accountID: credit.accountID,
+                amount: TransferCredit.units(credit.amount.amount),
+                displayDate: credit.displayDate
             ))
         }
         var byCurrency: [CurrencyCode: [Int: TransferDayBucket]] = [:]

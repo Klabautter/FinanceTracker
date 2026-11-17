@@ -318,7 +318,10 @@ struct SystemCatalogSeeder {
     /// Jeder Rückfill liest neu, weil der vorige Buchungen geändert hat.
     private func fullTransactions(where isCandidate: (Transaction) -> Bool) async throws -> [Transaction] {
         let repository = dependencies.transactionRepository
-        let ids = try await repository.reviewCandidateTransactions().filter(isCandidate).map(\.id)
+        var ids: [UUID] = []
+        for try await slice in repository.lightTransactionSlices() {
+            ids += slice.lazy.filter(isCandidate).map(\.id)
+        }
         var result: [Transaction] = []
         for start in stride(from: 0, to: ids.count, by: 1_000) {
             result += try await repository.transactions(ids: Set(ids[start..<min(start + 1_000, ids.count)]))

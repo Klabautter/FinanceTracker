@@ -59,35 +59,20 @@ struct LoadAccountBalances: Sendable {
             movements = try await transactionRepository.accountMovementRows()
         }
         let accounts = try await accountsTask
+        var accumulator = AccountMovementAccumulator(accounts: accounts)
+        for row in movements { try accumulator.add(row) }
+        return Self.balances(accounts: accounts, movements: accumulator, converter: converter, calendar: calendar)
+    }
 
-        var totalsByAccount: [UUID: (sum: Decimal, foreign: [(currency: CurrencyCode, date: Date)], count: Int)] = [:]
-        var movementsByAccount: [UUID: [AccountBalanceCalculator.Movement]] = [:]
-        let accountsByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
-        for row in movements {
-            // Unlesbare Werte verfälschten den Stand still; sie werfen (§23).
-            guard let status = TransactionStatus(rawValue: row.statusRaw) else {
-                throw AccountBalanceLoadError.corruptRow(field: "status", raw: row.statusRaw)
-            }
-            guard status.isEffective else { continue }
-            guard let amount = Decimal(string: row.amountValue, locale: Locale(identifier: "en_US_POSIX")) else {
-                throw AccountBalanceLoadError.corruptRow(field: "amount", raw: row.amountValue)
-            }
-            guard let account = accountsByID[row.accountID] else { continue }
-
-            let currency = CurrencyCode(row.currencyRaw)
-            var entry = totalsByAccount[row.accountID] ?? (Decimal(0), [], 0)
-            if currency == account.currency {
-                entry.sum += amount
-                if account.openingBalance != nil || account.reportedBalance != nil {
-                    movementsByAccount[row.accountID, default: []].append(.init(date: row.date, amount: amount))
-                }
-            } else {
-                entry.foreign.append((currency, row.date))
-            }
-            entry.count += 1
-            totalsByAccount[row.accountID] = entry
-        }
-
+    /// Stände aus gesammelten Bewegungen (siehe `AccountMovementAccumulator`).
+    static func balances(
+        accounts: [Account],
+        movements accumulator: AccountMovementAccumulator,
+        converter: CurrencyConverter? = nil,
+        calendar: Calendar = .current
+    ) -> AccountBalances {
+        let totalsByAccount = accumulator.totalsByAccount
+        let movementsByAccount = accumulator.movementsByAccount
         func summary(_ account: Account, withBalance: Bool) -> AccountSummary {
             let entry = totalsByAccount[account.id]
             let result = withBalance
@@ -129,6 +114,44 @@ struct LoadAccountBalances: Sendable {
             .map { summary($0, withBalance: false) }
             .sorted { $0.transactionCount > $1.transactionCount }
         return AccountBalances(accounts: accounts, active: active, inactive: inactive)
+    }
+}
+
+/// Sammelt Bewegungen Zeile für Zeile: Summe je Konto, Fremdwährungen und
+/// (nur bei Konten mit Stand) Datum und Betrag für die Stand-Rechnung. So
+/// lässt sich der Bestand in Scheiben lesen.
+struct AccountMovementAccumulator: Sendable {
+    private let accountsByID: [UUID: Account]
+    fileprivate(set) var totalsByAccount: [UUID: (sum: Decimal, foreign: [(currency: CurrencyCode, date: Date)], count: Int)] = [:]
+    fileprivate(set) var movementsByAccount: [UUID: [AccountBalanceCalculator.Movement]] = [:]
+
+    init(accounts: [Account]) {
+        accountsByID = Dictionary(uniqueKeysWithValues: accounts.map { ($0.id, $0) })
+    }
+
+    mutating func add(_ row: AccountMovementRow) throws {
+        // Unlesbare Werte verfälschten den Stand still; sie werfen (§23).
+        guard let status = TransactionStatus(rawValue: row.statusRaw) else {
+            throw AccountBalanceLoadError.corruptRow(field: "status", raw: row.statusRaw)
+        }
+        guard status.isEffective else { return }
+        guard let amount = Decimal(string: row.amountValue, locale: Locale(identifier: "en_US_POSIX")) else {
+            throw AccountBalanceLoadError.corruptRow(field: "amount", raw: row.amountValue)
+        }
+        guard let account = accountsByID[row.accountID] else { return }
+
+        let currency = CurrencyCode(row.currencyRaw)
+        var entry = totalsByAccount[row.accountID] ?? (Decimal(0), [], 0)
+        if currency == account.currency {
+            entry.sum += amount
+            if account.openingBalance != nil || account.reportedBalance != nil {
+                movementsByAccount[row.accountID, default: []].append(.init(date: row.date, amount: amount))
+            }
+        } else {
+            entry.foreign.append((currency, row.date))
+        }
+        entry.count += 1
+        totalsByAccount[row.accountID] = entry
     }
 }
 

@@ -32,6 +32,12 @@ protocol TransactionRepository: Sendable {
     /// Default fällt auf den vollen Load zurück.
     func reviewCandidateTransactions() async throws -> [Transaction]
 
+    /// Dieselbe leichte Projection in Scheiben, jede Buchung genau einmal.
+    /// Für Auswertungen über den ganzen Bestand (Kontostände, Prüfzahl),
+    /// die Scheibe für Scheibe zusammenzählen, statt alle Buchungen
+    /// gleichzeitig im Speicher zu halten. Der Default liefert eine Scheibe.
+    func lightTransactionSlices() -> AsyncThrowingStream<[Transaction], Error>
+
     /// MacUX-Automatisierung (System-Katalog-Rückfill): Batch-Ladung nach
     /// IDs. Persistente Implementierungen überschreiben mit ID-Pushdown;
     /// der Default filtert einen vollen Load (korrekt, aber unperformant).
@@ -55,6 +61,20 @@ protocol TransactionRepository: Sendable {
 }
 
 extension TransactionRepository {
+    func lightTransactionSlices() -> AsyncThrowingStream<[Transaction], Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    continuation.yield(try await reviewCandidateTransactions())
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     /// Nur persistente Repositories können verwaiste Zeilen haben.
     func purgeOrphanedDependents() async throws -> Int { 0 }
 

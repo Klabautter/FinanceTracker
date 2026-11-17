@@ -116,36 +116,59 @@ struct ReviewQueueBuilder: Sendable {
         converter: CurrencyConverter? = nil,
         calendar: Calendar = .current
     ) -> ReviewSummary {
-        let policy = CashflowPolicy.shared
-        var uncategorizedCount = 0
-        var unknownMerchantCount = 0
-        var foreignCurrencyCount = 0
-
-        for transaction in transactions where
-            transaction.status.isEffective
-                && !transaction.reviewed {
-            if policy.countsTowardBreakdowns(transaction), transaction.categoryID == nil {
-                uncategorizedCount += 1
-            }
-            if transaction.effectiveMerchantName == "Unbekannt"
-                || (transaction.merchantID == nil && transaction.rawMerchantName == nil) {
-                unknownMerchantCount += 1
-            }
-            if Self.isUnusualCurrency(transaction, baseCurrency: baseCurrency, accountCurrencies: accountCurrencies, converter: converter) {
-                foreignCurrencyCount += 1
-            }
-        }
-
-        let unreviewedIDs = Set(transactions.lazy.filter { !$0.reviewed }.map(\.id))
-        let transferCandidateCount = transferDetector.detect(
-            transactions: transactions,
+        var accumulator = ReviewSummaryAccumulator(
             baseCurrency: baseCurrency,
-            calendar: calendar
-        ).reduce(into: 0) { count, candidate in
-            if unreviewedIDs.contains(candidate.debitTransactionID) { count += 1 }
-            if unreviewedIDs.contains(candidate.creditTransactionID) { count += 1 }
-        }
+            accountCurrencies: accountCurrencies,
+            converter: converter
+        )
+        for transaction in transactions { accumulator.add(transaction) }
+        return accumulator.summary(calendar: calendar)
+    }
+}
 
+/// Die Prüfzahl Buchung für Buchung (effektive, also annotierte Buchungen):
+/// Zähler und schlanke Umbuchungs-Datensätze statt aller Buchungen. So
+/// liest die Übersicht den Bestand in Scheiben.
+struct ReviewSummaryAccumulator: Sendable {
+    private let baseCurrency: CurrencyCode
+    private let accountCurrencies: [UUID: CurrencyCode]
+    private let converter: CurrencyConverter?
+    private var uncategorizedCount = 0
+    private var unknownMerchantCount = 0
+    private var foreignCurrencyCount = 0
+    private var unreviewedIDs = Set<UUID>()
+    private var transfers: TransferDetector.Collector
+
+    init(baseCurrency: CurrencyCode, accountCurrencies: [UUID: CurrencyCode] = [:], converter: CurrencyConverter? = nil) {
+        self.baseCurrency = baseCurrency
+        self.accountCurrencies = accountCurrencies
+        self.converter = converter
+        transfers = TransferDetector.Collector(baseCurrency: baseCurrency)
+    }
+
+    mutating func add(_ transaction: Transaction) {
+        transfers.add(transaction)
+        guard !transaction.reviewed else { return }
+        unreviewedIDs.insert(transaction.id)
+        guard transaction.status.isEffective else { return }
+        if CashflowPolicy.shared.countsTowardBreakdowns(transaction), transaction.categoryID == nil {
+            uncategorizedCount += 1
+        }
+        if transaction.effectiveMerchantName == "Unbekannt"
+            || (transaction.merchantID == nil && transaction.rawMerchantName == nil) {
+            unknownMerchantCount += 1
+        }
+        if ReviewQueueBuilder.isUnusualCurrency(transaction, baseCurrency: baseCurrency, accountCurrencies: accountCurrencies, converter: converter) {
+            foreignCurrencyCount += 1
+        }
+    }
+
+    func summary(calendar: Calendar = .current) -> ReviewSummary {
+        let transferCandidateCount = TransferDetector().detect(transfers, calendar: calendar)
+            .reduce(into: 0) { count, candidate in
+                if unreviewedIDs.contains(candidate.debitTransactionID) { count += 1 }
+                if unreviewedIDs.contains(candidate.creditTransactionID) { count += 1 }
+            }
         return ReviewSummary(
             uncategorizedCount: uncategorizedCount,
             unknownMerchantCount: unknownMerchantCount,

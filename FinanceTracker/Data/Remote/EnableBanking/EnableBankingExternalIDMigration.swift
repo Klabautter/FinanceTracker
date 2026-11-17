@@ -35,10 +35,19 @@ struct EnableBankingExternalIDMigration: Sendable {
         // finden, in denen etwas zu tun ist (alte ID oder mehrere Zeilen),
         // und nur deren Buchungen vollständig laden. Bei 100.000 Buchungen
         // hielte ein Voll-Load sonst rund 500 MB.
-        let lightGroups = Self.groups(of: try await transactionRepository.reviewCandidateTransactions(), accountIDs: accountIDs)
-        let candidateIDs = lightGroups.values
-            .filter { rows in rows.count > 1 || rows.contains { $0.externalID.flatMap(Self.stableID(for:)) != nil } }
-            .flatMap { $0.map(\.id) }
+        var idsByKey: [String: [UUID]] = [:]
+        var keysNeedingRename = Set<String>()
+        for try await slice in transactionRepository.lightTransactionSlices() {
+            for (key, rows) in Self.groups(of: slice, accountIDs: accountIDs) {
+                idsByKey[key, default: []] += rows.map(\.id)
+                if rows.contains(where: { $0.externalID.flatMap(Self.stableID(for:)) != nil }) {
+                    keysNeedingRename.insert(key)
+                }
+            }
+        }
+        let candidateIDs = idsByKey
+            .filter { key, ids in ids.count > 1 || keysNeedingRename.contains(key) }
+            .flatMap(\.value)
         guard !candidateIDs.isEmpty else { return Outcome() }
         var transactions: [Transaction] = []
         for start in stride(from: 0, to: candidateIDs.count, by: 1_000) {
