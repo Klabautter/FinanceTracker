@@ -96,6 +96,30 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: -O
           ENABLE_TESTABILITY: YES
 
+  # Widgets (Roadmap 10.4). Noch NICHT in die App eingebettet: Das braucht
+  # eine Signatur mit Team-ID für die gemeinsame App-Group und in
+  # Scripts/release.sh ein Provisioning-Profil nur für das App-Target.
+  # Einbetten: unter FinanceTracker_macOS.dependencies
+  #   - target: FinanceTrackerWidgets_macOS
+  # ergänzen und die App-Group auch in Config/FinanceTracker.macOS.entitlements.
+  FinanceTrackerWidgets_macOS:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Widgets
+      - path: FinanceTracker/Features/Widgets/WidgetSnapshot.swift
+      - path: FinanceTracker/Features/Widgets/FinanceWidgetViews.swift
+      - path: FinanceTracker/Resources/Localizable.xcstrings
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.klabautter.FinanceTracker.Widgets
+        PRODUCT_NAME: FinanceTrackerWidgets
+        INFOPLIST_FILE: Config/FinanceTrackerWidgets.Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/FinanceTrackerWidgets.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+        SWIFT_EMIT_LOC_STRINGS: NO
+
   FinanceTracker_iOS:
     type: application
     platform: iOS

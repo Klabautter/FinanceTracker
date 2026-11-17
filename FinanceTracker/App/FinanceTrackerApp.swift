@@ -135,6 +135,21 @@ struct FinanceTrackerApp: App {
                             }
                             await runAutomaticBankSync(dependencies)
                         }
+                        // Widgets (Roadmap 10.4): Stand nach jeder Änderung und
+                        // bei Umschalten des Privatsphäre-Modus neu schreiben.
+                        // Test-, Demo- und Rauchtest-Läufe schreiben nichts.
+                        .task(id: WidgetRefreshKey(
+                            revision: dependencies.changeTracker.revision,
+                            hidesAmounts: privacyState.hidesAmounts
+                        )) {
+                            guard Self.allowsAutomaticBankSync else { return }
+                            try? await Task.sleep(for: .seconds(2))
+                            guard !Task.isCancelled else { return }
+                            await WidgetSnapshotPublisher.publish(
+                                dependencies: dependencies,
+                                hidesAmounts: privacyState.hidesAmounts
+                            )
+                        }
                         .onReceive(NotificationCenter.default.publisher(for: Self.didBecomeActiveNotification)) { _ in
                             // Zurück in der App: sofort prüfen, statt auf die
                             // nächste Zeitprüfung zu warten.
@@ -274,4 +289,10 @@ struct FinanceTrackerApp: App {
 extension Notification.Name {
     /// Von außen geöffnete App-Adresse (z. B. Rücksprung der Bank-Anmeldung).
     static let financeTrackerOpenURL = Notification.Name("de.klabautter.FinanceTracker.openURL")
+}
+
+/// Auslöser für das Neuschreiben des Widget-Stands.
+private struct WidgetRefreshKey: Equatable {
+    let revision: Int
+    let hidesAmounts: Bool
 }

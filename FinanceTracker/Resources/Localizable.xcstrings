@@ -142,6 +142,16 @@
         }
       }
     },
+    "%@ / %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / %@"
+          }
+        }
+      }
+    },
     "%@ bis zum heutigen Tag" : {
       "localizations" : {
         "de" : {
@@ -4553,6 +4563,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Spending"
+          }
+        }
+      }
+    },
+    "Ausgaben %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spent %@"
           }
         }
       }
@@ -9765,6 +9785,16 @@
         }
       }
     },
+    "Die Budgets, die gerade am meisten Aufmerksamkeit brauchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The budgets that need the most attention right now."
+          }
+        }
+      }
+    },
     "Die Datei entspricht nicht dem Format von %@." : {
       "localizations" : {
         "de" : {
@@ -12271,6 +12301,16 @@
         }
       }
     },
+    "FinanceTracker öffnen, um das Widget zu füllen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open FinanceTracker to fill this widget."
+          }
+        }
+      }
+    },
     "Fingerprint" : {
       "localizations" : {
         "de" : {
@@ -12750,6 +12790,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A forecast needs more data, for example a salary or budgets."
+          }
+        }
+      }
+    },
+    "Für eine Prognose fehlen noch Daten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough data for a forecast yet."
           }
         }
       }
@@ -18756,6 +18806,16 @@
         }
       }
     },
+    "Noch keine Budgets." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No budgets yet."
+          }
+        }
+      }
+    },
     "Noch keine Daten" : {
       "localizations" : {
         "de" : {
@@ -24730,6 +24790,16 @@
         }
       }
     },
+    "Verfügbar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available"
+          }
+        }
+      }
+    },
     "Verfügbar bis Monatsende" : {
       "localizations" : {
         "de" : {
@@ -25236,6 +25306,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Warning"
+          }
+        }
+      }
+    },
+    "Was laut Prognose bis Monatsende verfügbar ist." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What the forecast says is available until month end."
           }
         }
       }
@@ -27263,6 +27343,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "at %@ spending in a typical month (last %lld months)"
+          }
+        }
+      }
+    },
+    "bis Monatsende" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "until month end"
           }
         }
       }

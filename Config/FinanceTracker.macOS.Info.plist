@@ -18,6 +18,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>FTAppGroupIdentifier</key>
+	<string>$(TeamIdentifierPrefix)de.klabautter.FinanceTracker</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUEnableInstallerLauncherService</key>
