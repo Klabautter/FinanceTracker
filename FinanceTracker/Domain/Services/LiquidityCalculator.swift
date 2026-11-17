@@ -129,6 +129,21 @@ struct LiquidityCalculator: Sendable {
         )
     }
 
+    /// Dieselbe Reichweite mit geänderten Monatsausgaben („Was wäre,
+    /// wenn"): Fallen Ausgaben weg, reicht der Gesamtstand länger.
+    static func runway(_ runway: LiquidityRunway, total: Money, monthlySpendingDelta delta: Decimal) -> LiquidityRunway {
+        let spending = max(0, runway.typicalMonthlySpending.amount + delta)
+        return LiquidityRunway(
+            typicalMonthlySpending: Money(amount: spending, currency: runway.typicalMonthlySpending.currency),
+            typicalMonthlyNet: Money(
+                amount: runway.typicalMonthlyNet.amount - delta,
+                currency: runway.typicalMonthlyNet.currency
+            ),
+            monthCount: runway.monthCount,
+            months: spending > 0 ? max(0, total.amount) / spending : nil
+        )
+    }
+
     /// Median ab drei Werten (robust gegen einen Ausreißer), sonst Mittelwert.
     static func typical(_ values: [Decimal]) -> Decimal {
         guard !values.isEmpty else { return 0 }

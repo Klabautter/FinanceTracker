@@ -54,10 +54,59 @@ final class DashboardModel {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    /// Prognose ohne die abgewählten Zahlungspläne; `nil` ohne Abwahl.
+    /// „Was wäre, wenn": testweise eingegebene Beträge je Zahlungsplan, so
+    /// wie sie im Feld stehen.
+    var whatIfAmountTexts: [UUID: String] = [:]
+
+    /// Gültige, vom Plan abweichende Beträge aus den Eingaben.
+    var whatIfAmounts: [UUID: Decimal] {
+        guard let forecastInputs else { return [:] }
+        var amounts: [UUID: Decimal] = [:]
+        for commitment in forecastInputs.commitments {
+            guard let text = whatIfAmountTexts[commitment.id],
+                  let amount = DecimalInputField.parse(text), amount > 0,
+                  amount != commitment.expectedAmount else { continue }
+            amounts[commitment.id] = amount
+        }
+        return amounts
+    }
+
+    /// Ein eingegebener Betrag, der sich nicht lesen lässt (leer zählt nicht).
+    func whatIfAmountIsInvalid(for commitmentID: UUID) -> Bool {
+        guard let text = whatIfAmountTexts[commitmentID],
+              !text.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        return DecimalInputField.parse(text).map { $0 <= 0 } ?? true
+    }
+
+    var whatIfScenario: ForecastWhatIfScenario {
+        ForecastWhatIfScenario(paused: whatIfExcludedCommitmentIDs, amounts: whatIfAmounts)
+    }
+
+    /// Prognose mit den testweisen Änderungen; `nil` ohne Änderung.
     var whatIfForecast: ForecastSnapshot? {
-        guard !whatIfExcludedCommitmentIDs.isEmpty, let forecastInputs else { return nil }
-        return forecastInputs.forecast(excludingCommitments: whatIfExcludedCommitmentIDs)
+        let scenario = whatIfScenario
+        guard !scenario.isEmpty, let forecastInputs else { return nil }
+        return forecastInputs.forecast(excludingCommitments: scenario.paused, amounts: scenario.amounts)
+    }
+
+    /// Reichweite des Gesamtstands mit den testweisen Änderungen; `nil`
+    /// ohne Änderung, ohne Gesamtstand oder wenn sich an den Monatsausgaben
+    /// nichts ändert (z. B. nur eine Einnahme abgewählt).
+    var whatIfRunway: LiquidityRunway? {
+        let scenario = whatIfScenario
+        guard !scenario.isEmpty, let forecastInputs, let runway, let liquidity else { return nil }
+        let delta = scenario.monthlySpendingDelta(
+            commitments: forecastInputs.commitments,
+            baseCurrency: forecastInputs.baseCurrency,
+            converter: forecastInputs.currencyConverter
+        )
+        guard delta != 0 else { return nil }
+        return LiquidityCalculator.runway(runway, total: liquidity.total, monthlySpendingDelta: delta)
+    }
+
+    func resetWhatIf() {
+        whatIfExcludedCommitmentIDs = []
+        whatIfAmountTexts = [:]
     }
     /// Der Dashboard-Cashflow bleibt nutzbar, wenn optionale Planungsdaten
     /// fehlschlagen. Eine präzise Forecast-Zahl darf dann aber nicht aus
@@ -393,6 +442,9 @@ final class DashboardModel {
             forecast = newForecast
             forecastInputs = newForecastInputs
             whatIfExcludedCommitmentIDs = whatIfExcludedCommitmentIDs.filter { id in
+                newForecastInputs?.commitments.contains { $0.id == id } == true
+            }
+            whatIfAmountTexts = whatIfAmountTexts.filter { id, _ in
                 newForecastInputs?.commitments.contains { $0.id == id } == true
             }
             upcomingOccurrences = newUpcomingOccurrences

@@ -436,13 +436,23 @@ struct ForecastInputs: Sendable {
     let now: Date
     let currencyConverter: CurrencyConverter
 
-    func forecast(excludingCommitments excluded: Set<UUID> = []) -> ForecastSnapshot {
+    /// - Parameter amounts: testweise geänderte Beträge je Zahlungsplan
+    ///   (immer positiv, die Richtung des Plans bleibt).
+    func forecast(
+        excludingCommitments excluded: Set<UUID> = [],
+        amounts: [UUID: Decimal] = [:]
+    ) -> ForecastSnapshot {
         ForecastService().forecast(
             period: period,
             transactions: transactions,
             budgets: budgets,
             budgetProgresses: budgetProgresses,
-            commitments: commitments.filter { !excluded.contains($0.id) },
+            commitments: commitments.filter { !excluded.contains($0.id) }.map { commitment in
+                guard let amount = amounts[commitment.id], amount > 0 else { return commitment }
+                var changed = commitment
+                changed.expectedAmount = amount
+                return changed
+            },
             explicitOccurrences: explicitOccurrences.filter { !excluded.contains($0.commitmentID) },
             latestOccurrences: latestOccurrences,
             baseCurrency: baseCurrency,
@@ -452,3 +462,44 @@ struct ForecastInputs: Sendable {
         )
     }
 }
+
+/// Ein „Was wäre, wenn": Zahlungspläne, die testweise wegfallen, und
+/// solche mit testweise geändertem Betrag. Nichts davon wird gespeichert.
+struct ForecastWhatIfScenario: Sendable, Equatable {
+    var paused: Set<UUID> = []
+    /// Neuer Betrag je Plan (positiv; die Richtung des Plans bleibt).
+    var amounts: [UUID: Decimal] = [:]
+
+    var isEmpty: Bool { paused.isEmpty && amounts.isEmpty }
+
+    /// Um wie viel sich die Ausgaben eines typischen Monats ändern (negativ
+    /// = weniger Ausgaben), turnusbereinigt: eine jährliche Zahlung zählt
+    /// mit einem Zwölftel. Nur Ausgaben-Pläne in der Basiswährung; Pläne in
+    /// anderer Währung werden ohne Kurs nicht geraten (#19).
+    func monthlySpendingDelta(
+        commitments: [RecurringCommitment],
+        baseCurrency: CurrencyCode,
+        converter: CurrencyConverter
+    ) -> Decimal {
+        let schedule = RecurringScheduleService()
+        var delta: Decimal = 0
+        for commitment in commitments where commitment.direction == .expense {
+            let divisor = schedule.monthlyEquivalentDivisor(cadence: commitment.cadence)
+            guard divisor != 0 else { continue }
+            let change: Decimal
+            if paused.contains(commitment.id) {
+                change = -commitment.expectedAmount
+            } else if let amount = amounts[commitment.id], amount > 0 {
+                change = amount - commitment.expectedAmount
+            } else {
+                continue
+            }
+            guard let converted = converter.convert(
+                Money(amount: change / divisor, currency: commitment.currency), to: baseCurrency
+            ) else { continue }
+            delta += converted.amount
+        }
+        return delta
+    }
+}
+

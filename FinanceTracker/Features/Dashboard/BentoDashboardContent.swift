@@ -425,34 +425,53 @@ struct BentoDashboardContent: View {
         }
     }
 
-    /// „Was wäre, wenn": anstehende Zahlungspläne testweise abwählen und den
-    /// neuen Planungsrest sofort sehen. Nichts wird gespeichert.
+    /// „Was wäre, wenn": anstehende Zahlungspläne testweise abwählen oder
+    /// ihren Betrag ändern und den neuen Planungsrest und die Reichweite
+    /// sofort sehen. Nichts wird gespeichert.
     private func whatIfDisclosure(base: ForecastSnapshot) -> some View {
         DisclosureGroup(isExpanded: $showsWhatIf) {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(model.whatIfCandidates) { commitment in
-                    Toggle(isOn: Binding(
-                        get: { !model.whatIfExcludedCommitmentIDs.contains(commitment.id) },
-                        set: { included in
-                            if included {
-                                model.whatIfExcludedCommitmentIDs.remove(commitment.id)
-                            } else {
-                                model.whatIfExcludedCommitmentIDs.insert(commitment.id)
+                    // Betragsfeld neben dem Häkchen, nicht in dessen Beschriftung:
+                    // Ein Klick ins Feld soll den Plan nicht abwählen.
+                    HStack(spacing: AppSpacing.s) {
+                        Toggle(isOn: Binding(
+                            get: { !model.whatIfExcludedCommitmentIDs.contains(commitment.id) },
+                            set: { included in
+                                if included {
+                                    model.whatIfExcludedCommitmentIDs.remove(commitment.id)
+                                } else {
+                                    model.whatIfExcludedCommitmentIDs.insert(commitment.id)
+                                }
                             }
-                        }
-                    )) {
-                        HStack {
+                        )) {
                             Text(commitment.name).lineLimit(1)
-                            Spacer(minLength: AppSpacing.s)
-                            Text(amountString(commitment.direction == .expense ? -commitment.expectedAmount : commitment.expectedAmount))
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
                         }
-                        .font(.caption)
+                        #if os(macOS)
+                        .toggleStyle(.checkbox)
+                        #endif
+                        Spacer(minLength: AppSpacing.s)
+                        // Leer = Betrag des Plans; eine Zahl rechnet testweise damit.
+                        TextField(
+                            "Betrag",
+                            text: Binding(
+                                get: { model.whatIfAmountTexts[commitment.id] ?? "" },
+                                set: { model.whatIfAmountTexts[commitment.id] = $0 }
+                            ),
+                            prompt: Text(DecimalInputField.display(commitment.expectedAmount))
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                        .frame(width: 84)
+                        .foregroundStyle(model.whatIfAmountIsInvalid(for: commitment.id) ? AppPalette.critical : .primary)
+                        .disabled(model.whatIfExcludedCommitmentIDs.contains(commitment.id))
+                        .accessibilityLabel(Text("Testbetrag für \(commitment.name)"))
+                        Text(commitment.direction == .expense ? "Ausgabe" : "Einnahme")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 58, alignment: .leading)
                     }
-                    #if os(macOS)
-                    .toggleStyle(.checkbox)
-                    #endif
+                    .font(.caption)
                 }
                 if let whatIf = model.whatIfForecast {
                     Divider()
@@ -467,7 +486,14 @@ struct BentoDashboardContent: View {
                     Text(String(localized: "\(amountString(whatIf.availableAmount - base.availableAmount)) gegenüber der Prognose"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Button("Zurücksetzen") { model.whatIfExcludedCommitmentIDs = [] }
+                    if let whatIfRunway = model.whatIfRunway,
+                       let runwayText = LiquidityPresentation.runwayText(whatIfRunway) {
+                        Text(String(localized: "\(runwayText) (auf Dauer gerechnet)"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("dashboard-what-if-runway")
+                    }
+                    Button("Zurücksetzen") { model.resetWhatIf() }
                         .controlSize(.small)
                 }
             }
