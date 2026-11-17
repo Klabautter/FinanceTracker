@@ -56,7 +56,7 @@ struct LocalDataResetService: Sendable {
         try await dependencies.merchantRepository.deleteAll()
         try await deleteAllRules()
 
-        dependencies.changeTracker.markChanged()
+        await dependencies.changeTracker.markChanged()
     }
 
     private func deleteAllRules() async throws {
@@ -73,6 +73,6 @@ struct LocalDataResetService: Sendable {
     func removeDemoData() async throws {
         try await dependencies.transactionRepository.deleteAllDemoTransactions()
         try await dependencies.accountRepository.deleteAllDemoAccounts()
-        dependencies.changeTracker.markChanged()
+        await dependencies.changeTracker.markChanged()
     }
 }

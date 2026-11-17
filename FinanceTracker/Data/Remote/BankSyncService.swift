@@ -206,7 +206,8 @@ struct BankSyncService: Sendable {
 
         // Fetch-Loop + Mapping + Commit laufen im Hintergrund
         // (Task.detached). Alle Captures sind Sendable (Connection,
-        // ImportPipeline, Provider; AppDependencies ist @unchecked Sendable).
+        // ImportPipeline, Provider; AppDependencies ist vom Compiler geprüft
+        // Sendable, der changeTracker ist MainActor-gebunden).
         // UI-relevante Updates (changeTracker, Connection-Upsert) bleiben
         // außerhalb bzw. hüpfen auf den MainActor.
         let backgroundDependencies = dependencies

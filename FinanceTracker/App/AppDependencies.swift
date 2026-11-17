@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-struct AppDependencies: @unchecked Sendable {
+struct AppDependencies: Sendable {
     let transactionRepository: any TransactionRepository
     let transactionAnnotationRepository: any TransactionAnnotationRepository
     let transactionCollectionRepository: any TransactionCollectionRepository
@@ -37,7 +37,13 @@ struct AppDependencies: @unchecked Sendable {
     /// Ablage für kleine UI-Zustände (ausgeblendete Vorschläge, Zuordnungen
     /// von Buchungsarten). Im Demo-Modus ein eigener, leerer Bereich, damit
     /// Durchläufe die echten Einstellungen nicht verändern.
-    let userDefaults: UserDefaults
+    /// Gespeichert wird nur der Name des Bereichs (`nil` = Standard), damit
+    /// die Abhängigkeiten ohne `@unchecked` `Sendable` sind; `UserDefaults`
+    /// selbst ist threadsicher, aber nicht als `Sendable` markiert.
+    let userDefaultsSuiteName: String?
+    var userDefaults: UserDefaults {
+        userDefaultsSuiteName.flatMap(UserDefaults.init(suiteName:)) ?? .standard
+    }
     /// Kategorie-Vorschläge aus dem Händlernamen über das Sprachmodell des
     /// Geräts. `nil`, wo es keines gibt, und in Tests.
     let categoryAdvisor: (any MerchantCategoryAdvisor)?
@@ -74,7 +80,7 @@ struct AppDependencies: @unchecked Sendable {
         fxRateProvider: any FXRateProvider = ECBFXRateProvider(loadsHistory: false),
         backupRestoreService: BackupRestoreService? = nil,
         preferences: any AppPreferences = UserDefaultsAppPreferences(),
-        userDefaults: UserDefaults = .standard,
+        userDefaultsSuiteName: String? = nil,
         categoryAdvisor: (any MerchantCategoryAdvisor)? = nil,
         enableBankingCredentialStore: any EnableBankingCredentialStoring = KeychainEnableBankingCredentialStore(),
         bankInstitutionCache: BankInstitutionCache = BankInstitutionCache(),
@@ -104,7 +110,7 @@ struct AppDependencies: @unchecked Sendable {
         self.fxRateProvider = fxRateProvider
         self.backupRestoreService = backupRestoreService
         self.preferences = preferences
-        self.userDefaults = userDefaults
+        self.userDefaultsSuiteName = userDefaultsSuiteName
         self.categoryAdvisor = categoryAdvisor
         self.enableBankingCredentialStore = enableBankingCredentialStore
         self.bankInstitutionCache = bankInstitutionCache
@@ -134,21 +140,21 @@ struct AppDependencies: @unchecked Sendable {
         let unitTestStore = AppDataDirectory.unitTestRoot()?.appendingPathComponent("FinanceTracker.store")
         let location: StoreLocation = (launch.uiTestStoreURL ?? unitTestStore).map { .url($0) } ?? .live
         let store = try SwiftDataStore(location: location)
-        var userDefaults = UserDefaults.standard
+        var userDefaultsSuiteName: String?
         #if DEBUG
         if launch.isScreenshotDemoMode {
             PreviewDependencies.seedDemoData(into: store.container)
             let suite = "de.klabautter.FinanceTracker.screenshot-demo"
             UserDefaults.standard.removePersistentDomain(forName: suite)
-            userDefaults = UserDefaults(suiteName: suite) ?? .standard
+            userDefaultsSuiteName = suite
         }
         #endif
         return make(
             container: store.container,
-            baseCurrency: Self.storedBaseCurrency(in: userDefaults),
+            baseCurrency: Self.storedBaseCurrency(in: userDefaultsSuiteName.flatMap(UserDefaults.init(suiteName:)) ?? .standard),
             // Als Host der Unit-Tests keine Kurs-Historie aus dem Netz laden.
             fxRateProvider: ECBFXRateProvider(loadsHistory: AppDataDirectory.unitTestRoot() == nil),
-            userDefaults: userDefaults,
+            userDefaultsSuiteName: userDefaultsSuiteName,
             categoryAdvisor: MerchantCategoryAdvisorFactory.systemAdvisor()
         )
     }
@@ -161,7 +167,7 @@ struct AppDependencies: @unchecked Sendable {
         bankProviderFactory: (any BankProviderResolving)? = nil,
         fxRateProvider: (any FXRateProvider)? = nil,
         preferences: (any AppPreferences)? = nil,
-        userDefaults: UserDefaults = .standard,
+        userDefaultsSuiteName: String? = nil,
         categoryAdvisor: (any MerchantCategoryAdvisor)? = nil
     ) -> AppDependencies {
         let enableBankingCredentialStore = KeychainEnableBankingCredentialStore()
@@ -201,7 +207,7 @@ struct AppDependencies: @unchecked Sendable {
             fxRateProvider: fxRateProvider ?? ECBFXRateProvider(loadsHistory: false),
             backupRestoreService: BackupRestoreService(modelContainer: container),
             preferences: preferences ?? UserDefaultsAppPreferences(),
-            userDefaults: userDefaults,
+            userDefaultsSuiteName: userDefaultsSuiteName,
             categoryAdvisor: categoryAdvisor,
             enableBankingCredentialStore: enableBankingCredentialStore
         )
