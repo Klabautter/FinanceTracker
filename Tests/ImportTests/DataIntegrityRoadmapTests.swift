@@ -61,6 +61,77 @@ struct DataIntegrityRoadmapTests {
         try BackupRestoreService.validate(backup)
     }
 
+    /// Hängt an eine Buchung je eine Zeile jeder abhängigen Tabelle.
+    private func attachDependents(to transaction: Transaction, _ dependencies: AppDependencies) async throws {
+        try await dependencies.transactionAnnotationRepository.upsert([
+            TransactionAnnotation(transactionID: transaction.id, note: "Geprüft", reviewed: true)
+        ])
+        try await dependencies.transactionSplitRepository.upsert([
+            TransactionSplitLine(parentTransactionID: transaction.id, amount: abs(transaction.amount.amount))
+        ])
+        try await dependencies.transactionAttachmentRepository.add(
+            TransactionAttachment(
+                transactionID: transaction.id, fileName: "b.pdf", mimeType: "application/pdf",
+                localRelativePath: "\(transaction.id.uuidString).pdf"
+            )
+        )
+    }
+
+    private func expectNoDependents(_ dependencies: AppDependencies) async throws {
+        #expect(try await dependencies.transactionAnnotationRepository.annotations().isEmpty)
+        #expect(try await dependencies.transactionSplitRepository.allSplitLines().isEmpty)
+        #expect(try await dependencies.transactionAttachmentRepository.allAttachments().isEmpty)
+        #expect(try await dependencies.transactionRepository.purgeOrphanedDependents() == 0)
+    }
+
+    @Test("Demo-Buchungen und „alle Buchungen“ löschen nehmen alles Abhängige mit")
+    func bulkDeletesRemoveDependents() async throws {
+        let dependencies = try makeDependencies()
+        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([account])
+        func transaction(_ source: TransactionSource, _ id: String) -> Transaction {
+            Transaction(
+                accountID: account.id, source: source, externalID: id, status: .booked, kind: .purchase,
+                amount: Money(amount: -5, currency: .eur), bookedAt: Date(timeIntervalSince1970: 1_790_000_000),
+                rawDescription: id, rawMerchantName: id, merchantDisplayName: id
+            )
+        }
+        let demo = transaction(.demo, "demo-1")
+        let real = transaction(.manual, "real-1")
+        try await dependencies.transactionRepository.upsert([demo, real])
+        try await attachDependents(to: demo, dependencies)
+        try await attachDependents(to: real, dependencies)
+
+        // Nur die Demo-Buchung verschwindet, samt ihrer Zeilen; die echte bleibt vollständig.
+        try await dependencies.transactionRepository.deleteAllDemoTransactions()
+        let remaining = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        #expect(remaining.map(\.id) == [real.id])
+        #expect(try await dependencies.transactionAnnotationRepository.annotations().map(\.transactionID) == [real.id])
+        #expect(try await dependencies.transactionSplitRepository.allSplitLines().map(\.parentTransactionID) == [real.id])
+        #expect(try await dependencies.transactionAttachmentRepository.allAttachments().map(\.transactionID) == [real.id])
+        #expect(try await dependencies.transactionRepository.purgeOrphanedDependents() == 0)
+
+        try await dependencies.transactionRepository.deleteAll()
+        #expect(try await dependencies.transactionRepository.transactions(matching: TransactionQuery()).isEmpty)
+        try await expectNoDependents(dependencies)
+    }
+
+    @Test("Unlesbare Rückgängig-Daten und Tag-Listen werfen, statt leer zu erscheinen")
+    func corruptStoredJSONThrows() throws {
+        let batch = ImportBatch(
+            providerIdentifier: "generic", sourceRaw: "genericCSV", fileName: "a.csv", fileHashSHA256: "h",
+            startedAt: Date(timeIntervalSince1970: 1_790_000_000), completedAt: Date(timeIntervalSince1970: 1_790_000_001),
+            totalRows: 1, importedCount: 1, updatedCount: 0, duplicateCount: 0, failedCount: 0
+        )
+        let entity = SDImportBatchEntity(from: batch)
+        #expect(try entity.toDomain().mutations.isEmpty)
+        entity.mutationsJSON = Data("kein json".utf8)
+        #expect(throws: PersistenceDecodingError.invalidJSON(field: "ImportBatch.mutationsJSON")) { try entity.toDomain() }
+
+        #expect(try decodeTagIDs(nil) == nil)
+        #expect(throws: PersistenceDecodingError.invalidJSON(field: "tagIDsJSON")) { try decodeTagIDs(Data("x".utf8)) }
+    }
+
     @Test("Reparatur entfernt verwaiste Zeilen früherer Rückgängig-Läufe")
     func purgeRemovesOrphans() async throws {
         let dependencies = try makeDependencies()
@@ -96,6 +167,10 @@ struct DataIntegrityRoadmapTests {
         var corruptAmount = snapshot
         corruptAmount.amountValue = "abc"
         #expect(throws: ImportMutationError.self) { try corruptAmount.restoring(id: original.id) }
+        // Auch ein vorhandener, aber unlesbarer Nebenbetrag ist kein „fehlt".
+        var corruptOriginal = snapshot
+        corruptOriginal.originalAmountValue = "abc"
+        #expect(throws: ImportMutationError.self) { try corruptOriginal.restoring(id: original.id) }
     }
 
     // MARK: - Dezimaleingabe

@@ -129,15 +129,25 @@ extension SDTransactionAnnotationEntity {
         updatedAt = annotation.updatedAt
     }
 
-    func toDomain() -> TransactionAnnotation {
-        TransactionAnnotation(
+    func toDomain() throws -> TransactionAnnotation {
+        // Eine unbekannte Art ist kein „keine Korrektur" (§23).
+        let manualKindOverride: TransactionKind?
+        if let manualKindOverrideRaw {
+            guard let decoded = TransactionKind(rawValue: manualKindOverrideRaw) else {
+                throw PersistenceDecodingError.unknownEnum(field: "TransactionAnnotation.manualKindOverride", raw: manualKindOverrideRaw)
+            }
+            manualKindOverride = decoded
+        } else {
+            manualKindOverride = nil
+        }
+        return TransactionAnnotation(
             id: id,
             transactionID: transactionID,
             note: note,
             reviewed: reviewed,
             excludedFromAnalytics: excludedFromAnalytics,
-            manualKindOverride: manualKindOverrideRaw.flatMap(TransactionKind.init(rawValue:)),
-            tagIDs: decodeTagIDs(tagIDsJSON),
+            manualKindOverride: manualKindOverride,
+            tagIDs: try decodeTagIDs(tagIDsJSON),
             createdAt: createdAt,
             updatedAt: updatedAt
         )
@@ -289,7 +299,7 @@ extension SDTransactionEntity {
             note: note,
             reviewed: reviewed ?? false,
             excludedFromAnalytics: excludedFromAnalytics ?? false,
-            tagIDs: decodeTagIDs(tagIDsJSON),
+            tagIDs: try decodeTagIDs(tagIDsJSON),
             importBatchID: importBatchID,
             createdAt: createdAt,
             updatedAt: updatedAt
@@ -411,7 +421,12 @@ func encodeTagIDs(_ ids: [UUID]?) -> Data? {
     return try? JSONEncoder().encode(ids)
 }
 
-func decodeTagIDs(_ data: Data?) -> [UUID]? {
+/// Unlesbare Tag-Zuordnungen werfen, statt als „keine Tags" zu erscheinen (§23).
+func decodeTagIDs(_ data: Data?) throws -> [UUID]? {
     guard let data else { return nil }
-    return try? JSONDecoder().decode([UUID].self, from: data)
+    do {
+        return try JSONDecoder().decode([UUID].self, from: data)
+    } catch {
+        throw PersistenceDecodingError.invalidJSON(field: "tagIDsJSON")
+    }
 }

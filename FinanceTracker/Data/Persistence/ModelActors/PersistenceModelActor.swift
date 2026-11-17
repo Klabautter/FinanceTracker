@@ -512,7 +512,7 @@ actor PersistenceModelActor {
             )
             annotationsByTransactionID = Dictionary(
                 uniqueKeysWithValues: try modelContext.fetch(annotationDescriptor).map {
-                    ($0.transactionID, $0.toDomain())
+                    ($0.transactionID, try $0.toDomain())
                 }
             )
         }
@@ -787,12 +787,17 @@ actor PersistenceModelActor {
 
     func deleteAllTransactions() throws {
         try modelContext.delete(model: SDTransactionEntity.self)
-        // WP2 (§14): Der Suchindex ist abgeleitete Row-Struktur der
-        // Transaktionen und wird mitgelöscht.
+        // Alles, was nur zusammen mit einer Buchung Sinn ergibt, geht mit:
+        // dieselbe Liste wie `deleteTransactionDependents`, hier tabellenweise.
+        // Der Aufrufer muss diese Tabellen nicht vorher selbst leeren.
         try modelContext.delete(model: SDTransactionSearchEntity.self)
         try modelContext.delete(model: SDTransactionTagEntity.self)
-        // V12: Gruppenanteile sind User-Sidecar zur Transaktion (Cascade).
         try modelContext.delete(model: SDSharedExpenseShareEntity.self)
+        try modelContext.delete(model: SDTransactionAnnotationEntity.self)
+        try modelContext.delete(model: SDTransactionSplitLineEntity.self)
+        try modelContext.delete(model: SDTransactionCollectionOverrideEntity.self)
+        try modelContext.delete(model: SDRecurringOccurrenceEntity.self)
+        try modelContext.delete(model: SDTransactionAttachmentEntity.self)
         if modelContext.hasChanges {
             try modelContext.save()
         }
@@ -802,12 +807,12 @@ actor PersistenceModelActor {
         if transactionIDs.isEmpty {
             return try modelContext
                 .fetch(FetchDescriptor<SDTransactionAnnotationEntity>())
-                .map { $0.toDomain() }
+                .map { try $0.toDomain() }
         }
         let descriptor = FetchDescriptor<SDTransactionAnnotationEntity>(
             predicate: #Predicate { transactionIDs.contains($0.transactionID) }
         )
-        return try modelContext.fetch(descriptor).map { $0.toDomain() }
+        return try modelContext.fetch(descriptor).map { try $0.toDomain() }
     }
 
     func deleteTransactionAnnotation(transactionID: UUID) throws {
@@ -1008,11 +1013,9 @@ actor PersistenceModelActor {
                 predicate: #Predicate { $0.sourceRaw == source }
             )
             let rows = try modelContext.fetch(descriptor)
-            try deleteDerivedTransactionIndexes(transactionIDs: Set(rows.map(\.id)))
-            try deleteSharedExpenseShareRows(transactionIDs: Set(rows.map(\.id)))
-            for row in rows {
-                modelContext.delete(row)
-            }
+            // Derselbe Weg wie jedes andere Löschen von Buchungen, damit
+            // Anmerkungen, Splits, Zuordnungen und Belege nicht verwaisen.
+            try deleteTransactionRowsWithDependents(rows)
             try modelContext.save()
         } catch {
             modelContext.rollback()
@@ -1366,7 +1369,7 @@ actor PersistenceModelActor {
 
     func loadImportBatches() throws -> [ImportBatch] {
         let rows = try modelContext.fetch(FetchDescriptor<SDImportBatchEntity>())
-        return rows.map { $0.toDomain() }
+        return try rows.map { try $0.toDomain() }
     }
 
     /// WP14: Nur der letzte Import, kein Full-Fetch für den Dashboard-Hinweis.

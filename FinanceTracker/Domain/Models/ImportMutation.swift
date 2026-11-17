@@ -69,6 +69,17 @@ struct TransactionSnapshot: Codable, Sendable, Hashable {
         guard let amount = Decimal(string: amountValue, locale: Locale(identifier: "en_US_POSIX")) else {
             throw ImportMutationError.corruptSnapshot(field: "amount", raw: amountValue)
         }
+        // Vorhandene, aber unlesbare Nebenbeträge werfen wie der Hauptbetrag.
+        func optionalAmount(_ raw: String?, _ field: String) throws -> Decimal? {
+            guard let raw else { return nil }
+            guard let value = Decimal(string: raw, locale: Locale(identifier: "en_US_POSIX")) else {
+                throw ImportMutationError.corruptSnapshot(field: field, raw: raw)
+            }
+            return value
+        }
+        let originalAmount = try optionalAmount(originalAmountValue, "originalAmount")
+        let cryptoAmount = try optionalAmount(cryptoAmountValue, "cryptoAmount")
+        let cashbackAmount = try optionalAmount(cashbackAmountValue, "cashbackAmount")
         return Transaction(
             id: id,
             accountID: accountID,
@@ -91,10 +102,10 @@ struct TransactionSnapshot: Codable, Sendable, Hashable {
             categoryID: categoryID,
             paymentMethod: paymentMethodRaw.flatMap(PaymentMethod.init(rawValue:)),
             originalCurrency: originalCurrencyRaw.map(CurrencyCode.init),
-            originalAmount: originalAmountValue.flatMap { Decimal(string: $0) },
+            originalAmount: originalAmount,
             cryptoAsset: cryptoAsset,
-            cryptoAmount: cryptoAmountValue.flatMap { Decimal(string: $0) },
-            cashbackAmount: cashbackAmountValue.flatMap { Decimal(string: $0) },
+            cryptoAmount: cryptoAmount,
+            cashbackAmount: cashbackAmount,
             cashbackCurrency: cashbackCurrencyRaw.map(CurrencyCode.init),
             importBatchID: importBatchID,
             createdAt: createdAt,

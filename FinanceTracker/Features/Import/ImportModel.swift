@@ -23,6 +23,9 @@ final class ImportModel {
     private(set) var preparedImport: PreparedImport?
     private(set) var lastCompletedBatchID: UUID?
     private(set) var recentBatches: [ImportBatch] = []
+    /// Laden des Import-Verlaufs (AGENTS #37). Ein Fehler erscheint als
+    /// Hinweis, nicht als „keine Importe".
+    private(set) var historyLoadState: LoadState = .idle
     private(set) var mappingHeaders: [String] = []
     private(set) var isRollingBack = false
 
@@ -92,8 +95,10 @@ final class ImportModel {
             // sein, wenn danach mehrere Bankabrufe liefen (die Ansicht zeigt
             // zunächst nur die neuesten).
             recentBatches = try await dependencies.importBatchRepository.batches()
+            historyLoadState = .loaded
         } catch {
-            recentBatches = []
+            // Die bisher gezeigte Liste bleibt stehen; der Fehler ist sichtbar.
+            historyLoadState = .failed(String(localized: "Der Import-Verlauf konnte nicht geladen werden."))
         }
     }
 

@@ -577,6 +577,14 @@ struct ImportView: View {
 
     @ViewBuilder
     private var historySection: some View {
+        if let message = model.historyLoadState.failureMessage {
+            Section("Letzte Imports") {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(AppPalette.warning)
+                    .accessibilityIdentifier("import-history-error")
+            }
+        }
         if !model.recentBatches.isEmpty {
             Section("Letzte Imports") {
                 ForEach(showsAllBatches ? model.recentBatches : Array(model.recentBatches.prefix(Self.collapsedBatchCount))) { batch in

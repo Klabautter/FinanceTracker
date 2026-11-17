@@ -82,7 +82,9 @@ extension SDImportBatchEntity {
         mutationsJSON = Self.encodeMutations(batch.mutations)
     }
 
-    func toDomain() -> ImportBatch {
+    /// Unlesbare Rückgängig-Daten werfen, statt als „nichts rückgängig zu
+    /// machen" in Verlauf und Backup zu erscheinen (§23).
+    func toDomain() throws -> ImportBatch {
         ImportBatch(
             id: id,
             providerIdentifier: providerIdentifier,
@@ -96,7 +98,7 @@ extension SDImportBatchEntity {
             updatedCount: updatedCount,
             duplicateCount: duplicateCount,
             failedCount: failedCount,
-            mutations: Self.decodeMutations(mutationsJSON)
+            mutations: try Self.decodeMutations(mutationsJSON)
         )
     }
 
@@ -105,8 +107,12 @@ extension SDImportBatchEntity {
         return try? JSONEncoder().encode(mutations)
     }
 
-    private static func decodeMutations(_ data: Data?) -> [ImportMutation] {
+    private static func decodeMutations(_ data: Data?) throws -> [ImportMutation] {
         guard let data else { return [] }
-        return (try? JSONDecoder().decode([ImportMutation].self, from: data)) ?? []
+        do {
+            return try JSONDecoder().decode([ImportMutation].self, from: data)
+        } catch {
+            throw PersistenceDecodingError.invalidJSON(field: "ImportBatch.mutationsJSON")
+        }
     }
 }
