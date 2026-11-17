@@ -249,21 +249,56 @@ enum MerchantKeywordCategorizer {
         return nil
     }
 
+    /// Die Schlüsselwörter einmal zerlegt: Einzelwörter als Menge,
+    /// Wortfolgen als Token-Listen. Vorher wurde jedes Wort für jeden
+    /// Händlernamen neu gesplittet (20.000 Importzeilen: über eine Minute).
+    private struct CompiledEntry: Sendable {
+        let direction: Direction
+        let categoryID: Category.ID
+        let singleWords: Set<Substring>
+        let wordSequences: [[Substring]]
+        let parts: [String]
+    }
+
+    private static let compiledEntries: [CompiledEntry] = entries.map { entry in
+        let tokenized = entry.words.map { $0.split(separator: " ") }.filter { !$0.isEmpty }
+        return CompiledEntry(
+            direction: entry.direction,
+            categoryID: entry.category.id,
+            singleWords: Set(tokenized.filter { $0.count == 1 }.map { $0[0] }),
+            wordSequences: tokenized.filter { $0.count > 1 },
+            parts: entry.parts
+        )
+    }
+
     static func categoryID(forMerchantName name: String, isIncome: Bool = false) -> Category.ID? {
         let key = CategoryRuleEngine.normalizedKey(name)
         guard !key.isEmpty else { return nil }
         let tokens = key.split(separator: " ")
-        for entry in entries {
+        let tokenSet = Set(tokens)
+        for entry in compiledEntries {
             switch entry.direction {
             case .expense where isIncome, .income where !isIncome: continue
             default: break
             }
-            let hasWord = entry.words.contains { CategoryRuleEngine.containsTokenSequence(key, $0) }
+            let hasWord = !entry.singleWords.isDisjoint(with: tokenSet)
+                || entry.wordSequences.contains { Self.contains(tokens, sequence: $0) }
             let hasPart = entry.parts.contains { part in tokens.contains { $0.contains(part) } }
             if hasWord || hasPart {
-                return entry.category.id
+                return entry.categoryID
             }
         }
         return nil
+    }
+
+    /// Zusammenhängende Wortfolge in den Tokens (wie
+    /// `CategoryRuleEngine.containsTokenSequence`).
+    private static func contains(_ tokens: [Substring], sequence: [Substring]) -> Bool {
+        guard sequence.count <= tokens.count else { return false }
+        for start in 0...(tokens.count - sequence.count)
+        where tokens[start] == sequence[0] && tokens[start..<(start + sequence.count)].elementsEqual(sequence) {
+            return true
+        }
+        return false
     }
 }

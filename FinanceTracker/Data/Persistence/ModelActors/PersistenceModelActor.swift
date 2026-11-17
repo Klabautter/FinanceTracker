@@ -314,6 +314,17 @@ actor PersistenceModelActor {
         return try rows.map { try $0.toDomain() }
     }
 
+    /// Alle Buchungen der Konten, ohne Datumsgrenze (auch Zeilen ohne
+    /// Buchungsdatum). Für Abfragen ohne Zeitraum, z. B. den Kontobestand
+    /// beim Import, statt alle Buchungen zu laden und danach zu filtern.
+    func loadTransactions(accountIDs: Set<UUID>) throws -> [Transaction] {
+        let accounts = accountIDs
+        let descriptor = FetchDescriptor<SDTransactionEntity>(
+            predicate: #Predicate { accounts.contains($0.accountID) }
+        )
+        return try modelContext.fetch(descriptor).map { try $0.toDomain() }
+    }
+
     func loadTransaction(id: UUID) throws -> Transaction? {
         let descriptor = FetchDescriptor<SDTransactionEntity>(
             predicate: #Predicate { $0.id == id }
@@ -591,6 +602,13 @@ actor PersistenceModelActor {
     private var searchIndexBackfillDone = false
 
     func backfillSearchIndexIfNeeded() throws {
+        // Schnellweg: Jede Buchung bekommt ihre Suchzeile beim Speichern,
+        // verwaiste Suchzeilen entfernt purgeOrphanedDependents beim Start.
+        // Gleiche Anzahl heißt daher: nichts fehlt. Nur sonst der volle
+        // Abgleich (bei 100.000 Buchungen sonst Sekunden bei der ersten Suche).
+        let transactionCount = try modelContext.fetchCount(FetchDescriptor<SDTransactionEntity>())
+        let indexCount = try modelContext.fetchCount(FetchDescriptor<SDTransactionSearchEntity>())
+        guard transactionCount != indexCount else { return }
         let txnRows = try modelContext.fetch(FetchDescriptor<SDTransactionEntity>())
         let indexedIDs = Set(
             try modelContext.fetch(FetchDescriptor<SDTransactionSearchEntity>()).map(\.transactionID)

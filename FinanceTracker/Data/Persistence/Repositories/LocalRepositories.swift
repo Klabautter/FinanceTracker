@@ -112,7 +112,11 @@ final class LocalTransactionRepository: TransactionRepository {
             return try await matchingCategories(scoped, query: query)
         }
 
-        let all = try await persistence.loadAllTransactions()
+        // Ohne Zeitraum, aber mit Konten: nur deren Zeilen laden (Import
+        // fragt so den Kontobestand ab; vorher wurde alles hydratisiert).
+        let all = query.accountIDs.isEmpty
+            ? try await persistence.loadAllTransactions()
+            : try await persistence.loadTransactions(accountIDs: query.accountIDs)
         let scoped = taggedIDs.isEmpty ? all : all.filter { taggedIDs.contains($0.id) }
         var refinement = query
         refinement.categoryIDs = []

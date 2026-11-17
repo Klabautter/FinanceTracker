@@ -49,17 +49,20 @@ struct TransferDetector: Sendable {
         var index = TransferCreditIndex(transactions: inflows, calendar: calendar)
         var candidates: [TransferCandidate] = []
         candidates.reserveCapacity(Swift.min(outflows.count, inflows.count))
+        // Kalendertage einmal je Tag statt je Buchung und Abstand berechnen.
+        var dayCache: [Date: Int] = [:]
+        let toleranceUnits = TransferCredit.units(amountTolerance)
 
         for outflow in outflows {
             let amount = abs(outflow.amount.amount)
+            let debitDay = index.dayNumber(for: outflow.displayDate, calendar: calendar, cache: &dayCache)
             guard let match = index.bestMatch(
                 currency: outflow.amount.currency,
-                amount: amount,
-                tolerance: amountTolerance,
-                date: outflow.displayDate,
+                amount: TransferCredit.units(amount),
+                tolerance: toleranceUnits,
+                debitDay: debitDay,
                 excludingAccountID: outflow.accountID,
-                maxDaysApart: maxDaysApart,
-                calendar: calendar
+                maxDaysApart: maxDaysApart
             ) else {
                 continue
             }
@@ -68,7 +71,7 @@ struct TransferDetector: Sendable {
             candidates.append(
                 TransferCandidate(
                     debitTransactionID: outflow.id,
-                    creditTransactionID: match.transaction.id,
+                    creditTransactionID: match.transactionID,
                     amount: amount,
                     currency: outflow.amount.currency,
                     daysApart: match.daysApart
@@ -83,95 +86,132 @@ struct TransferDetector: Sendable {
         let lhsBookedAt = lhs.bookedAt ?? .distantPast
         let rhsBookedAt = rhs.bookedAt ?? .distantPast
         if lhsBookedAt != rhsBookedAt { return lhsBookedAt < rhsBookedAt }
-        return lhs.id.uuidString < rhs.id.uuidString
+        // Byteweiser UUID-Vergleich ordnet wie der frühere uuidString-
+        // Vergleich (Hex-Ziffern steigen mit dem Nibble-Wert), ohne Strings.
+        return lhs.id < rhs.id
+    }
+}
+
+/// Nur die Felder, die der Abgleich braucht: keine Kopien ganzer Buchungen
+/// in den Baumknoten.
+private struct TransferCredit {
+    let id: UUID
+    let accountID: UUID
+    /// Betrag in Zehntausendsteln: ganzzahlige Vergleiche statt Decimal.
+    let amount: Int64
+    let displayDate: Date
+
+    /// Exakt für Beträge mit bis zu vier Nachkommastellen (Bankbeträge
+    /// haben höchstens zwei); gerundet, nie über Double.
+    static func units(_ value: Decimal) -> Int64 {
+        var scaled = value * 10_000
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &scaled, 0, .plain)
+        return NSDecimalNumber(decimal: rounded).int64Value
     }
 }
 
 private struct TransferCreditIndex {
     fileprivate struct Key: Hashable {
         let currency: CurrencyCode
-        let day: Date
+        let day: Int
     }
 
     struct Match {
         fileprivate let key: Key
         let entryIndex: Int
-        let transaction: Transaction
+        let transactionID: UUID
+        let displayDate: Date
         let daysApart: Int
-
-        fileprivate init(key: Key, entryIndex: Int, transaction: Transaction, daysApart: Int) {
-            self.key = key
-            self.entryIndex = entryIndex
-            self.transaction = transaction
-            self.daysApart = daysApart
-        }
     }
 
-    private var buckets: [Key: TransferDayBucket]
+    /// Je Währung die Tage; die Währung wird pro Ausgabe einmal gehasht.
+    private var buckets: [CurrencyCode: [Int: TransferDayBucket]]
+    /// Kalendertage als fortlaufende Nummern (Tage seit dem frühesten Tag),
+    /// damit „±n Tage“ eine Addition ist statt einer Kalenderrechnung.
+    private let origin: Date
 
     init(transactions: [Transaction], calendar: Calendar) {
-        var grouped: [Key: [Transaction]] = [:]
+        origin = Date(timeIntervalSinceReferenceDate: 0)
+        var cache: [Date: Int] = [:]
+        var grouped: [Key: [TransferCredit]] = [:]
         grouped.reserveCapacity(transactions.count)
         for transaction in transactions {
             let key = Key(
                 currency: transaction.amount.currency,
-                day: calendar.startOfDay(for: transaction.displayDate)
+                day: Self.dayNumber(for: transaction.displayDate, origin: origin, calendar: calendar, cache: &cache)
             )
-            grouped[key, default: []].append(transaction)
+            grouped[key, default: []].append(TransferCredit(
+                id: transaction.id,
+                accountID: transaction.accountID,
+                amount: TransferCredit.units(transaction.amount.amount),
+                displayDate: transaction.displayDate
+            ))
         }
-        buckets = grouped.mapValues(TransferDayBucket.init)
+        var byCurrency: [CurrencyCode: [Int: TransferDayBucket]] = [:]
+        for (key, credits) in grouped {
+            byCurrency[key.currency, default: [:]][key.day] = TransferDayBucket(credits)
+        }
+        buckets = byCurrency
+    }
+
+    func dayNumber(for date: Date, calendar: Calendar, cache: inout [Date: Int]) -> Int {
+        Self.dayNumber(for: date, origin: origin, calendar: calendar, cache: &cache)
+    }
+
+    /// Kalendertag-Nummer in der Zeitzone des Kalenders (Sommerzeit-fest:
+    /// gezählt werden Kalendertage, nicht 24-Stunden-Blöcke).
+    private static func dayNumber(for date: Date, origin: Date, calendar: Calendar, cache: inout [Date: Int]) -> Int {
+        let day = calendar.startOfDay(for: date)
+        if let cached = cache[day] { return cached }
+        let number = calendar.dateComponents([.day], from: calendar.startOfDay(for: origin), to: day).day ?? 0
+        cache[day] = number
+        return number
     }
 
     mutating func bestMatch(
         currency: CurrencyCode,
-        amount: Decimal,
-        tolerance: Decimal,
-        date: Date,
+        amount: Int64,
+        tolerance: Int64,
+        debitDay: Int,
         excludingAccountID: UUID,
-        maxDaysApart: Int,
-        calendar: Calendar
+        maxDaysApart: Int
     ) -> Match? {
-        let debitDay = calendar.startOfDay(for: date)
         var best: Match?
-
+        guard let days = buckets[currency] else { return nil }
         for offset in (-maxDaysApart)...maxDaysApart {
-            guard let candidateDate = calendar.date(byAdding: .day, value: offset, to: debitDay) else {
-                continue
-            }
-            let key = Key(currency: currency, day: calendar.startOfDay(for: candidateDate))
-            guard let bucket = buckets[key],
-                  let entry = bucket.bestMatch(
+            let key = Key(currency: currency, day: debitDay + offset)
+            guard let bucket = days[key.day],
+                  let entryIndex = bucket.bestMatch(
                     amount: amount,
                     tolerance: tolerance,
                     excludingAccountID: excludingAccountID
                   ) else {
                 continue
             }
-
+            let credit = bucket.entries[entryIndex]
             let candidate = Match(
                 key: key,
-                entryIndex: entry.index,
-                transaction: entry.transaction,
+                entryIndex: entryIndex,
+                transactionID: credit.id,
+                displayDate: credit.displayDate,
                 daysApart: abs(offset)
             )
-            if best.map({ matchComesBefore(candidate, $0) }) ?? true {
+            if best.map({ Self.matchComesBefore(candidate, $0) }) ?? true {
                 best = candidate
             }
         }
-
         return best
     }
 
     mutating func consume(_ match: Match) {
-        buckets[match.key]?.consume(entryAt: match.entryIndex)
+        buckets[match.key.currency]?[match.key.day]?.consume(entryAt: match.entryIndex)
     }
 
-    private func matchComesBefore(_ lhs: Match, _ rhs: Match) -> Bool {
+    private static func matchComesBefore(_ lhs: Match, _ rhs: Match) -> Bool {
         if lhs.daysApart != rhs.daysApart { return lhs.daysApart < rhs.daysApart }
-        if lhs.transaction.displayDate != rhs.transaction.displayDate {
-            return lhs.transaction.displayDate < rhs.transaction.displayDate
-        }
-        return lhs.transaction.id.uuidString < rhs.transaction.id.uuidString
+        if lhs.displayDate != rhs.displayDate { return lhs.displayDate < rhs.displayDate }
+        return lhs.transactionID < rhs.transactionID
     }
 }
 
@@ -179,24 +219,21 @@ private struct TransferCreditIndex {
 /// distinct accounts, which is sufficient to answer an amount-range query
 /// while excluding the debit account. Consuming a credit updates one tree path.
 private struct TransferDayBucket {
-    struct Entry {
-        let index: Int
-        let transaction: Transaction
-    }
-
+    /// Bis zu zwei Einträge verschiedener Konten, beste zuerst; -1 = leer.
     private struct Summary {
-        var entryIndices: [Int] = []
+        var first = -1
+        var second = -1
     }
 
-    private let entries: [Transaction]
+    let entries: [TransferCredit]
     private let leafCount: Int
     private var tree: [Summary]
 
-    init(_ transactions: [Transaction]) {
-        entries = transactions.sorted {
-            if $0.amount.amount != $1.amount.amount { return $0.amount.amount < $1.amount.amount }
+    init(_ credits: [TransferCredit]) {
+        entries = credits.sorted {
+            if $0.amount != $1.amount { return $0.amount < $1.amount }
             if $0.displayDate != $1.displayDate { return $0.displayDate < $1.displayDate }
-            return $0.id.uuidString < $1.id.uuidString
+            return $0.id < $1.id
         }
 
         var size = 1
@@ -205,7 +242,7 @@ private struct TransferDayBucket {
         tree = Array(repeating: Summary(), count: size * 2)
 
         for index in entries.indices {
-            tree[size + index] = Summary(entryIndices: [index])
+            tree[size + index] = Summary(first: index)
         }
         if size > 1 {
             for node in stride(from: size - 1, through: 1, by: -1) {
@@ -214,22 +251,17 @@ private struct TransferDayBucket {
         }
     }
 
-    func bestMatch(
-        amount: Decimal,
-        tolerance: Decimal,
-        excludingAccountID: UUID
-    ) -> Entry? {
+    /// Index des besten Eintrags im Betragsfenster auf einem anderen Konto.
+    func bestMatch(amount: Int64, tolerance: Int64, excludingAccountID: UUID) -> Int? {
         let lowerIndex = lowerBound(for: amount - tolerance)
         let upperIndex = upperBound(for: amount + tolerance)
         guard lowerIndex < upperIndex else { return nil }
 
         let summary = query(lowerIndex..<upperIndex)
-        guard let index = summary.entryIndices.first(where: {
-            entries[$0].accountID != excludingAccountID
-        }) else {
-            return nil
+        for index in [summary.first, summary.second] where index >= 0 {
+            if entries[index].accountID != excludingAccountID { return index }
         }
-        return Entry(index: index, transaction: entries[index])
+        return nil
     }
 
     mutating func consume(entryAt index: Int) {
@@ -243,12 +275,12 @@ private struct TransferDayBucket {
         }
     }
 
-    private func lowerBound(for amount: Decimal) -> Int {
+    private func lowerBound(for amount: Int64) -> Int {
         var lower = 0
         var upper = entries.count
         while lower < upper {
             let middle = lower + (upper - lower) / 2
-            if entries[middle].amount.amount < amount {
+            if entries[middle].amount < amount {
                 lower = middle + 1
             } else {
                 upper = middle
@@ -257,12 +289,12 @@ private struct TransferDayBucket {
         return lower
     }
 
-    private func upperBound(for amount: Decimal) -> Int {
+    private func upperBound(for amount: Int64) -> Int {
         var lower = 0
         var upper = entries.count
         while lower < upper {
             let middle = lower + (upper - lower) / 2
-            if entries[middle].amount.amount <= amount {
+            if entries[middle].amount <= amount {
                 lower = middle + 1
             } else {
                 upper = middle
@@ -291,24 +323,33 @@ private struct TransferDayBucket {
         return result
     }
 
+    /// Die zwei besten Einträge aus höchstens vier, je Konto nur einer.
     private func merged(_ lhs: Summary, _ rhs: Summary) -> Summary {
-        let ordered = (lhs.entryIndices + rhs.entryIndices).sorted(by: entryComesBefore)
-        var result: [Int] = []
-        result.reserveCapacity(2)
-        for index in ordered where !result.contains(where: { entries[$0].accountID == entries[index].accountID }) {
-            result.append(index)
-            if result.count == 2 { break }
+        var result = Summary()
+        // Vier Kandidaten ohne Array: zweimal das Beste der Restmenge wählen.
+        let candidates = (lhs.first, lhs.second, rhs.first, rhs.second)
+        func pick(excludingAccount: UUID?) -> Int {
+            var best = -1
+            for index in [candidates.0, candidates.1, candidates.2, candidates.3] where index >= 0 {
+                if let excludingAccount, entries[index].accountID == excludingAccount { continue }
+                if best < 0 || entryComesBefore(index, best) { best = index }
+            }
+            return best
         }
-        return Summary(entryIndices: result)
+        result.first = pick(excludingAccount: nil)
+        if result.first >= 0 {
+            result.second = pick(excludingAccount: entries[result.first].accountID)
+        }
+        return result
     }
 
     private func entryComesBefore(_ lhs: Int, _ rhs: Int) -> Bool {
-        let lhsTransaction = entries[lhs]
-        let rhsTransaction = entries[rhs]
-        if lhsTransaction.displayDate != rhsTransaction.displayDate {
-            return lhsTransaction.displayDate < rhsTransaction.displayDate
+        let lhsCredit = entries[lhs]
+        let rhsCredit = entries[rhs]
+        if lhsCredit.displayDate != rhsCredit.displayDate {
+            return lhsCredit.displayDate < rhsCredit.displayDate
         }
-        return lhsTransaction.id.uuidString < rhsTransaction.id.uuidString
+        return lhsCredit.id < rhsCredit.id
     }
 }
 

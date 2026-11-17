@@ -3,37 +3,43 @@ import Testing
 
 @testable import FinanceTracker
 
-/// Leistungsbudget (Roadmap 3.8) als normaler Test: 20.000 Buchungen auf
-/// einem Datenträger-Store. Die Grenzen gelten für den langsamen Debug-Build
-/// mit Reserve; reißt eine, ist ein Pfad deutlich langsamer geworden.
-/// Gemessen am 17.11.2026 (50.000 Buchungen, Debug): erstes Laden der
-/// Übersicht 2,4 s, Monatswechsel 0,06 s, erste Transaktionsseite 0,012 s.
+/// Leistungsbudget (Roadmap 3.8) als normaler Test: 100.000 Buchungen auf
+/// fünf Konten (mit Umbuchungen) in einem Datenträger-Store, dazu ein
+/// Import von 20.000 CSV-Zeilen. Die Grenzen gelten für den langsamen
+/// Debug-Build mit Reserve (ein Release-Testhost läuft auf macOS 26 nicht);
+/// reißt eine, ist ein Pfad deutlich langsamer geworden. Messwerte stehen
+/// in der Testausgabe (`PERF budget 100k`).
 @MainActor
 @Suite("PerformanceBudget", .serialized)
 struct PerformanceBudgetTests {
-    @Test("Übersicht, Monatswechsel und Transaktionsseite bleiben im Budget", .timeLimit(.minutes(2)))
+    @Test("100.000 Buchungen: Übersicht, Monatswechsel, Seite, Suche und Import bleiben im Budget", .timeLimit(.minutes(5)))
     func staysWithinBudget() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("perf-budget-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try SwiftDataStore(url: directory.appendingPathComponent("budget.store"))
         let dependencies = AppDependencies.make(container: store.container, baseCurrency: .eur)
-        let account = Account(name: "Giro", type: .checking, currency: .eur, source: .manual)
-        try await dependencies.accountRepository.upsert([account])
+        let accounts = (0..<5).map { Account(name: "Konto \($0)", type: .checking, currency: .eur, source: .manual) }
+        try await dependencies.accountRepository.upsert(accounts)
         let calendar = Calendar.current
         let now = Date()
         var rows: [Transaction] = []
-        rows.reserveCapacity(20_000)
-        for index in 0..<20_000 {
+        rows.reserveCapacity(100_000)
+        for index in 0..<100_000 {
+            // Jede siebte Zeile ist ein Eingang, damit die Umbuchungs-
+            // erkennung echte Kandidaten zu prüfen hat.
+            let incoming = index % 7 == 0
+            let value = Decimal(index % 300 + 1) + Decimal(index % 100) / 100
             rows.append(Transaction(
-                accountID: account.id, source: .manual, externalID: "b\(index)", status: .booked, kind: .purchase,
-                amount: Money(amount: -Decimal(index % 300 + 1), currency: .eur),
-                bookedAt: calendar.date(byAdding: .hour, value: -index * 3, to: now),
+                accountID: accounts[(index * 3 + index / 5) % 5].id, source: .manual, externalID: "b\(index)",
+                status: .booked, kind: incoming ? .transfer : .purchase,
+                amount: Money(amount: incoming ? value : -value, currency: .eur),
+                bookedAt: calendar.date(byAdding: .minute, value: -index * 40, to: now),
                 rawDescription: "Händler \(index % 400)", rawMerchantName: "Händler \(index % 400)",
                 merchantDisplayName: "Händler \(index % 400)"
             ))
         }
-        for start in stride(from: 0, to: rows.count, by: 2_000) {
-            try await dependencies.transactionRepository.upsert(Array(rows[start..<min(start + 2_000, rows.count)]))
+        for start in stride(from: 0, to: rows.count, by: 5_000) {
+            try await dependencies.transactionRepository.upsert(Array(rows[start..<min(start + 5_000, rows.count)]))
         }
 
         let clock = ContinuousClock()
@@ -45,11 +51,60 @@ struct PerformanceBudgetTests {
                 matching: TransactionQuery(), sort: .dateDescending, offset: 0, limit: 300
             )
         }
-        print("PERF budget 20k: first load \(firstLoad), month switch \(monthSwitch), first page \(firstPage)")
+        var searchQuery = TransactionQuery()
+        searchQuery.searchText = "händler 123"
+        let search = try await clock.measure {
+            _ = try await dependencies.transactionRepository.transactionPage(
+                matching: searchQuery, sort: .dateDescending, offset: 0, limit: 300
+            )
+        }
+        searchQuery.searchText = "händler 77"
+        let warmSearch = try await clock.measure {
+            _ = try await dependencies.transactionRepository.transactionPage(
+                matching: searchQuery, sort: .dateDescending, offset: 0, limit: 300
+            )
+        }
+
+        // Import: 20.000 CSV-Zeilen in ein neues Konto.
+        let importAccount = Account(name: "Import", type: .checking, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([importAccount])
+        var csv = "Datum;Beschreibung;Betrag\n"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy"
+        formatter.locale = Locale(identifier: "de_DE")
+        for index in 0..<20_000 {
+            let day = calendar.date(byAdding: .hour, value: -index * 2, to: now)!
+            csv += "\(formatter.string(from: day));Laden \(index % 500) Nr \(index);-\(index % 90 + 1),\(String(format: "%02d", index % 100))\n"
+        }
+        let pipeline = ImportPipeline(
+            providers: [GenericCSVProvider(fallbackCurrency: .eur)],
+            transactionRepository: dependencies.transactionRepository,
+            accountRepository: dependencies.accountRepository,
+            fallbackCurrency: .eur
+        )
+        var imported = 0
+        var prepared: PreparedImport?
+        let prepareDuration = try await clock.measure {
+            prepared = try await pipeline.prepare(ImportFile(fileName: "gross.csv", data: Data(csv.utf8)), into: importAccount.id)
+        }
+        let commitDuration = try await clock.measure {
+            imported = try await pipeline.commit(try #require(prepared)).importedCount
+        }
+        let importDuration = prepareDuration + commitDuration
+        print("PERF import 20k: prepare \(prepareDuration), commit \(commitDuration)")
+
+        print("PERF budget 100k: first load \(firstLoad), month switch \(monthSwitch), first page \(firstPage), search \(search) (warm \(warmSearch)), import 20k \(importDuration)")
 
         #expect(model.snapshot != nil)
-        #expect(firstLoad < .seconds(4))
+        #expect(imported == 20_000)
+        // Gemessen am 17.11.2026 (Debug): erstes Laden 4,2 s, Monatswechsel
+        // 0,26 s, erste Seite 0,01 s, Suche 0,04 s (vorher 2,6 s), Import
+        // von 20.000 Zeilen 14 s (vorher 80 s). Grenzen mit Reserve.
+        #expect(firstLoad < .seconds(7))
         #expect(monthSwitch < .milliseconds(500))
         #expect(firstPage < .milliseconds(300))
+        #expect(search < .milliseconds(300))
+        #expect(warmSearch < .milliseconds(300))
+        #expect(importDuration < .seconds(25))
     }
 }
