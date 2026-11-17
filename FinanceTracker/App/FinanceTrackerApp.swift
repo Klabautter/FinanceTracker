@@ -92,6 +92,15 @@ struct FinanceTrackerApp: App {
         AppDependencyManager.shared.add { try await bootstrapper.readyDependencies() }
     }
 
+    /// Beendet die App nach dem Rauchtest (`-smoke-test`).
+    private static func quitAfterSmokeTest() {
+        #if os(macOS)
+        NSApplication.shared.terminate(nil)
+        #else
+        exit(0)
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -119,6 +128,11 @@ struct FinanceTrackerApp: App {
                                 accountRepository: dependencies.accountRepository,
                                 transactionRepository: dependencies.transactionRepository
                             ).run()
+                            if let smokeTest = AppSmokeTest.current {
+                                await smokeTest.recordOpened(dependencies)
+                                Self.quitAfterSmokeTest()
+                                return
+                            }
                             await runAutomaticBankSync(dependencies)
                         }
                         .onReceive(NotificationCenter.default.publisher(for: Self.didBecomeActiveNotification)) { _ in
@@ -133,6 +147,12 @@ struct FinanceTrackerApp: App {
                 case .failed(let message):
                     StorageRecoveryView(message: message) {
                         bootstrapper.start()
+                    }
+                    .task {
+                        if let smokeTest = AppSmokeTest.current {
+                            smokeTest.recordOpenFailure()
+                            Self.quitAfterSmokeTest()
+                        }
                     }
                 }
             }

@@ -141,6 +141,13 @@ struct AppDependencies: Sendable {
         let location: StoreLocation = (launch.uiTestStoreURL ?? unitTestStore).map { .url($0) } ?? .live
         let store = try SwiftDataStore(location: location)
         var userDefaultsSuiteName: String?
+        if launch.isSmokeTestMode {
+            // Rauchtest der fertigen App: eigene, leere Einstellungen, damit
+            // er nichts in die Einstellungen der Installation schreibt.
+            let suite = "de.klabautter.FinanceTracker.smoke-test"
+            UserDefaults.standard.removePersistentDomain(forName: suite)
+            userDefaultsSuiteName = suite
+        }
         #if DEBUG
         if launch.isScreenshotDemoMode {
             PreviewDependencies.seedDemoData(into: store.container)

@@ -50,9 +50,12 @@ struct SystemCatalogSeeder {
     let dependencies: AppDependencies
     private let defaults: UserDefaults
 
-    init(dependencies: AppDependencies, defaults: UserDefaults = .standard) {
+    /// Ohne eigene Angabe der Einstellungsbereich der Abhängigkeiten: In
+    /// isolierten Läufen (Rauchtest, Demo) bleibt die Katalog-Version so
+    /// beim isolierten Store, statt die der echten Installation zu setzen.
+    init(dependencies: AppDependencies, defaults: UserDefaults? = nil) {
         self.dependencies = dependencies
-        self.defaults = defaults
+        self.defaults = defaults ?? dependencies.userDefaults
     }
 
     func seedIfNeeded() async {

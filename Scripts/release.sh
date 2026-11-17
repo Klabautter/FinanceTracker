@@ -30,8 +30,10 @@
 # gefundene, oder FT_SIGNING_IDENTITY="Developer ID Application: … (TEAM)").
 # Der Build wird mit Hardened Runtime und sicherem Zeitstempel signiert, bei
 # Apple notarisiert (notarytool, Schlüsselbund-Profil FT_NOTARY_PROFILE,
-# Standard "financetracker-notary") und gestapelt. Erst danach wird die
-# ZIP gepackt und mit Sparkle signiert. Ohne Developer ID bricht das Script
+# Standard "financetracker-notary") und gestapelt. Danach startet
+# Scripts/smoke-test-app.sh die fertige App mit leerem Store und jedem
+# Fixture-Store isoliert im Container. Erst danach wird die ZIP gepackt und
+# mit Sparkle signiert. Ohne Developer ID bricht das Script
 # ab: Die Release-Entitlements erlauben keine fremden Bibliotheken mehr,
 # eine selbst signierte App lüde Sparkle nicht.
 #
@@ -256,6 +258,12 @@ xcrun stapler staple "$APP" >/dev/null
 xcrun stapler validate "$APP" >/dev/null
 spctl --assess --type execute "$APP" || { echo "Gatekeeper lehnt die App ab." >&2; exit 1; }
 echo "   Notarisiert, gestapelt, von Gatekeeper akzeptiert."
+
+# Rauchtest der fertigen App: leerer Store und Fixture-Store jeder
+# ausgelieferten Schema-Version, isoliert im Container (Roadmap 4.5).
+echo "→ Rauchtest der notarisierten App …"
+"$ROOT/Scripts/smoke-test-app.sh" "$APP" | sed 's/^/   /' || {
+    echo "Die fertige App besteht den Rauchtest nicht." >&2; exit 1; }
 
 BUILT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"

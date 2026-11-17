@@ -10,6 +10,8 @@ import Foundation
 /// - `-ui-testing-privacy-on` → Privacy Mode erzwingen
 /// - `-ui-testing` → Markierung jedes UI-Test-Starts (kein automatischer
 ///   Bankabruf: Läufe gegen den Live-Store bleiben lesend)
+/// - `-smoke-test <name>` → Rauchtest der fertigen App mit vorbereitetem,
+///   isoliertem Store; schreibt ein Ergebnis und beendet sich
 /// - `-screenshot-demo` → nur DEBUG: isolierter Store mit erfundenen
 ///   Demo-Daten für die README-Screenshots; der Live-Store bleibt unberührt
 struct AppLaunchEnvironment: Sendable {
@@ -56,7 +58,12 @@ struct AppLaunchEnvironment: Sendable {
             || arguments.contains("-ui-testing-window")
             || arguments.contains("-ui-testing-appearance")
             || arguments.contains("-ui-testing")
+            || isSmokeTestMode
     }
+
+    /// Rauchtest der fertigen App (`Scripts/smoke-test-app.sh`): öffnet einen
+    /// vorbereiteten, isolierten Store, prüft ihn und beendet sich.
+    var isSmokeTestMode: Bool { AppDataDirectory.smokeTestName(arguments: arguments) != nil }
 
     /// Der automatische Bankabruf schreibt in den Store. Test- und
     /// Demo-Läufe bleiben lesend und starten ihn deshalb nie.
@@ -69,7 +76,7 @@ struct AppLaunchEnvironment: Sendable {
     }
 
     var requiresIsolatedStore: Bool {
-        isUITestingEmptyMode || isUITestingStorageErrorMode || isScreenshotDemoMode
+        isUITestingEmptyMode || isUITestingStorageErrorMode || isScreenshotDemoMode || isSmokeTestMode
     }
 
     /// Leere und fehlerhafte Testzustände laufen gegen einen isolierten

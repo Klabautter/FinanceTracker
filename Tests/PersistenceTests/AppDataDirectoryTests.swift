@@ -41,4 +41,24 @@ struct AppDataDirectoryTests {
         // Der Store bleibt davon unberührt.
         #expect(AppDataDirectory.isolatedRoot(arguments: ["FinanceTracker"]) == nil)
     }
+
+    @Test("Rauchtest: eigener isolierter Ordner, kein Bankabruf, kein Pfad außerhalb")
+    func smokeTestUsesNamedIsolatedRoot() throws {
+        let arguments = ["FinanceTracker", "-smoke-test", "fixture-v16"]
+        let root = try #require(AppDataDirectory.isolatedRoot(arguments: arguments))
+        #expect(root.lastPathComponent == "fixture-v16")
+        #expect(root.deletingLastPathComponent().lastPathComponent == "FinanceTrackerSmoke")
+        #expect(root.path.hasPrefix(FileManager.default.temporaryDirectory.path))
+
+        let environment = AppLaunchEnvironment(arguments: arguments, configuration: .release)
+        #expect(environment.isSmokeTestMode)
+        #expect(environment.requiresIsolatedStore)
+        #expect(!environment.allowsAutomaticBankSync)
+        #expect(environment.uiTestStoreURL?.deletingLastPathComponent().path == root.path)
+
+        for unsafe in ["../live", "a/b", "", ".", "name with space", String(repeating: "x", count: 65)] {
+            #expect(AppDataDirectory.smokeTestName(arguments: ["FinanceTracker", "-smoke-test", unsafe]) == nil)
+        }
+        #expect(AppDataDirectory.smokeTestName(arguments: ["FinanceTracker", "-smoke-test"]) == nil)
+    }
 }

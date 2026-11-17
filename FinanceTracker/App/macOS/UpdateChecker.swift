@@ -38,7 +38,9 @@ final class UpdateChecker {
         let isDebugBuild = false
         #endif
         let underTest = environment["XCTestConfigurationFilePath"] != nil
-        isActive = !isDebugBuild && !underTest
+        // Der Rauchtest (`-smoke-test`) startet die fertige App kurz; er
+        // soll weder nach Updates fragen noch Sparkles Startzähler setzen.
+        isActive = !isDebugBuild && !underTest && !AppLaunchEnvironment.live.isSmokeTestMode
         controller = SPUStandardUpdaterController(
             startingUpdater: isActive,
             updaterDelegate: nil,
