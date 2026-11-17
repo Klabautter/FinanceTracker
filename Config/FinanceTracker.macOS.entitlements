@@ -14,6 +14,12 @@
 	     im Data-Protection-Keychain, der Zugriff hängt an der App-Kennung
 	     und macOS fragt nicht nach. Verlangt ein Developer-ID-Provisioning-
 	     Profil (Scripts/release.sh). -->
+	<!-- Widgets (Roadmap 10.4): gemeinsamer Ordner für den Widget-Stand.
+	     Team-ID-Präfix, daher ohne Eintrag im Developer-Portal. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(TeamIdentifierPrefix)de.klabautter.FinanceTracker</string>
+	</array>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)de.klabautter.FinanceTracker</string>

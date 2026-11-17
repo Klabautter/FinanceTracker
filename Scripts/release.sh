@@ -189,7 +189,7 @@ mkdir -p "$ROOT/build"
 if ! xcodebuild build -project FinanceTracker.xcodeproj -scheme FinanceTracker \
     -configuration Release -derivedDataPath "$DERIVED" \
     CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$IDENTITY" "DEVELOPMENT_TEAM=$TEAM_ID" \
-    "PROVISIONING_PROFILE_SPECIFIER=$PROVISIONING_PROFILE" \
+    "FT_APP_PROVISIONING_PROFILE=$PROVISIONING_PROFILE" \
     "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
     >"$BUILD_LOG" 2>&1; then
     grep -E " error: " "$BUILD_LOG" | head -20 >&2 || true
@@ -233,6 +233,17 @@ if [[ "$APP_ENTITLEMENTS" == *"get-task-allow"* ]]; then
     echo "App enthält com.apple.security.get-task-allow, Notarisierung würde scheitern." >&2
     exit 1
 fi
+# Widget-Erweiterung: von uns signiert, mit Hardened Runtime und derselben
+# App-Group wie die App (sonst sehen die Widgets keinen Stand).
+WIDGETS="$APP/Contents/PlugIns/FinanceTrackerWidgets.appex"
+[ -d "$WIDGETS" ] || { echo "Widget-Erweiterung fehlt in der App." >&2; exit 1; }
+WIDGET_SIGN_INFO="$(codesign -dvv "$WIDGETS" 2>&1)"
+[[ "$WIDGET_SIGN_INFO" == *"TeamIdentifier=$TEAM_ID"* && "$WIDGET_SIGN_INFO" == *"runtime"* ]] || {
+    echo "Widget-Erweiterung ist nicht mit der Developer ID und Hardened Runtime signiert." >&2; exit 1; }
+WIDGET_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$WIDGETS" 2>/dev/null)"
+[[ "$WIDGET_ENTITLEMENTS" == *"$TEAM_ID.de.klabautter.FinanceTracker"* \
+    && "$APP_ENTITLEMENTS" == *"com.apple.security.application-groups"* ]] || {
+    echo "App-Group fehlt in App oder Widget-Erweiterung." >&2; exit 1; }
 # Ohne eingebettetes Profil startet eine App mit Schlüsselbund-Gruppe nicht.
 [ -f "$APP/Contents/embedded.provisionprofile" ] \
     && [[ "$APP_ENTITLEMENTS" == *"$TEAM_ID.de.klabautter.FinanceTracker"* ]] || {

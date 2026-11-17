@@ -60,6 +60,8 @@ targets:
           - "App/iOS"
     dependencies:
       - package: Sparkle
+      # Widgets (Roadmap 10.4), als Erweiterung in Contents/PlugIns.
+      - target: FinanceTrackerWidgets_macOS
     # Debug: optionale lokale Signatur (Config/Signing.local.xcconfig).
     configFiles:
       Debug: Config/Debug.xcconfig
@@ -86,6 +88,10 @@ targets:
           CODE_SIGN_ENTITLEMENTS: Config/FinanceTracker.macOS.Debug.entitlements
         Release:
           CODE_SIGN_ENTITLEMENTS: Config/FinanceTracker.macOS.entitlements
+          # Das Developer-ID-Profil gilt nur für die App, nicht für die
+          # Widget-Erweiterung (andere Bundle-ID, braucht keins). release.sh
+          # setzt FT_APP_PROVISIONING_PROFILE.
+          PROVISIONING_PROFILE_SPECIFIER: $(FT_APP_PROVISIONING_PROFILE)
         # WP19 (§130-131): Performance ist release-like: Sandbox wie
         # Release, -O, SQLDebug/MigrationDebug aus, aber Testability für
         # XCTest-Metriken. Eigene Entitlements: Sandbox wie Release plus
@@ -96,15 +102,17 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: -O
           ENABLE_TESTABILITY: YES
 
-  # Widgets (Roadmap 10.4). Noch NICHT in die App eingebettet: Das braucht
-  # eine Signatur mit Team-ID für die gemeinsame App-Group und in
-  # Scripts/release.sh ein Provisioning-Profil nur für das App-Target.
-  # Einbetten: unter FinanceTracker_macOS.dependencies
-  #   - target: FinanceTrackerWidgets_macOS
-  # ergänzen und die App-Group auch in Config/FinanceTracker.macOS.entitlements.
+  # Widgets (Roadmap 10.4): eingebettet in FinanceTracker_macOS. Gemeinsamer
+  # Stand über die App-Group <TeamID>.de.klabautter.FinanceTracker, die nur
+  # die Release-App trägt (Debug ist selbst signiert, ohne Team-ID: dort
+  # zeigen die Widgets „FinanceTracker öffnen …“).
   FinanceTrackerWidgets_macOS:
     type: app-extension
     platform: macOS
+    # Debug: dieselbe lokale Signatur wie die App, sonst lehnt Xcode die
+    # eingebettete Erweiterung ab.
+    configFiles:
+      Debug: Config/Debug.xcconfig
     sources:
       - path: Widgets
       - path: FinanceTracker/Features/Widgets/WidgetSnapshot.swift

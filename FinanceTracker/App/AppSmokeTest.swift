@@ -30,7 +30,7 @@ struct AppSmokeTest: Sendable {
             func milliseconds(_ duration: Duration) -> Int64 {
                 duration.components.seconds * 1_000 + duration.components.attoseconds / 1_000_000_000_000_000
             }
-            write("ok accounts=\(accounts) transactions=\(transactions) categories=\(categories) overviewVisibleMs=\(milliseconds(cold.visible)) overviewCompleteMs=\(milliseconds(cold.complete)) warmVisibleMs=\(milliseconds(warm.visible)) warmCompleteMs=\(milliseconds(warm.complete))")
+            write("ok accounts=\(accounts) transactions=\(transactions) categories=\(categories) overviewVisibleMs=\(milliseconds(cold.visible)) overviewCompleteMs=\(milliseconds(cold.complete)) warmVisibleMs=\(milliseconds(warm.visible)) warmCompleteMs=\(milliseconds(warm.complete)) widgetStore=\(WidgetSnapshotStore.shared() != nil ? "available" : "none")")
         } catch {
             write("failed: read \(type(of: error))")
         }
