@@ -1,9 +1,12 @@
 import Foundation
 
 /// Eine Frage in normaler Sprache („Wie viel für Restaurants im Sommer?",
-/// „Was habe ich letzten Monat bei REWE ausgegeben?"), lokal und regelbasiert
-/// in Zeitraum, Kategorie, Händler und Richtung übersetzt. Kein Netz, kein
-/// Sprachmodell: was nicht erkannt wird, bleibt offen und wird angezeigt.
+/// „Was habe ich letzten Monat bei REWE ausgegeben?"), lokal in Zeitraum,
+/// Kategorie, Händler und Richtung übersetzt. Zeitraum, Händler und
+/// wörtlich genannte Kategorien erkennen feste Regeln; für freie
+/// Formulierungen („Essen gehen") fragt die App das Sprachmodell des Geräts
+/// (`FinanceQuestionInterpreter`), das nur unter den vorhandenen Kategorien
+/// wählen kann. Gerechnet wird immer mit den Regeln der App, nie vom Modell.
 struct FinanceQuestion: Equatable, Sendable {
     enum Measure: Equatable, Sendable {
         case spending
@@ -27,6 +30,17 @@ struct FinanceAnswer: Equatable, Sendable {
     let transactionIDs: [UUID]
     /// Buchungen in Fremdwährung ohne Kurs (nicht in der Summe).
     let excludedCount: Int
+}
+
+/// Versteht freie Formulierungen einer Frage. Läuft auf dem Gerät; wo es
+/// kein Modell gibt, bleibt es bei den festen Regeln.
+protocol FinanceQuestionInterpreter: Sendable {
+    /// Ob auf diesem Gerät gerade ein Modell bereitsteht.
+    var isAvailable: Bool { get }
+
+    /// Die Kategorie aus `categoryNames`, nach der die Frage fragt.
+    /// - Returns: `nil`, wenn die Frage keine davon meint.
+    func categoryName(inQuestion question: String, categoryNames: [String]) async -> String?
 }
 
 enum FinanceQuestionParser {
@@ -89,35 +103,79 @@ enum FinanceQuestionParser {
         return question
     }
 
+    /// Setzt die vom Sprachmodell erkannte Kategorie (samt Unterkategorien)
+    /// in eine Frage ein, in der die Regeln keine gefunden haben.
+    static func assigning(category: Category, to question: FinanceQuestion, categories: [Category]) -> FinanceQuestion {
+        var result = question
+        result.categoryIDs = [category.id]
+        result.categoryNames = [category.name]
+        for child in categories where child.parentID == category.id {
+            result.categoryIDs.insert(child.id)
+        }
+        return result
+    }
+
+    /// - Parameter splitLines: Positionen aufgeteilter Buchungen. Fragt die
+    ///   Frage nach einer Kategorie, zählt eine aufgeteilte Buchung nur mit
+    ///   den Positionen dieser Kategorie: dieselbe Zerlegung wie in Analyse
+    ///   und Budgets (AGENTS #28), sonst zeigten beide verschiedene Summen.
     static func answer(
         _ question: FinanceQuestion,
         transactions: [Transaction],
+        splitLines: [TransactionSplitLine] = [],
         baseCurrency: CurrencyCode,
         converter: CurrencyConverter
     ) -> FinanceAnswer {
         let policy = CashflowPolicy.shared
+        let splitsByParent = Dictionary(grouping: splitLines, by: \.parentTransactionID)
         var total: Decimal = 0
         var ids: [UUID] = []
         var excluded = 0
         for txn in transactions where txn.status.isEffective && !policy.isExcluded(txn) {
             guard question.period.containsHalfOpen(txn.displayDate) else { continue }
-            if !question.categoryIDs.isEmpty, !txn.categoryID.map(question.categoryIDs.contains).isTrue { continue }
             if let merchantKey = question.merchantKey,
                !normalize(txn.effectiveMerchantName).contains(merchantKey) { continue }
-            let delta: Decimal
-            switch (question.measure, policy.contribution(for: txn)) {
-            case (.spending, .spending(let value)): delta = value
-            case (.income, .income(let value)): delta = value
-            default: continue
+
+            // Ohne Kategoriefrage zählt die Buchung als Ganzes. Mit
+            // Kategoriefrage zählen bei einer aufgeteilten Buchung ihre
+            // passenden Positionen, sonst die Buchung mit ihrer Kategorie.
+            var parts = [txn]
+            if !question.categoryIDs.isEmpty {
+                if let lines = splitsByParent[txn.id], !lines.isEmpty {
+                    let sign: Decimal = txn.amount.amount < 0 ? -1 : 1
+                    parts = lines
+                        .filter { $0.categoryID.map(question.categoryIDs.contains) == true }
+                        .map { line in
+                            var part = txn
+                            part.categoryID = line.categoryID
+                            part.amount = Money(amount: sign * line.amount, currency: txn.amount.currency)
+                            return part
+                        }
+                } else if txn.categoryID.map(question.categoryIDs.contains) != true {
+                    continue
+                }
             }
-            guard let converted = converter.convert(
-                Transaction.convertible(amount: delta, from: txn), to: baseCurrency
-            ) else {
-                excluded += 1
-                continue
+
+            var counted = false
+            var missingRate = false
+            for part in parts {
+                let delta: Decimal
+                switch (question.measure, policy.contribution(for: part)) {
+                case (.spending, .spending(let value)): delta = value
+                case (.income, .income(let value)): delta = value
+                default: continue
+                }
+                guard let converted = converter.convert(
+                    Transaction.convertible(amount: delta, from: part), to: baseCurrency
+                ) else {
+                    missingRate = true
+                    continue
+                }
+                total += converted.amount
+                counted = true
             }
-            total += converted.amount
-            ids.append(txn.id)
+            if counted { ids.append(txn.id) }
+            if missingRate { excluded += 1 }
         }
         return FinanceAnswer(question: question, total: total, currency: baseCurrency, transactionIDs: ids, excludedCount: excluded)
     }

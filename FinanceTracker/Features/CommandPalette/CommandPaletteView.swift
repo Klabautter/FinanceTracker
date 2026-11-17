@@ -3,7 +3,7 @@ import SwiftUI
 /// Command Palette (Roadmap #158–160, ⌘K): schnelle Suche + Navigation.
 struct CommandPaletteView: View {
     /// Nur, was dieser Typ nutzt (Roadmap 7.4, `DependencyCapabilities`).
-    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasFxRateProvider & HasMerchantRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+    typealias Dependencies = CommandPaletteModel.Dependencies
 
     let dependencies: Dependencies
     let reviewCount: Int?
@@ -15,7 +15,7 @@ struct CommandPaletteView: View {
     @State private var query = ""
     @State private var transactionResults: [CommandPaletteModel.Entry] = []
     /// Antwort, wenn die Eingabe eine Frage ist („Wie viel für Restaurants im Sommer?").
-    @State private var questionAnswer: String?
+    @State private var questionAnswer: CommandPaletteModel.QuestionAnswer?
     @State private var searchTask: Task<Void, Never>?
     @FocusState private var searchFocused: Bool
     /// Per Tastatur markierter Treffer (↑/↓, Return öffnet ihn).
@@ -89,9 +89,18 @@ struct CommandPaletteView: View {
             } else {
                 if let questionAnswer {
                     Section("Antwort") {
-                        Label(questionAnswer, systemImage: "text.bubble")
+                        Label(questionAnswer.text, systemImage: "text.bubble")
                             .textSelection(.enabled)
                             .accessibilityIdentifier("palette-question-answer")
+                        // Die Buchungen hinter der Summe, damit sie sich prüfen lässt.
+                        ForEach(questionAnswer.entries) { entry in
+                            row(entry)
+                        }
+                        if questionAnswer.hiddenCount > 0 {
+                            Text("und \(questionAnswer.hiddenCount) weitere Buchungen")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 if !filteredNavigationEntries.isEmpty {
@@ -151,7 +160,10 @@ struct CommandPaletteView: View {
                     try? await Task.sleep(for: .milliseconds(250))
                     guard !Task.isCancelled else { return }
                     transactionResults = await model?.transactionEntries(query: newValue) ?? []
-                    questionAnswer = await model?.answer(question: newValue)
+                    let answer = await model?.answer(question: newValue)
+                    // Eine überholte Frage überschreibt die Antwort der neuen nicht.
+                    guard !Task.isCancelled else { return }
+                    questionAnswer = answer
                 }
             }
             .task {
@@ -190,7 +202,8 @@ struct CommandPaletteView: View {
     private var visibleEntries: [CommandPaletteModel.Entry] {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return navigationEntries }
         guard let model else { return [] }
-        return filteredNavigationEntries
+        return (questionAnswer?.entries ?? [])
+            + filteredNavigationEntries
             + model.accountEntries(query: query)
             + model.categoryEntries(query: query)
             + model.tagEntries(query: query)

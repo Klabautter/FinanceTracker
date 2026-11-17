@@ -47,6 +47,10 @@ struct AppDependencies: Sendable {
     /// Kategorie-Vorschläge aus dem Händlernamen über das Sprachmodell des
     /// Geräts. `nil`, wo es keines gibt, und in Tests.
     let categoryAdvisor: (any MerchantCategoryAdvisor)?
+    /// Ordnet freie Formulierungen einer Frage („Essen gehen") über das
+    /// Sprachmodell des Geräts einer Kategorie zu. `nil`, wo es keines
+    /// gibt, und in Tests.
+    let questionInterpreter: (any FinanceQuestionInterpreter)?
     /// Eine Instanz pro App: liest den Schlüsselbund nur einmal pro Lauf.
     let enableBankingCredentialStore: any EnableBankingCredentialStoring
     /// Bankliste je Land, damit der Verbinden-Dialog beim zweiten Mal sofort steht.
@@ -82,6 +86,7 @@ struct AppDependencies: Sendable {
         preferences: any AppPreferences = UserDefaultsAppPreferences(),
         userDefaultsSuiteName: String? = nil,
         categoryAdvisor: (any MerchantCategoryAdvisor)? = nil,
+        questionInterpreter: (any FinanceQuestionInterpreter)? = nil,
         enableBankingCredentialStore: any EnableBankingCredentialStoring = KeychainEnableBankingCredentialStore(),
         bankInstitutionCache: BankInstitutionCache = BankInstitutionCache(),
         bankSyncCoordinator: BankSyncCoordinator = BankSyncCoordinator()
@@ -112,6 +117,7 @@ struct AppDependencies: Sendable {
         self.preferences = preferences
         self.userDefaultsSuiteName = userDefaultsSuiteName
         self.categoryAdvisor = categoryAdvisor
+        self.questionInterpreter = questionInterpreter
         self.enableBankingCredentialStore = enableBankingCredentialStore
         self.bankInstitutionCache = bankInstitutionCache
         self.bankSyncCoordinator = bankSyncCoordinator
@@ -162,7 +168,8 @@ struct AppDependencies: Sendable {
             // Als Host der Unit-Tests keine Kurs-Historie aus dem Netz laden.
             fxRateProvider: ECBFXRateProvider(loadsHistory: AppDataDirectory.unitTestRoot() == nil),
             userDefaultsSuiteName: userDefaultsSuiteName,
-            categoryAdvisor: MerchantCategoryAdvisorFactory.systemAdvisor()
+            categoryAdvisor: MerchantCategoryAdvisorFactory.systemAdvisor(),
+            questionInterpreter: FinanceQuestionInterpreterFactory.systemInterpreter()
         )
     }
 
@@ -175,7 +182,8 @@ struct AppDependencies: Sendable {
         fxRateProvider: (any FXRateProvider)? = nil,
         preferences: (any AppPreferences)? = nil,
         userDefaultsSuiteName: String? = nil,
-        categoryAdvisor: (any MerchantCategoryAdvisor)? = nil
+        categoryAdvisor: (any MerchantCategoryAdvisor)? = nil,
+        questionInterpreter: (any FinanceQuestionInterpreter)? = nil
     ) -> AppDependencies {
         let enableBankingCredentialStore = KeychainEnableBankingCredentialStore()
         return AppDependencies(
@@ -216,6 +224,7 @@ struct AppDependencies: Sendable {
             preferences: preferences ?? UserDefaultsAppPreferences(),
             userDefaultsSuiteName: userDefaultsSuiteName,
             categoryAdvisor: categoryAdvisor,
+            questionInterpreter: questionInterpreter,
             enableBankingCredentialStore: enableBankingCredentialStore
         )
     }

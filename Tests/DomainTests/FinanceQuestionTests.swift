@@ -77,4 +77,30 @@ struct FinanceQuestionTests {
         #expect(answer.total == 65)
         #expect(answer.transactionIDs.count == 2)
     }
+
+    @Test("Aufgeteilte Buchung: nur die Positionen der gefragten Kategorie zählen")
+    func answerExpandsSplits() {
+        var parent = Transaction(
+            accountID: UUID(), source: .demo, externalID: "split", status: .booked, kind: .purchase,
+            amount: Money(amount: -100, currency: .eur), bookedAt: date(2026, 7, 3),
+            rawDescription: "X", rawMerchantName: "X", merchantDisplayName: "X"
+        )
+        parent.categoryID = groceries.id
+        let lines = [
+            TransactionSplitLine(parentTransactionID: parent.id, amount: 70, categoryID: groceries.id),
+            TransactionSplitLine(parentTransactionID: parent.id, amount: 30, categoryID: restaurants.id)
+        ]
+        func total(_ text: String, _ categories: [FinanceTracker.Category]) -> FinanceAnswer {
+            FinanceQuestionParser.answer(
+                FinanceQuestionParser.parse(text, categories: categories, merchantNames: [], now: now, calendar: calendar),
+                transactions: [parent], splitLines: lines, baseCurrency: .eur, converter: CurrencyConverter()
+            )
+        }
+        #expect(total("Restaurants im Sommer", [restaurants, groceries]).total == 30)
+        #expect(total("Lebensmittel im Sommer", [restaurants, groceries]).total == 70)
+        // Ohne Kategorie zählt die Buchung als Ganzes, genau einmal.
+        let everything = total("Ausgaben im Sommer", [])
+        #expect(everything.total == 100)
+        #expect(everything.transactionIDs == [parent.id])
+    }
 }

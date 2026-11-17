@@ -6,7 +6,7 @@ import Foundation
 @Observable
 final class CommandPaletteModel {
     /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
-    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasFxRateProvider & HasMerchantRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasFxRateProvider & HasMerchantRepository & HasQuestionInterpreter & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
 
     struct Entry: Identifiable, Hashable {
         enum Kind: Hashable {
@@ -23,6 +23,18 @@ final class CommandPaletteModel {
         let title: String
         let subtitle: String?
         let kind: Kind
+    }
+
+    /// Antwort auf eine Frage: die Zeile mit der Summe und die Buchungen,
+    /// aus denen sie besteht (neueste zuerst, höchstens `shownLimit`).
+    struct QuestionAnswer: Equatable {
+        static let shownLimit = 8
+
+        let text: String
+        let entries: [Entry]
+        /// Alle Buchungen hinter der Summe, auch die nicht gezeigten.
+        let transactionCount: Int
+        var hiddenCount: Int { max(0, transactionCount - entries.count) }
     }
 
     private let dependencies: Dependencies
@@ -136,21 +148,36 @@ final class CommandPaletteModel {
     }
 
     /// Antwort auf eine Frage in normaler Sprache, ausgerechnet wie überall
-    /// in der App (Cashflow-Regel, Anmerkungen, Umrechnung). `nil`, wenn die
-    /// Eingabe keine Frage ist.
-    func answer(question text: String, now: Date = Date()) async -> String? {
+    /// in der App (Cashflow-Regel, Anmerkungen, Splits, Umrechnung), mit den
+    /// Buchungen hinter der Summe. `nil`, wenn die Eingabe keine Frage ist.
+    func answer(question text: String, now: Date = Date()) async -> QuestionAnswer? {
         guard Self.looksLikeQuestion(text) else { return nil }
         do {
             let merchantNames = try await dependencies.merchantRepository.merchants().map(\.displayName)
-            let question = FinanceQuestionParser.parse(text, categories: categories, merchantNames: merchantNames, now: now)
+            var question = FinanceQuestionParser.parse(text, categories: categories, merchantNames: merchantNames, now: now)
+            // Nennt die Frage weder eine Kategorie noch einen Händler beim
+            // Namen, ordnet das Sprachmodell des Geräts die Formulierung
+            // einer vorhandenen Kategorie zu („Essen gehen" → Restaurants).
+            if question.categoryIDs.isEmpty, question.merchantKey == nil,
+               let interpreter = dependencies.questionInterpreter, interpreter.isAvailable,
+               let name = await interpreter.categoryName(inQuestion: text, categoryNames: categories.map(\.name)),
+               let category = categories.first(where: { $0.name == name }) {
+                question = FinanceQuestionParser.assigning(category: category, to: question, categories: categories)
+            }
             var query = TransactionQuery()
             query.dateInterval = question.period
             let raw = try await dependencies.transactionRepository.transactions(matching: query)
             let annotations = try await dependencies.transactionAnnotationRepository.annotations(transactionIDs: Set(raw.map(\.id)))
             let effective = EffectiveTransactionResolver().applying(annotations: annotations, to: raw)
+            // Positionen nur, wenn nach einer Kategorie gefragt ist; ohne
+            // Kategorie zählt jede Buchung als Ganzes.
+            let splitLines = question.categoryIDs.isEmpty
+                ? []
+                : try await dependencies.transactionSplitRepository.splitLines(parentTransactionIDs: Set(raw.map(\.id)))
             let converter = await dependencies.fxRateProvider.converter()
             let result = FinanceQuestionParser.answer(
-                question, transactions: effective, baseCurrency: dependencies.baseCurrency, converter: converter
+                question, transactions: effective, splitLines: splitLines,
+                baseCurrency: dependencies.baseCurrency, converter: converter
             )
             let amount = PrivacyAwareMoney.signed(Money(amount: result.total, currency: result.currency), privacy: privacyState)
                 .replacingOccurrences(of: "+", with: "")
@@ -163,9 +190,27 @@ final class CommandPaletteModel {
             if result.excludedCount > 0 {
                 line += " " + String(localized: "ohne \(result.excludedCount) Buchungen ohne Kurs")
             }
-            return line
+
+            let counted = Set(result.transactionIDs)
+            let entries = effective
+                .filter { counted.contains($0.id) }
+                .sorted { $0.displayDate > $1.displayDate }
+                .prefix(QuestionAnswer.shownLimit)
+                .map { txn in
+                    Entry(
+                        id: "answer-txn-\(txn.id.uuidString)",
+                        title: txn.effectiveMerchantName,
+                        subtitle: "\(AppDateFormatter.day(txn.displayDate)) · \(PrivacyAwareMoney.signed(txn.amount, privacy: privacyState))",
+                        kind: .transaction(txn)
+                    )
+                }
+            return QuestionAnswer(text: line, entries: Array(entries), transactionCount: counted.count)
         } catch {
-            return String(localized: "Die Frage ließ sich gerade nicht beantworten.")
+            return QuestionAnswer(
+                text: String(localized: "Die Frage ließ sich gerade nicht beantworten."),
+                entries: [],
+                transactionCount: 0
+            )
         }
     }
 
