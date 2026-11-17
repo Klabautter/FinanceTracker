@@ -61,6 +61,19 @@ struct TransactionAttachmentSection: View {
                 }
             }
 
+            if let removed = model.lastRemoved {
+                HStack(spacing: AppSpacing.s) {
+                    Text("„\(removed.attachment.fileName)“ entfernt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Button("Rückgängig") { Task { await model.undoDelete() } }
+                        .controlSize(.small)
+                        .accessibilityIdentifier("attachment-undo-delete")
+                }
+            }
+
             if let actionError = model.actionError {
                 Label(actionError, systemImage: "exclamationmark.triangle")
                     .font(.caption)
@@ -93,7 +106,7 @@ struct TransactionAttachmentSection: View {
             }
             Button("Abbrechen", role: .cancel) {}
         } message: { attachment in
-            Text("„\(attachment.fileName)“ wird von diesem Mac entfernt. Das lässt sich nicht rückgängig machen.")
+            Text("„\(attachment.fileName)“ wird von diesem Mac entfernt. Direkt danach lässt sich das noch rückgängig machen.")
         }
         .fileImporter(
             isPresented: $showsImporter,
@@ -159,6 +172,13 @@ final class TransactionAttachmentModel {
     private(set) var attachments: [TransactionAttachment] = []
     private(set) var loadState: LoadState = .idle
     private(set) var actionError: String?
+    /// Der zuletzt entfernte Beleg samt Inhalt: bis zur nächsten Aktion
+    /// lässt sich das Entfernen zurücknehmen (Roadmap 2.5).
+    struct RemovedAttachment {
+        let attachment: TransactionAttachment
+        let data: Data
+    }
+    private(set) var lastRemoved: RemovedAttachment?
     private let transactionID: Transaction.ID
     private let dependencies: Dependencies
     private let baseDirectory: URL?
@@ -263,15 +283,63 @@ final class TransactionAttachmentModel {
         do {
             let service = try service()
             let relativePath = attachment.localRelativePath
-            try await Task.detached(priority: .userInitiated) {
+            // Inhalt vor dem Löschen merken, damit sich der Schritt
+            // zurücknehmen lässt. Fehlt die Datei schon, gibt es nichts
+            // zurückzuholen; der Eintrag wird trotzdem entfernt.
+            let data = try await Task.detached(priority: .userInitiated) { () -> Data? in
+                let data = try? service.data(forRelativePath: relativePath)
                 try service.delete(relativePath: relativePath)
+                return data
             }.value
             try await dependencies.transactionAttachmentRepository.delete(id: attachment.id)
+            lastRemoved = data.map { RemovedAttachment(attachment: attachment, data: $0) }
             actionError = nil
             await load()
         } catch {
             actionError = String(localized: "Beleg-Datei konnte nicht entfernt werden. Eintrag bleibt erhalten.")
         }
+    }
+
+    /// Legt den zuletzt entfernten Beleg wieder ab (Datei und Eintrag).
+    func undoDelete() async {
+        guard let removed = lastRemoved else { return }
+        do {
+            let service = try service()
+            let attachment = removed.attachment
+            let data = removed.data
+            let stored = try await Task.detached(priority: .userInitiated) {
+                try service.store(
+                    data: data,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    transactionID: attachment.transactionID
+                )
+            }.value
+            do {
+                try await dependencies.transactionAttachmentRepository.add(TransactionAttachment(
+                    id: attachment.id,
+                    transactionID: attachment.transactionID,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    localRelativePath: stored.relativePath,
+                    createdAt: attachment.createdAt
+                ))
+            } catch {
+                // Keine Datei ohne Eintrag zurücklassen.
+                try? service.delete(relativePath: stored.relativePath)
+                throw error
+            }
+            lastRemoved = nil
+            actionError = nil
+            await load()
+        } catch {
+            actionError = String(localized: "Der Beleg konnte nicht wiederhergestellt werden.")
+        }
+    }
+
+    /// Verwirft die Möglichkeit, das letzte Entfernen zurückzunehmen.
+    func forgetRemoved() {
+        lastRemoved = nil
     }
 
     /// Pfad der Belegdatei; `nil` mit sichtbarem Fehler, wenn sie fehlt.

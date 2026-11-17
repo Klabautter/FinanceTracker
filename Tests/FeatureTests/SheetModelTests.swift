@@ -169,6 +169,17 @@ struct SheetModelTests {
         await model.delete(attachment)
         #expect(model.attachments.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: stored.path))
+
+        // Rückgängig legt Datei und Eintrag wieder ab, mit demselben Inhalt.
+        #expect(model.lastRemoved?.attachment.id == attachment.id)
+        await model.undoDelete()
+        #expect(model.actionError == nil)
+        #expect(model.lastRemoved == nil)
+        let restored = try #require(model.attachments.first)
+        #expect(restored.id == attachment.id)
+        #expect(restored.fileName == "Rechnung.pdf")
+        let restoredURL = try #require(model.existingFileURL(for: restored))
+        #expect(try Data(contentsOf: restoredURL) == Data("%PDF-1.4 test".utf8))
     }
 
     @Test("Belege: nur PDF und Bilder werden beim Ziehen angenommen")

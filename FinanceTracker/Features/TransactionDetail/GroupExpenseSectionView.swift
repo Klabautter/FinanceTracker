@@ -112,6 +112,16 @@ struct GroupExpenseSectionView: View {
             if let error = model.actionError {
                 InlineNotice(message: error, tone: .critical)
             }
+            if let removed = model.lastRemovedShare {
+                HStack(spacing: AppSpacing.s) {
+                    Text("Anteil von \(removed.owedBy) an \(removed.paidBy) gelöscht")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Rückgängig") { Task { await model.undoDeleteShare() } }
+                        .controlSize(.small)
+                        .accessibilityIdentifier("group-expense-undo-delete")
+                }
+            }
         }
         .accessibilityIdentifier("group-expense-section")
         .task(id: transaction.id) {

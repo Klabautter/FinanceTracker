@@ -75,6 +75,27 @@ struct GroupExpenseSectionModelTests {
         #expect(model.shares.first?.shareAmount == 1500)
     }
 
+    @Test("Gelöschter Anteil lässt sich unverändert zurückholen")
+    func deletedShareCanBeRestored() async throws {
+        let dependencies = try makeDependencies()
+        let txn = sampleTransaction()
+        try await dependencies.transactionRepository.upsert([txn])
+        let model = GroupExpenseSectionModel(transaction: txn, dependencies: dependencies)
+        await model.load()
+        #expect(await model.addShare(paidBy: "Alex", owedBy: "Mara", amountText: "30", currency: .eur))
+        let share = try #require(model.shares.first)
+
+        await model.deleteShare(id: share.id)
+        #expect(model.shares.isEmpty)
+        #expect(model.lastRemovedShare == share)
+        #expect(try await dependencies.sharedExpenseShareRepository.shares(transactionID: txn.id).isEmpty)
+
+        await model.undoDeleteShare()
+        #expect(model.shares == [share])
+        #expect(model.lastRemovedShare == nil)
+        #expect(try await dependencies.sharedExpenseShareRepository.shares(transactionID: txn.id) == [share])
+    }
+
     @Test("Hinzufügen + Salden je Währung getrennt (#19/#35)")
     func addAndSeparateCurrencies() async throws {
         let dependencies = try makeDependencies()

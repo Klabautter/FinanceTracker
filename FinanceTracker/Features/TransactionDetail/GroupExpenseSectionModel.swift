@@ -36,6 +36,8 @@ final class GroupExpenseSectionModel {
     private(set) var availableAccounts: [Account] = []
     /// Explizit gewähltes Ausgleichs-Zielkonto (nil = Transaktionskonto).
     var settlementAccountID: UUID?
+    /// Der zuletzt gelöschte Anteil: bis zur nächsten Löschung zurückholbar.
+    private(set) var lastRemovedShare: SharedExpenseShare?
 
     init(
         transaction: Transaction,
@@ -180,12 +182,32 @@ final class GroupExpenseSectionModel {
     func deleteShare(id: UUID) async {
         guard let index = shares.firstIndex(where: { $0.id == id }) else { return }
         let removed = shares.remove(at: index)
+        actionError = nil
         do {
             try await shareRepository.delete(id: removed.id)
+            lastRemovedShare = removed
             changeTracker.markChanged()
         } catch {
             shares.insert(removed, at: min(index, shares.count))
             actionError = String(localized: "Anteil konnte nicht gelöscht werden.")
+        }
+    }
+
+    /// Legt den zuletzt gelöschten Anteil unverändert wieder an (Roadmap 2.5).
+    func undoDeleteShare() async {
+        guard let share = lastRemovedShare else { return }
+        actionError = nil
+        do {
+            try await shareRepository.upsert([share])
+            lastRemovedShare = nil
+            shares.append(share)
+            shares.sort {
+                if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+            changeTracker.markChanged()
+        } catch {
+            actionError = String(localized: "Der Anteil konnte nicht wiederhergestellt werden.")
         }
     }
 
