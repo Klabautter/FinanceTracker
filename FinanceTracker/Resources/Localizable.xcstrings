@@ -1875,6 +1875,16 @@
         }
       }
     },
+    "%lld manuell erfasste Buchungen werden entfernt. Angehängte Belege werden mitgelöscht." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld manually entered transactions will be removed. Attached receipts are deleted with them."
+          }
+        }
+      }
+    },
     "%lld mögliche Doppelbuchungen aus anderer Quelle (kein automatischer Abgleich)" : {
       "localizations" : {
         "de" : {
@@ -2629,6 +2639,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "API response: %@"
+          }
+        }
+      }
+    },
+    "Ab Datenzeile %lld beginnt ein Anführungszeichen, das bis zum Dateiende nicht geschlossen wird. Die Datei ist unvollständig oder beschädigt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A quotation mark starting at data row %lld is never closed before the end of the file. The file is incomplete or damaged."
           }
         }
       }
@@ -4105,6 +4125,16 @@
         }
       }
     },
+    "Anteil von %@ an %@ gelöscht" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share from %1$@ to %2$@ deleted"
+          }
+        }
+      }
+    },
     "Anteil, Betrag" : {
       "localizations" : {
         "de" : {
@@ -4789,6 +4819,16 @@
         }
       }
     },
+    "Ausgewählte Buchungen löschen?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete selected transactions?"
+          }
+        }
+      }
+    },
     "Ausgleich %@ an %@ über %@ als manuellen Transfer buchen" : {
       "localizations" : {
         "de" : {
@@ -5001,6 +5041,16 @@
         }
       }
     },
+    "Backup erstellen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Backup"
+          }
+        }
+      }
+    },
     "Backup gespeichert: %@" : {
       "localizations" : {
         "de" : {
@@ -5029,6 +5079,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Backup could not be created: %@"
+          }
+        }
+      }
+    },
+    "Backup mit Passwort exportieren…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Backup with Password…"
+          }
+        }
+      }
+    },
+    "Backup mit Passwort schützen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protect Backup with a Password"
           }
         }
       }
@@ -5065,6 +5135,16 @@
         }
       }
     },
+    "Backup wird geöffnet…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening backup…"
+          }
+        }
+      }
+    },
     "Backup wird verarbeitet…" : {
       "localizations" : {
         "de" : {
@@ -5077,6 +5157,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Processing backup…"
+          }
+        }
+      }
+    },
+    "Backup wird verschlüsselt…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encrypting backup…"
           }
         }
       }
@@ -5385,6 +5475,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bank refresh incomplete"
+          }
+        }
+      }
+    },
+    "Bankbuchungen in der Auswahl bleiben erhalten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bank transactions in the selection are kept."
           }
         }
       }
@@ -5964,6 +6064,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Receipts"
+          }
+        }
+      }
+    },
+    "Belege einschließen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include receipts"
           }
         }
       }
@@ -6790,6 +6900,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Please choose an account."
+          }
+        }
+      }
+    },
+    "Bitte ein Passwort eingeben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please enter a password."
           }
         }
       }
@@ -8043,6 +8163,16 @@
         }
       }
     },
+    "Das Backup wird mit diesem Passwort verschlüsselt. Ohne das Passwort lässt es sich nicht wiederherstellen; die App speichert es nirgends und kann es nicht zurücksetzen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup is encrypted with this password. Without the password it cannot be restored; the app does not store it anywhere and cannot reset it."
+          }
+        }
+      }
+    },
     "Das Backup wurde nicht gespeichert, weil es sich nicht wiederherstellen ließe: %@" : {
       "localizations" : {
         "en" : {
@@ -8177,6 +8307,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The PDF couldn't be opened (damaged or password-protected)."
+          }
+        }
+      }
+    },
+    "Das Passwort braucht mindestens %lld Zeichen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The password needs at least %lld characters."
+          }
+        }
+      }
+    },
+    "Das Passwort passt nicht zu diesem Backup, oder die Datei ist beschädigt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The password does not match this backup, or the file is damaged."
           }
         }
       }
@@ -8436,6 +8586,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Data out of date"
+          }
+        }
+      }
+    },
+    "Datenbackup ohne Belegdateien" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data backup without receipt files"
           }
         }
       }
@@ -8900,12 +9060,32 @@
         }
       }
     },
+    "Der Anteil konnte nicht wiederhergestellt werden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The share could not be restored."
+          }
+        }
+      }
+    },
     "Der Anteil von %@ an %@ wird entfernt." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The share from %@ to %@ will be removed."
+          }
+        }
+      }
+    },
+    "Der Beleg konnte nicht wiederhergestellt werden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The receipt could not be restored."
           }
         }
       }
@@ -9002,6 +9182,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The import couldn't be undone."
+          }
+        }
+      }
+    },
+    "Der Import-Verlauf konnte nicht geladen werden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The import history could not be loaded."
           }
         }
       }
@@ -9113,6 +9303,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The key of your Enable Banking application is missing on this Mac. Load the .pem file again under Accounts → Add Data Source."
+          }
+        }
+      }
+    },
+    "Der Schlüssel für das Backup konnte nicht berechnet werden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The key for the backup could not be derived."
           }
         }
       }
@@ -10428,6 +10628,26 @@
         }
       }
     },
+    "Die beiden Eingaben stimmen nicht überein." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The two entries do not match."
+          }
+        }
+      }
+    },
+    "Die eingefügte URL gehört nicht zu dieser Anmeldung. Bitte die Bank-Autorisierung neu starten und die URL einfügen, die danach erscheint." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The pasted URL does not belong to this sign-in. Please start the bank authorization again and paste the URL that appears afterwards."
+          }
+        }
+      }
+    },
     "Die erste Auswahl speichert zugleich eine Regel für diesen Händler." : {
       "localizations" : {
         "de" : {
@@ -10686,6 +10906,16 @@
         }
       }
     },
+    "Dieses Backup ist mit einem Passwort geschützt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup is protected by a password."
+          }
+        }
+      }
+    },
     "Dieses Jahr" : {
       "localizations" : {
         "de" : {
@@ -10698,6 +10928,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This Year"
+          }
+        }
+      }
+    },
+    "Dieses verschlüsselte Backup stammt aus einer neueren Version der App." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This encrypted backup was created by a newer version of the app."
           }
         }
       }
@@ -17081,6 +17321,16 @@
         }
       }
     },
+    "Löschen (%lld)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete (%lld)"
+          }
+        }
+      }
+    },
     "Löschen abgebrochen, es wurde nichts entfernt: %@" : {
       "localizations" : {
         "en" : {
@@ -17135,6 +17385,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete…"
+          }
+        }
+      }
+    },
+    "Manifest und Daten des Backups passen nicht zusammen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup's manifest and data do not match."
           }
         }
       }
@@ -17225,6 +17485,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete Manual Transaction"
+          }
+        }
+      }
+    },
+    "Manuelle Buchungen löschen …" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Manual Transactions…"
           }
         }
       }
@@ -19403,6 +19673,16 @@
         }
       }
     },
+    "Ohne Belege ist das Backup kleiner, Belegdateien fehlen dann nach einer Wiederherstellung. Ein Backup enthält alle Buchungen und Kontokennungen; mit Passwort ist es verschlüsselt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without receipts the backup is smaller; receipt files are then missing after a restore. A backup contains all transactions and account identifiers; with a password it is encrypted."
+          }
+        }
+      }
+    },
     "Ohne Einnahmen reicht das weniger als einen Monat" : {
       "localizations" : {
         "de" : {
@@ -19694,6 +19974,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Adjust “Period & Filters” or import data."
+          }
+        }
+      }
+    },
+    "Passwort" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        }
+      }
+    },
+    "Passwort für „%@“" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password for “%@”"
+          }
+        }
+      }
+    },
+    "Passwort wiederholen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repeat password"
           }
         }
       }
@@ -25738,6 +26048,16 @@
         }
       }
     },
+    "Wie ist der Betrag „%@“ gemeint?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How is the amount “%@” meant?"
+          }
+        }
+      }
+    },
     "Wie sind Beträge wie „1.000“ gemeint?" : {
       "localizations" : {
         "en" : {
@@ -27662,6 +27982,16 @@
         }
       }
     },
+    "und %lld weitere Buchungen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "and %lld more transactions"
+          }
+        }
+      }
+    },
     "verbleibend" : {
       "localizations" : {
         "de" : {
@@ -28053,6 +28383,16 @@
         }
       }
     },
+    "Öffnen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        }
+      }
+    },
     "Öffnet die Auswahl für Bankverbindung und Dateiimport." : {
       "localizations" : {
         "de" : {
@@ -28342,6 +28682,16 @@
         }
       }
     },
+    "„%@“ entfernt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” removed"
+          }
+        }
+      }
+    },
     "„%@“ hat das Limit erreicht." : {
       "localizations" : {
         "de" : {
@@ -28572,6 +28922,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” will be removed from this Mac. This cannot be undone."
+          }
+        }
+      }
+    },
+    "„%@“ wird von diesem Mac entfernt. Direkt danach lässt sich das noch rückgängig machen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” will be removed from this Mac. You can still undo this right afterwards."
           }
         }
       }

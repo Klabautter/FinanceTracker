@@ -142,7 +142,10 @@ struct CommandPaletteView: View {
                     }
                 }
 
-                if allResultCount == 0, questionAnswer == nil, !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                // Bei einer Frage kommt die Antwort einen Moment später: bis
+                // dahin nicht „Keine Treffer" aufblitzen lassen.
+                if allResultCount == 0, questionAnswer == nil, !CommandPaletteModel.looksLikeQuestion(query),
+                   !query.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text("Keine Treffer für „\(query)“.")
                         .foregroundStyle(.secondary)
                 }
