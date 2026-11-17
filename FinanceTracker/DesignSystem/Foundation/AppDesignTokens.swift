@@ -13,13 +13,13 @@ import UIKit
 /// Jede Farbe ist adaptiv (hell/dunkel) und wird ausschließlich hier definiert.
 enum AppPalette {
     /// Arbeitsfläche hinter allen Inhalten.
-    static let canvas = Color(light: 0xF4F4F6, dark: 0x161618)
+    static let canvas = Color(AppPaletteValues.canvas)
     /// Inhaltskarten.
-    static let card = Color(light: 0xFFFFFF, dark: 0x212124)
+    static let card = Color(AppPaletteValues.card)
     /// Vertiefte Flächen (Eingaben, Hinweise, Chips).
-    static let sunken = Color(light: 0xEEEEF1, dark: 0x2A2A2D)
+    static let sunken = Color(AppPaletteValues.sunken)
     /// Hover/hervorgehobene Zeile.
-    static let raised = Color(light: 0xF7F7F9, dark: 0x28282B)
+    static let raised = Color(AppPaletteValues.raised)
     /// Trennlinien und Kartenränder; bei „Kontrast erhöhen" deutlich kräftiger.
     static let hairline = Color(
         light: 0x000000, lightAlpha: 0.07, dark: 0xFFFFFF, darkAlpha: 0.08,
@@ -29,18 +29,67 @@ enum AppPalette {
     /// Interaktion folgt der System-Akzentfarbe.
     static let brand = Color.accentColor
 
-    static let positive = Color(light: 0x16A34A, dark: 0x34D17A)
-    static let critical = Color(light: 0xE5383B, dark: 0xFF6161)
-    static let warning = Color(light: 0xE07B00, dark: 0xFFAD33)
-    static let information = Color(light: 0x2F6FEB, dark: 0x6AA5FF)
+    static let positive = Color(AppPaletteValues.positive)
+    static let critical = Color(AppPaletteValues.critical)
+    static let warning = Color(AppPaletteValues.warning)
+    static let information = Color(AppPaletteValues.information)
 
     /// Diagramme: Einnahmen grün, Ausgaben rot: Gewinn/Verlust auf einen Blick.
     static let chartIncome = positive
     static let chartExpense = critical
-    static let chartForecast = Color(light: 0xA1A1AA, dark: 0x6B6B73)
+    static let chartForecast = Color(AppPaletteValues.chartForecast)
+}
+
+/// Die Hex-Werte der Palette, getrennt von den SwiftUI-Farben, damit ein
+/// Test den Kontrast nachrechnen kann (`PaletteContrastTests`). Farben, die
+/// als Text stehen (Beträge, Hinweise), halten auf jeder Fläche WCAG AA
+/// (4,5 : 1), Diagrammlinien 3 : 1 auf Karte und Arbeitsfläche.
+enum AppPaletteValues {
+    struct Pair: Sendable, Equatable {
+        let light: UInt32
+        let dark: UInt32
+    }
+
+    static let canvas = Pair(light: 0xF4F4F6, dark: 0x161618)
+    static let card = Pair(light: 0xFFFFFF, dark: 0x212124)
+    static let sunken = Pair(light: 0xEEEEF1, dark: 0x2A2A2D)
+    static let raised = Pair(light: 0xF7F7F9, dark: 0x28282B)
+
+    static let positive = Pair(light: 0x137A3A, dark: 0x34D17A)
+    static let critical = Pair(light: 0xC92A2D, dark: 0xFF6161)
+    static let warning = Pair(light: 0xA65400, dark: 0xFFAD33)
+    static let information = Pair(light: 0x2A63DB, dark: 0x6AA5FF)
+    static let chartForecast = Pair(light: 0x85858F, dark: 0x76767E)
+
+    /// Flächen, auf denen Text in einer Signalfarbe stehen kann.
+    static let surfaces: [(name: String, value: Pair)] = [
+        ("canvas", canvas), ("card", card), ("sunken", sunken), ("raised", raised)
+    ]
+    /// Farben, die als Text verwendet werden.
+    static let textColors: [(name: String, value: Pair)] = [
+        ("positive", positive), ("critical", critical), ("warning", warning), ("information", information)
+    ]
+
+    /// Kontrastverhältnis zweier sRGB-Farben nach WCAG 2.1 (1 … 21).
+    static func contrast(_ first: UInt32, _ second: UInt32) -> Double {
+        func luminance(_ hex: UInt32) -> Double {
+            func channel(_ value: UInt32) -> Double {
+                let scaled = Double(value) / 255
+                return scaled <= 0.04045 ? scaled / 12.92 : pow((scaled + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * channel((hex >> 16) & 0xFF) + 0.7152 * channel((hex >> 8) & 0xFF) + 0.0722 * channel(hex & 0xFF)
+        }
+        let lighter = max(luminance(first), luminance(second))
+        let darker = min(luminance(first), luminance(second))
+        return (lighter + 0.05) / (darker + 0.05)
+    }
 }
 
 extension Color {
+    init(_ pair: AppPaletteValues.Pair) {
+        self.init(light: pair.light, dark: pair.dark)
+    }
+
     /// Adaptive Farbe aus zwei Hex-Werten.
     /// `highContrast…Alpha`: Deckkraft bei „Kontrast erhöhen" (Bedienungs-
     /// hilfen); ohne Angabe wie im normalen Modus.
