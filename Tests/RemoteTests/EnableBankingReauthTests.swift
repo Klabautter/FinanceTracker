@@ -57,6 +57,17 @@ struct EnableBankingReauthTests {
         #expect(days > 89 && days < 91)
     }
 
+    @Test("Der state der Anmeldung geht unverändert an die Bank")
+    func authorizationStateIsSent() async throws {
+        let transport = RoutingTransport()
+        _ = try await provider(transport).createConnection(
+            institutionID: "DE|VR Bank Beispiel", redirectURL: nil, state: "state-der-app"
+        )
+        let body = try #require(await transport.authBody)
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["state"] as? String == "state-der-app")
+    }
+
     @Test("Das Konto trägt die über Sitzungen stabile Kennung, nicht die Sitzungs-ID")
     func stableAccountIdentifier() async throws {
         let transport = RoutingTransport()

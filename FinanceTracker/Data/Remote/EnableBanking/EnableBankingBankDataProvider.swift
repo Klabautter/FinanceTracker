@@ -121,6 +121,10 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
     }
 
     func createConnection(institutionID: String, redirectURL: URL?) async throws -> (connectionID: String, authorizationURL: URL?) {
+        try await createConnection(institutionID: institutionID, redirectURL: redirectURL, state: UUID().uuidString)
+    }
+
+    func createConnection(institutionID: String, redirectURL: URL?, state: String) async throws -> (connectionID: String, authorizationURL: URL?) {
         guard let aspsp = Self.aspsp(fromInstitutionID: institutionID) else {
             throw BankProviderError.invalidResponse(endpoint: "/auth")
         }
@@ -141,7 +145,7 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
         let request = EnableBankingStartAuthorizationRequest(
             access: .init(valid_until: formatter.string(from: validUntil)),
             aspsp: .init(name: aspsp.name, country: aspsp.country),
-            state: UUID().uuidString,
+            state: state,
             redirect_url: redirectURL?.absoluteString ?? self.redirectURL,
             psu_type: "personal",
             language: Self.bankPageLanguage

@@ -479,7 +479,7 @@ struct BankSyncService: Sendable {
             return "HTTP \(status) bei \(redacted(endpoint))"
         }
         if case BankProviderError.invalidResponse(let endpoint) = error {
-            return "unlesbare Antwort bei \(endpoint)"
+            return "unlesbare Antwort bei \(redacted(endpoint))"
         }
         if case BankProviderError.missingCredentials = error {
             return "keine Zugangsdaten"

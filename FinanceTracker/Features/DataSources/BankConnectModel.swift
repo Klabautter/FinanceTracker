@@ -87,6 +87,10 @@ final class BankConnectModel {
 
     private var selectedInstitution: BankInstitution?
     private var pendingConnectionID: String?
+    /// Zufallswert der laufenden Anmeldung. Die Bank schickt ihn in der
+    /// Rückkehr-Adresse zurück; eine Adresse mit anderem oder ohne Wert
+    /// gehört nicht zu dieser Anmeldung und schließt sie nicht ab.
+    private(set) var pendingAuthorizationState: String?
     /// Eingabefehler der Zugangsdaten: bleiben im Formular, kein Fehlerschritt.
     private(set) var credentialsValidationMessage: String?
     private var provider: any BankDataProvider
@@ -522,6 +526,7 @@ final class BankConnectModel {
         credentialsValidationMessage = nil
         selectedInstitution = nil
         pendingConnectionID = nil
+        pendingAuthorizationState = nil
         renewalPurpose = nil
         phase = .credentials
     }
@@ -624,8 +629,10 @@ final class BankConnectModel {
         phase = .connecting
 
         do {
-            let result = try await provider.createConnection(institutionID: institution.id, redirectURL: nil)
+            let state = UUID().uuidString
+            let result = try await provider.createConnection(institutionID: institution.id, redirectURL: nil, state: state)
             pendingConnectionID = result.connectionID
+            pendingAuthorizationState = kind == .enablebanking ? state : nil
             switch kind {
             case .gocardless:
                 phase = .waitingForAuthorization(url: result.authorizationURL, institutionName: institution.name)
@@ -678,6 +685,13 @@ final class BankConnectModel {
     func handleIncomingURL(_ url: URL) async {
         guard url.scheme == "financetracker", url.host() == "bank-callback",
               case .codeExchange = phase else { return }
+        // Jede App und jede Webseite kann diese Adresse öffnen. Eine Rückkehr
+        // ohne den Wert der laufenden Anmeldung wird ignoriert, die
+        // Anmeldung bleibt offen.
+        guard Self.returnedState(in: url) == pendingAuthorizationState else {
+            BankSyncService.logger.error("Autorisierung: Rückkehr mit fremdem state ignoriert")
+            return
+        }
         await finishWithRedirectURL(url.absoluteString)
     }
 
@@ -695,12 +709,18 @@ final class BankConnectModel {
             phase = .failed(String(localized: "In der eingefügten URL fehlt der Parameter „code“. Bitte die komplette URL nach der Bank-Autorisierung einfügen."))
             return
         }
+        if let expected = pendingAuthorizationState, Self.returnedState(in: url.url) != expected {
+            phase = .failed(String(localized: "Die eingefügte URL gehört nicht zu dieser Anmeldung. Bitte die Bank-Autorisierung neu starten und die URL einfügen, die danach erscheint."))
+            return
+        }
 
         phase = .checking
         BankSyncService.logger.info("Autorisierung: Code-Tausch für \(institution.name, privacy: .public) gestartet")
         do {
             let sessionID = try await provider.authorizeSession(code: code)
             pendingConnectionID = sessionID
+            // Einmalwert: nach dem Tausch gilt er für keine weitere Rückkehr.
+            pendingAuthorizationState = nil
             BankSyncService.logger.info("Autorisierung: Session …\(sessionID.suffix(4), privacy: .public) angelegt")
 
             let service = BankSyncService(dependencies: dependencies, provider: provider)
@@ -731,6 +751,7 @@ final class BankConnectModel {
                 BankSyncService.logger.info("Autorisierung: \(institution.name, privacy: .public) lieferte keine Konten, Verbindung verworfen")
                 try? await dependencies.connectionRepository.delete(id: connection.id)
                 pendingConnectionID = nil
+                pendingAuthorizationState = nil
                 renewalPurpose = nil
                 phase = .noAccounts(institutionName: institution.name)
                 dependencies.changeTracker.markChanged()
@@ -761,6 +782,12 @@ final class BankConnectModel {
     static func authorizationFailureMessage(_ error: Error) -> String {
         BankErrorPresentation.message(for: error) + "\n"
             + String(localized: "Ein Anmeldecode gilt nur einmal: Bank-Anmeldung bitte neu starten.")
+    }
+
+    /// Der `state`, den die Bank in der Rückkehr-Adresse zurückschickt.
+    static func returnedState(in url: URL?) -> String? {
+        guard let url, let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        return components.queryItems?.first(where: { $0.name == "state" })?.value
     }
 
     static func firstURL(in text: String) -> URLComponents? {
@@ -814,6 +841,7 @@ final class BankConnectModel {
     func chooseAnotherBank() {
         selectedInstitution = nil
         pendingConnectionID = nil
+        pendingAuthorizationState = nil
         // Eine abgebrochene Erneuerung ist keine mehr: die nächste Wahl
         // ist eine normale Verbindung.
         renewalPurpose = nil

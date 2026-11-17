@@ -170,7 +170,7 @@ struct BankConnectModelTests {
         #expect(name == "Sandbox Finance")
         #expect(authURL != nil)
 
-        await model.finishWithRedirectURL("https://example.com/redirect?state=x&code=abc123")
+        await model.finishWithRedirectURL("https://example.com/redirect?state=\(model.pendingAuthorizationState ?? "")&code=abc123")
 
         guard case .success(let accountsCreated) = model.phase else {
             Issue.record("Expected success, got \(model.phase)")
@@ -226,8 +226,18 @@ struct BankConnectModelTests {
             Issue.record("Fremde Adresse darf die Anmeldung nicht abschließen")
             return
         }
+        // Eine Rückkehr mit fremdem oder fehlendem state gehört nicht zu
+        // dieser Anmeldung: sie wird ignoriert, die Anmeldung bleibt offen.
         await model.handleIncomingURL(URL(string: "financetracker://bank-callback?state=x&code=abc")!)
+        await model.handleIncomingURL(URL(string: "financetracker://bank-callback?code=abc")!)
+        guard case .codeExchange = model.phase else {
+            Issue.record("Rückkehr mit fremdem state darf die Anmeldung nicht abschließen")
+            return
+        }
+        let state = try #require(model.pendingAuthorizationState)
+        await model.handleIncomingURL(URL(string: "financetracker://bank-callback?state=\(state)&code=abc")!)
         #expect(model.phase == .noAccounts(institutionName: "Sandbox Finance"))
+        #expect(model.pendingAuthorizationState == nil)
     }
 
     /// Eingeschränkte Enable-Banking-Anwendung, Bank nicht im Control Panel
@@ -247,7 +257,7 @@ struct BankConnectModelTests {
             providerFactory: StaticProviderFactory(provider: provider)
         )
         await model.startConnection(for: provider.stubbedInstitutions[0])
-        await model.finishWithRedirectURL("https://enablebanking.com/redirect?code=abc")
+        await model.finishWithRedirectURL("https://enablebanking.com/redirect?state=\(model.pendingAuthorizationState ?? "")&code=abc")
 
         #expect(model.phase == .noAccounts(institutionName: "Sandbox Finance"))
         #expect(try await dependencies.connectionRepository.connections().isEmpty)
@@ -322,6 +332,29 @@ struct BankConnectModelTests {
             return
         }
         #expect(message.contains("code"))
+        #expect(provider.fetchAccountDataCallCount == 0)
+    }
+
+    @Test("Eingefügte URL einer anderen Anmeldung wird abgelehnt")
+    func pastedURLWithForeignStateIsRejected() async throws {
+        let dependencies = try makeDependencies()
+        let provider = MockBankDataProvider()
+        provider.identifier = ConnectionProvider.enablebanking.rawValue
+        let model = BankConnectModel(
+            kind: .enablebanking,
+            dependencies: dependencies,
+            enableBankingCredentialStore: InMemoryEnableBankingCredentialStore(applicationID: "app-1", privateKeyPEM: "test-key"),
+            providerFactory: StaticProviderFactory(provider: provider)
+        )
+        await model.startConnection(for: provider.stubbedInstitutions[0])
+
+        await model.finishWithRedirectURL("https://enablebanking.com/redirect?state=fremd&code=abc")
+
+        guard case .failed(let message, _) = model.phase else {
+            Issue.record("Expected failed, got \(model.phase)")
+            return
+        }
+        #expect(message.contains("gehört nicht zu dieser Anmeldung"))
         #expect(provider.fetchAccountDataCallCount == 0)
     }
 
@@ -405,7 +438,7 @@ struct BankConnectModelTests {
         }
         #expect(institutionName == "VR Bank Beispiel")
 
-        await model.finishWithRedirectURL("https://enablebanking.com/redirect?code=abc")
+        await model.finishWithRedirectURL("https://enablebanking.com/redirect?state=\(model.pendingAuthorizationState ?? "")&code=abc")
         guard case .success = model.phase else {
             Issue.record("Erwartet: Erfolg, war \(model.phase)")
             return

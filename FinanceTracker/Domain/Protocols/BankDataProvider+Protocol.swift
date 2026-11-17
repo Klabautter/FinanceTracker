@@ -14,6 +14,11 @@ protocol BankDataProvider: Sendable {
 
     func institutions(country: String) async throws -> [BankInstitution]
     func createConnection(institutionID: String, redirectURL: URL?) async throws -> (connectionID: String, authorizationURL: URL?)
+    /// Wie `createConnection(institutionID:redirectURL:)`, aber mit einem
+    /// vom Aufrufer gewählten `state`. Provider mit Redirect-Code-Flow
+    /// geben ihn an die Bank weiter; die Rückkehr-Adresse muss denselben
+    /// Wert tragen, sonst gehört sie nicht zu dieser Anmeldung.
+    func createConnection(institutionID: String, redirectURL: URL?, state: String) async throws -> (connectionID: String, authorizationURL: URL?)
     func connectionStatus(connectionID: String) async throws -> RemoteConnectionState
     func fetchAccountData(accountID: String, dateFrom: Date?) async throws -> RemoteBankAccountData
 
@@ -28,5 +33,9 @@ protocol BankDataProvider: Sendable {
 }
 
 extension BankDataProvider {
+    /// Provider ohne Redirect-Code-Flow brauchen den `state` nicht.
+    func createConnection(institutionID: String, redirectURL: URL?, state: String) async throws -> (connectionID: String, authorizationURL: URL?) {
+        try await createConnection(institutionID: institutionID, redirectURL: redirectURL)
+    }
     func institutionDisplayName(forInstitutionID institutionID: String) -> String? { nil }
 }
