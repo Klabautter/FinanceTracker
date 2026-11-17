@@ -96,7 +96,9 @@ struct BackupPackageTests {
         try await dependencies.accountRepository.upsert([account])
         try await dependencies.transactionAttachmentRepository.add(TransactionAttachment(transactionID: transaction.id, fileName: "Fehlt.pdf", mimeType: "application/pdf", localRelativePath: "missing.pdf"))
         let incomplete = try await BackupService.makeBackup(dependencies: dependencies)
-        #expect(throws: BackupError.self) { try BackupRestoreService.prepare(BackupService.package(backup: incomplete, attachmentFiles: [], appVersion: "Test")) }
+        // Das Manifest verspricht einen Beleg, im Archiv liegt eine andere Datei.
+        let wrongFile = [BackupAttachmentFile(relativePath: "other.pdf", data: Data([1]))]
+        #expect(throws: BackupError.self) { try BackupRestoreService.prepare(BackupService.package(backup: incomplete, attachmentFiles: wrongFile, appVersion: "Test")) }
         #expect(try await dependencies.accountRepository.accounts().count == 1)
     }
 
@@ -401,18 +403,42 @@ struct BackupPackageTests {
             )
         }
 
-        // 2) Ohne Belege: erfolgreich, manifest attachmentCount 0, aber
-        //    Metadaten in data.json.
+        // 2) Ohne Belege: erfolgreich und wiederherstellbar. Ohne Dateien
+        //    wandern auch die Einträge der Belege nicht mit.
         let dataOnly = try await BackupService.makeBackupPackage(
             dependencies: dependencies,
             includeAttachments: false,
             attachmentsBaseDirectory: baseDirectory
         )
-        let reader = try ZipArchiveReader(data: dataOnly)
-        let manifest = String(data: try reader.extractEntry("manifest.json"), encoding: .utf8) ?? ""
-        #expect(manifest.contains("\"attachmentCount\" : 0") || manifest.contains("\"attachmentCount\": 0"))
-        let dataString = String(data: try reader.extractEntry("data.json"), encoding: .utf8) ?? ""
-        #expect(dataString.contains("beleg.pdf"))
+        let prepared = try BackupRestoreService.prepare(dataOnly)
+        #expect(prepared.backup.transactions.count == 1)
+        #expect(prepared.backup.attachments.isEmpty)
+        #expect(prepared.files.isEmpty)
+        #expect(prepared.omittedAttachmentCount == 0)
+
+        // 3) Datenbackups älterer Versionen führten die Einträge der Belege
+        //    ohne Dateien mit. Sie bleiben wiederherstellbar, ohne Belege.
+        var legacy = try await BackupService.makeBackup(dependencies: dependencies)
+        #expect(legacy.attachments.count == 1)
+        let legacyPackage = try BackupService.package(backup: legacy, attachmentFiles: [], appVersion: "0.5.5")
+        let legacyPrepared = try BackupRestoreService.prepare(legacyPackage)
+        #expect(legacyPrepared.backup.attachments.isEmpty)
+        #expect(legacyPrepared.omittedAttachmentCount == 1)
+        #expect(legacyPrepared.summary.contains("ohne Belegdateien"))
+
+        // Ein vollständiges Backup, dem eine Belegdatei fehlt, bleibt abgelehnt.
+        legacy.attachments.append(TransactionAttachment(
+            transactionID: txn.id,
+            fileName: "zweiter.pdf",
+            mimeType: "application/pdf",
+            localRelativePath: "zweiter.pdf"
+        ))
+        let partial = try BackupService.package(
+            backup: legacy,
+            attachmentFiles: [BackupAttachmentFile(relativePath: stored.relativePath, data: payload)],
+            appVersion: "Test"
+        )
+        #expect(throws: BackupError.self) { try BackupRestoreService.prepare(partial) }
     }
 
     @Test("V2-Backup migriert explizit mit leeren Collections auf V4")

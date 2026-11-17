@@ -312,11 +312,16 @@ enum BackupService {
         let backup = try await makeBackup(dependencies: dependencies)
 
         guard includeAttachments, !backup.attachments.isEmpty else {
-            // Datenbackup ohne Belege: Attachment-Metadaten bleiben in
-            // data.json erhalten (vollständige Struktur, nur Inhalte fehlen).
+            // Datenbackup ohne Belege: Ohne Dateien wandern auch die Einträge
+            // der Belege nicht mit. Ein Eintrag ohne Datei wäre nach der
+            // Wiederherstellung ein toter Verweis, und das Archiv ließe sich
+            // nicht mehr gegen sein Manifest prüfen.
+            var stripped = backup
+            stripped.attachments = []
+            let dataOnly = stripped
             return try await Task.detached(priority: .userInitiated) {
                 try PerfSignpost.measure("BackupExport") {
-                    try package(backup: backup, attachmentFiles: [], appVersion: appVersion)
+                    try verifiedPackage(backup: dataOnly, attachmentFiles: [], appVersion: appVersion)
                 }
             }.value
         }
@@ -359,9 +364,26 @@ enum BackupService {
 
         return try await Task.detached(priority: .userInitiated) {
             try PerfSignpost.measure("BackupExport") {
-                try package(backup: backup, attachmentFiles: attachmentFiles, appVersion: appVersion)
+                try verifiedPackage(backup: backup, attachmentFiles: attachmentFiles, appVersion: appVersion)
             }
         }.value
+    }
+
+    /// Packt das Backup und prüft das fertige Archiv mit den Regeln der
+    /// Wiederherstellung (Manifest, Dateiliste, Belege). Ein Archiv, das
+    /// sich nicht wiederherstellen ließe, wird nicht zurückgegeben.
+    private nonisolated static func verifiedPackage(
+        backup: FinanceTrackerBackup,
+        attachmentFiles: [BackupAttachmentFile],
+        appVersion: String
+    ) throws -> Data {
+        let data = try package(backup: backup, attachmentFiles: attachmentFiles, appVersion: appVersion)
+        do {
+            try BackupRestoreService.verifyRestorable(data)
+        } catch {
+            throw BackupExportError.notRestorable(reason: error.localizedDescription)
+        }
+        return data
     }
 
     /// WP17 (§123): Gesamtgröße der Attachment-Dateien (Dateisystem-Attribute,

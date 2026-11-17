@@ -5,13 +5,18 @@ import SwiftData
 struct PreparedBackupRestore: Sendable {
     let backup: FinanceTrackerBackup
     let files: [BackupAttachmentFile]
+    /// Belege, die ein „Datenbackup ohne Belege" nur als Eintrag kannte.
+    /// Sie werden nicht wiederhergestellt, weil ihre Dateien fehlen.
+    let omittedAttachmentCount: Int
     var summary: String {
-        Self.summary(
+        let contents = Self.summary(
             accounts: backup.accounts.count,
             transactions: backup.transactions.count,
             budgets: backup.budgets.count,
             attachments: files.count
         )
+        guard omittedAttachmentCount > 0 else { return contents }
+        return contents + " · " + String(localized: "Datenbackup ohne Belegdateien")
     }
 
     /// Inhaltsangabe mit korrekter Einzahl („1 Konto", nicht „1 Konten").
@@ -23,9 +28,10 @@ struct PreparedBackupRestore: Sendable {
             attachments == 1 ? String(localized: "1 Beleg") : String(localized: "\(attachments) Belege")
         ].joined(separator: " · ")
     }
-    fileprivate init(backup: FinanceTrackerBackup, files: [BackupAttachmentFile]) {
+    fileprivate init(backup: FinanceTrackerBackup, files: [BackupAttachmentFile], omittedAttachmentCount: Int = 0) {
         self.backup = backup
         self.files = files
+        self.omittedAttachmentCount = omittedAttachmentCount
     }
 }
 
@@ -42,18 +48,60 @@ actor BackupRestoreService {
 
     nonisolated static func prepare(_ data: Data) throws -> PreparedBackupRestore {
         let archive = try ZipArchiveReader(data: data, maxArchiveBytes: maxArchiveBytes, maxEntryBytes: maxArchiveBytes, verifyChecksums: true)
+        let checked = try checkedContents(of: archive)
+        let files = try checked.backup.attachments.map { attachment in
+            BackupAttachmentFile(
+                relativePath: attachment.localRelativePath,
+                data: try archive.extractEntry("attachments/\(attachment.localRelativePath)")
+            )
+        }
+        return PreparedBackupRestore(
+            backup: checked.backup,
+            files: files,
+            omittedAttachmentCount: checked.omittedAttachmentCount
+        )
+    }
+
+    /// Prüft ein frisch geschriebenes Backup mit denselben Regeln wie
+    /// `prepare`, ohne die Belegdateien ein zweites Mal in den Speicher zu
+    /// laden. Der Export ruft das vor dem Schreiben auf: ein Backup, das die
+    /// Wiederherstellung ablehnen würde, verlässt die App nicht.
+    nonisolated static func verifyRestorable(_ data: Data) throws {
+        let archive = try ZipArchiveReader(data: data, maxArchiveBytes: maxArchiveBytes, maxEntryBytes: maxArchiveBytes, verifyChecksums: false)
+        _ = try checkedContents(of: archive)
+    }
+
+    /// Struktur- und Inhaltsprüfung eines Archivs (alles außer dem Laden
+    /// der Belegdateien).
+    private nonisolated static func checkedContents(
+        of archive: ZipArchiveReader
+    ) throws -> (backup: FinanceTrackerBackup, omittedAttachmentCount: Int) {
         guard Set(archive.entryNames).count == archive.entryNames.count else {
             throw BackupError.invalidRestore(String(localized: "Doppelte Dateien im Archiv."))
         }
         let dataJSON = try archive.extractEntry("data.json")
         struct SourceVersion: Decodable { let formatVersion: Int }
         let sourceVersion = try JSONDecoder().decode(SourceVersion.self, from: dataJSON).formatVersion
-        let backup = try BackupService.decode(dataJSON)
+        var backup = try BackupService.decode(dataJSON)
         try validate(backup)
         struct Manifest: Decodable { let formatVersion: Int; let attachmentCount: Int }
         let manifest = try JSONDecoder().decode(Manifest.self, from: archive.extractEntry("manifest.json"))
-        guard manifest.formatVersion == sourceVersion,
-              manifest.attachmentCount == backup.attachments.count else {
+        guard manifest.formatVersion == sourceVersion else {
+            throw BackupError.invalidRestore(String(localized: "Manifest und Daten des Backups passen nicht zusammen."))
+        }
+
+        // „Datenbackup ohne Belege" aus älteren Versionen: Die Einträge der
+        // Belege stehen in den Daten, das Archiv enthält aber bewusst keine
+        // einzige Belegdatei. Wiederhergestellt wird dann alles außer den
+        // Belegen; ein Eintrag ohne Datei wäre ein toter Verweis.
+        var omittedAttachmentCount = 0
+        let hasAttachmentEntries = archive.entryNames.contains { $0.hasPrefix("attachments/") }
+        if manifest.attachmentCount == 0, !backup.attachments.isEmpty, !hasAttachmentEntries {
+            omittedAttachmentCount = backup.attachments.count
+            backup.attachments = []
+        }
+
+        guard manifest.attachmentCount == backup.attachments.count else {
             throw BackupError.invalidRestore(String(localized: "Das Backup enthält nicht alle Belege. Für die Wiederherstellung ist ein vollständiges Backup erforderlich."))
         }
         let expectedEntries = Set(["manifest.json", "data.json"] + backup.attachments.map { "attachments/\($0.localRelativePath)" })
@@ -61,7 +109,7 @@ actor BackupRestoreService {
             throw BackupError.invalidRestore(String(localized: "Das Archiv enthält unerwartete Dateien."))
         }
         var total = 0
-        let files = try backup.attachments.map { attachment in
+        for attachment in backup.attachments {
             try validatePath(attachment.localRelativePath)
             let name = "attachments/\(attachment.localRelativePath)"
             guard let size = archive.uncompressedSize(ofEntry: name), size > 0 else {
@@ -71,9 +119,8 @@ actor BackupRestoreService {
             guard total <= BackupService.maxTotalAttachmentBytesDefault else {
                 throw BackupError.invalidRestore(String(localized: "Belege überschreiten die zulässige Gesamtgröße."))
             }
-            return BackupAttachmentFile(relativePath: attachment.localRelativePath, data: try archive.extractEntry(name))
         }
-        return PreparedBackupRestore(backup: backup, files: files)
+        return (backup, omittedAttachmentCount)
     }
 
     nonisolated static func validatePath(_ path: String) throws {
