@@ -267,10 +267,22 @@ struct BankSyncService: Sendable {
                     earliest = min(earliest ?? accountEarliest, accountEarliest)
                 }
                 if backgroundProvider.identifier == ConnectionProvider.enablebanking.rawValue {
-                    // Alte, sitzungsgebundene Buchungs-IDs vor dem Abgleich umstellen.
-                    try await EnableBankingExternalIDMigration(
-                        transactionRepository: backgroundDependencies.transactionRepository
-                    ).run(accountIDs: [account.id])
+                    // Alte, sitzungsgebundene Buchungs-IDs vor dem Abgleich
+                    // umstellen: nur im Zeitraum dieser Antwort, denn nur dort
+                    // kann der Abgleich auf sie treffen. Den ganzen Bestand
+                    // stellt der Lauf beim App-Start um.
+                    let reportedDates = data.transactions.compactMap { $0.bookingDate ?? $0.valueDate }
+                    if let first = reportedDates.min(), let last = reportedDates.max() {
+                        try await EnableBankingExternalIDMigration(
+                            transactionRepository: backgroundDependencies.transactionRepository
+                        ).run(
+                            accountID: account.id,
+                            within: DateInterval(
+                                start: first.addingTimeInterval(-ImportPipeline.reconciliationMargin),
+                                end: last.addingTimeInterval(ImportPipeline.reconciliationMargin)
+                            )
+                        )
+                    }
                 }
                 // Ein gebuchter Umsatz ohne Buchungs- und Wertstellungsdatum
                 // bekäme den Abrufzeitpunkt und landete im falschen Monat
@@ -401,10 +413,14 @@ struct BankSyncService: Sendable {
     /// bei früher geladenen Gutschriften stand noch der Kontoinhaber statt
     /// des Absenders als Gegenseite. Vergebene Kategorien bleiben.
     func classifyEarlierTransfers(accountID: UUID, ownerNames: [String]) async throws {
-        var query = TransactionQuery()
-        query.accountIDs = [accountID]
-        query.sources = [.openBanking]
-        let transactions = try await dependencies.transactionRepository.transactions(matching: query)
+        // Nur, was die Schleife unten überhaupt anfasst: Buchungen ohne
+        // Kategorie und solche, die schon als Umbuchung oder Geldanlage
+        // eingeordnet sind (Roadmap 3.3), nicht der ganze Kontobestand.
+        let transactions = try await dependencies.transactionRepository.transactions(
+            accountID: accountID,
+            source: .openBanking,
+            uncategorizedOrIn: [Category.transfers.id, Category.investments.id]
+        )
         guard !transactions.isEmpty else { return }
 
         let categories = try await dependencies.categoryRepository.categories()

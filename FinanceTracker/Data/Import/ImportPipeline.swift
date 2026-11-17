@@ -213,6 +213,47 @@ struct ImportPipeline: Sendable {
         return try await commit(prepared)
     }
 
+    /// Abstand, um den das Datumsfenster des Abgleichs über die gemeldeten
+    /// Buchungen hinausreicht. Deckt den Abgleich mit Datei-Importen
+    /// (`CrossSourceDuplicateMatcher.dateTolerance`, drei Tage) mit Reserve.
+    static let reconciliationMargin: TimeInterval = 7 * 24 * 3600
+
+    /// Die gespeicherten Buchungen, die zu den gemeldeten gehören können:
+    /// - gleicher Fingerabdruck heißt gleiches Datum, also im Fenster der
+    ///   gemeldeten Tage;
+    /// - dieselbe Bank-ID, egal an welchem Tag;
+    /// - offene (und vom Abruf stornierte) Vormerkungen, egal an welchem Tag;
+    /// - dieselbe Buchung aus einer Datei, wenige Tage daneben.
+    /// Trägt eine gemeldete Zeile gar kein Datum, lässt sich kein Fenster
+    /// bilden; dann wird wie bisher der ganze Kontobestand geladen.
+    private func reconciliationCandidates(
+        for imported: [ImportedTransaction],
+        accountID: UUID,
+        tracksPending: Bool
+    ) async throws -> [Transaction] {
+        let dates = imported.map { $0.bookedAt ?? $0.authorizedAt }
+        guard !dates.contains(where: { $0 == nil }) else {
+            var accountQuery = TransactionQuery()
+            accountQuery.accountIDs = [accountID]
+            return try await transactionRepository.transactions(matching: accountQuery)
+        }
+        let known = dates.compactMap { $0 }
+        let window: DateInterval? = known.min().flatMap { earliest in
+            known.max().map { latest in
+                DateInterval(
+                    start: earliest.addingTimeInterval(-Self.reconciliationMargin),
+                    end: latest.addingTimeInterval(Self.reconciliationMargin)
+                )
+            }
+        }
+        return try await transactionRepository.reconciliationCandidates(
+            accountID: accountID,
+            window: window,
+            externalIDs: Set(imported.compactMap(\.externalID)),
+            statuses: tracksPending ? [.pending, .cancelled] : [.pending]
+        )
+    }
+
     /// - Parameter pendingCompleteSince: Nur beim Bankabruf gesetzt: Die
     ///   Liste enthält ALLE Umsätze des Kontos ab diesem Zeitpunkt, auch die
     ///   vorgemerkten. Eine gespeicherte Vormerkung ab diesem Datum, die
@@ -230,11 +271,14 @@ struct ImportPipeline: Sendable {
         pendingCompleteSince: Date? = nil
     ) async throws -> ImportResult {
         let tracksPending = pendingCompleteSince != nil
-        // Der Kontobestand wird EINMAL geladen; die Zeilen dieser Quelle sind
-        // eine Teilmenge davon (vorher zwei Komplett-Ladevorgänge je Konto).
-        var accountQuery = TransactionQuery()
-        accountQuery.accountIDs = [accountID]
-        let accountWideExisting = try await transactionRepository.transactions(matching: accountQuery)
+        // Nur der Teil des Kontos, gegen den diese Antwort abgeglichen werden
+        // kann (Roadmap 3.3), statt des ganzen Kontobestands; die Zeilen
+        // dieser Quelle sind eine Teilmenge davon.
+        let accountWideExisting = try await reconciliationCandidates(
+            for: importedTransactions,
+            accountID: accountID,
+            tracksPending: tracksPending
+        )
         let existing = accountWideExisting.filter { $0.source == source }
         var existingByFingerprint: [String: Transaction] = [:]
         for txn in existing {

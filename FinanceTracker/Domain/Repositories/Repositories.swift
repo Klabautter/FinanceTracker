@@ -58,9 +58,57 @@ protocol TransactionRepository: Sendable {
     /// Entfernt Zeilen, deren Buchung nicht mehr existiert (Annotationen,
     /// Splits, Zuordnungen, Belege …). Liefert die Anzahl entfernter Zeilen.
     func purgeOrphanedDependents() async throws -> Int
+
+    /// Bestand eines Kontos, gegen den ein Bankabruf abgeglichen wird, ohne
+    /// das ganze Konto zu laden (Roadmap 3.3): alle Buchungen im
+    /// Datumsfenster, dazu unabhängig vom Datum jene mit einer der
+    /// gemeldeten Bank-IDs und jene in einem der genannten Zustände
+    /// (offene Vormerkungen). Jede Buchung höchstens einmal, älteste zuerst.
+    /// Der Default filtert den Kontobestand (korrekt, aber ungezielt).
+    func reconciliationCandidates(
+        accountID: UUID,
+        window: DateInterval?,
+        externalIDs: Set<String>,
+        statuses: Set<TransactionStatus>
+    ) async throws -> [Transaction]
+
+    /// Buchungen eines Kontos und einer Quelle, die noch keine Kategorie
+    /// haben oder eine der genannten tragen. Für das nachträgliche Einordnen
+    /// von Umbuchungen nach einem Bankabruf, ohne das Konto zu laden.
+    func transactions(
+        accountID: UUID,
+        source: TransactionSource,
+        uncategorizedOrIn categoryIDs: Set<Category.ID>
+    ) async throws -> [Transaction]
 }
 
 extension TransactionRepository {
+    func reconciliationCandidates(
+        accountID: UUID,
+        window: DateInterval?,
+        externalIDs: Set<String>,
+        statuses: Set<TransactionStatus>
+    ) async throws -> [Transaction] {
+        var query = TransactionQuery()
+        query.accountIDs = [accountID]
+        return try await transactions(matching: query)
+            .filter { transaction in
+                (window?.containsHalfOpen(transaction.displayDate) ?? false)
+                    || (transaction.externalID.map(externalIDs.contains) ?? false)
+                    || statuses.contains(transaction.status)
+            }
+            .sorted { ($0.createdAt, $0.id.uuidString) < ($1.createdAt, $1.id.uuidString) }
+    }
+
+    func transactions(
+        accountID: UUID,
+        source: TransactionSource,
+        uncategorizedOrIn categoryIDs: Set<Category.ID>
+    ) async throws -> [Transaction] {
+        try await transactions(accountID: accountID, source: source)
+            .filter { $0.categoryID.map(categoryIDs.contains) ?? true }
+    }
+
     func lightTransactionSlices() -> AsyncThrowingStream<[Transaction], Error> {
         AsyncThrowingStream { continuation in
             let task = Task {

@@ -328,6 +328,57 @@ actor PersistenceModelActor {
         return try rows.map { try $0.toDomain() }
     }
 
+    /// Gezielter Bestand für den Abgleich eines Bankabrufs (Roadmap 3.3):
+    /// Datumsfenster über den Index Konto + Datum, gemeldete Bank-IDs über
+    /// den Index der externen ID, offene Vormerkungen über ihren Zustand.
+    /// Zeilen ohne Sortierdatum (nur vor dem Nachtragen beim Start möglich)
+    /// kommen immer mit, damit das Fenster keine Buchung übersieht.
+    func loadReconciliationCandidates(
+        accountID: UUID,
+        window: DateInterval?,
+        externalIDs: [String],
+        statusRaws: [String]
+    ) throws -> [Transaction] {
+        var rowsByID: [UUID: SDTransactionEntity] = [:]
+        func collect(_ predicate: Predicate<SDTransactionEntity>) throws {
+            for row in try modelContext.fetch(FetchDescriptor<SDTransactionEntity>(predicate: predicate)) {
+                rowsByID[row.id] = row
+            }
+        }
+        if let window {
+            let start = window.start
+            let end = window.end
+            try collect(#Predicate { entity in
+                entity.accountID == accountID
+                    && entity.effectiveDateValue != nil && entity.effectiveDateValue! >= start
+                    && entity.effectiveDateValue! < end
+            })
+        }
+        try collect(#Predicate { $0.accountID == accountID && $0.effectiveDateValue == nil })
+        for chunkStart in stride(from: 0, to: externalIDs.count, by: 500) {
+            let chunk = Array(externalIDs[chunkStart..<min(chunkStart + 500, externalIDs.count)])
+            try collect(#Predicate { entity in
+                entity.accountID == accountID && entity.externalID != nil && chunk.contains(entity.externalID!)
+            })
+        }
+        if !statusRaws.isEmpty {
+            try collect(#Predicate { $0.accountID == accountID && statusRaws.contains($0.statusRaw) })
+        }
+        return try rowsByID.values
+            .sorted { ($0.createdAt, $0.id.uuidString) < ($1.createdAt, $1.id.uuidString) }
+            .map { try $0.toDomain() }
+    }
+
+    /// Buchungen eines Kontos und einer Quelle ohne Kategorie oder mit einer
+    /// der genannten Kategorien.
+    func loadTransactions(accountID: UUID, sourceRaw: String, uncategorizedOrIn categoryIDs: [UUID]) throws -> [Transaction] {
+        let descriptor = FetchDescriptor<SDTransactionEntity>(predicate: #Predicate { entity in
+            entity.accountID == accountID && entity.sourceRaw == sourceRaw
+                && (entity.categoryID == nil || categoryIDs.contains(entity.categoryID!))
+        })
+        return try modelContext.fetch(descriptor).map { try $0.toDomain() }
+    }
+
     /// Alle Buchungen der Konten, ohne Datumsgrenze (auch Zeilen ohne
     /// Buchungsdatum). Für Abfragen ohne Zeitraum, z. B. den Kontobestand
     /// beim Import, statt alle Buchungen zu laden und danach zu filtern.

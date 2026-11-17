@@ -139,6 +139,32 @@ final class LocalTransactionRepository: TransactionRepository {
         try await persistence.loadTransactions(accountID: accountID, sourceRaw: source.rawValue)
     }
 
+    func reconciliationCandidates(
+        accountID: UUID,
+        window: DateInterval?,
+        externalIDs: Set<String>,
+        statuses: Set<TransactionStatus>
+    ) async throws -> [Transaction] {
+        try await persistence.loadReconciliationCandidates(
+            accountID: accountID,
+            window: window,
+            externalIDs: Array(externalIDs),
+            statusRaws: statuses.map(\.rawValue)
+        )
+    }
+
+    func transactions(
+        accountID: UUID,
+        source: TransactionSource,
+        uncategorizedOrIn categoryIDs: Set<Category.ID>
+    ) async throws -> [Transaction] {
+        try await persistence.loadTransactions(
+            accountID: accountID,
+            sourceRaw: source.rawValue,
+            uncategorizedOrIn: Array(categoryIDs)
+        )
+    }
+
     /// WP13/WP14 (§98): Leichte Review-Projection, propertiesToFetch-Pfad.
     func reviewCandidateTransactions() async throws -> [Transaction] {
         var all: [Transaction] = []

@@ -55,6 +55,27 @@ struct EnableBankingExternalIDMigration: Sendable {
                 ids: Set(candidateIDs[start..<min(start + 1_000, candidateIDs.count)])
             )
         }
+        return try await migrate(transactions, accountIDs: accountIDs)
+    }
+
+    /// Dieselbe Umstellung für ein Konto in einem Zeitraum, über eine
+    /// gezielte Abfrage statt über den ganzen Bestand. Der Bankabruf ruft
+    /// das vor seinem Abgleich für den Zeitraum der Antwort auf.
+    @discardableResult
+    func run(accountID: UUID, within interval: DateInterval) async throws -> Outcome {
+        var query = TransactionQuery()
+        query.accountIDs = [accountID]
+        query.sources = [.openBanking]
+        query.dateInterval = interval
+        let transactions = try await transactionRepository.transactions(matching: query)
+        let needsWork = Self.groups(of: transactions, accountIDs: [accountID]).contains { _, rows in
+            rows.count > 1 || rows.contains { $0.externalID.flatMap(Self.stableID(for:)) != nil }
+        }
+        guard needsWork else { return Outcome() }
+        return try await migrate(transactions, accountIDs: [accountID])
+    }
+
+    private func migrate(_ transactions: [Transaction], accountIDs: Set<UUID>?) async throws -> Outcome {
         let groups = Self.groups(of: transactions, accountIDs: accountIDs)
 
         var updates: [Transaction] = []
