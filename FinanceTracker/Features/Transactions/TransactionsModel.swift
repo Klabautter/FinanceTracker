@@ -220,6 +220,16 @@ final class TransactionsModel {
         categoriesByID = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
     }
     var transactionPendingDeletion: Transaction?
+    /// Manuelle Buchungen einer Mehrfachauswahl, die auf die Rückfrage vor
+    /// dem Löschen warten (Entf-Taste, Kontextmenü der Auswahl).
+    var selectionPendingDeletion: SelectionDeletion?
+
+    struct SelectionDeletion: Equatable {
+        /// Die manuell erfassten Buchungen der Auswahl.
+        let targets: [Transaction]
+        /// Größe der ganzen Auswahl (auch Bankbuchungen, die bleiben).
+        let selectedCount: Int
+    }
 
     init(dependencies: Dependencies, attachmentsBaseDirectory: URL? = nil) {
         self.dependencies = dependencies

@@ -37,13 +37,49 @@ extension TransactionsModel {
     /// Löscht eine manuelle Buchung (bei Transfers beide Seiten) samt
     /// Belegen. Ohne Belege ist der Schritt per ⌘Z rückholbar.
     func deleteManualTransaction(_ transaction: Transaction) async {
-        guard canDeleteManually(transaction) else { return }
+        await deleteManualTransactions([transaction])
+    }
+
+    /// Die manuell erfassten Buchungen einer Auswahl; Bank- und Importdaten
+    /// bleiben, auch wenn sie mit ausgewählt sind.
+    func manuallyDeletable(in ids: Set<Transaction.ID>) -> [Transaction] {
+        visibleTransactions.filter { ids.contains($0.id) && canDeleteManually($0) }
+    }
+
+    /// Rückfrage vor dem Löschen einer Auswahl: nennt, was verschwindet und
+    /// was bleibt.
+    static func selectionDeletionMessage(_ request: SelectionDeletion) -> String {
+        let count = request.targets.count
+        var message = String(localized: "\(count) manuell erfasste Buchungen werden entfernt. Angehängte Belege werden mitgelöscht.")
+        if request.selectedCount > count {
+            message += " " + String(localized: "Bankbuchungen in der Auswahl bleiben erhalten.")
+        }
+        return message
+    }
+
+    /// Stellt die Rückfrage für die manuellen Buchungen einer Auswahl.
+    func requestDeletion(ofSelection ids: Set<Transaction.ID>) {
+        let manual = manuallyDeletable(in: ids)
+        guard let first = manual.first else { return }
+        if ids.count == 1 {
+            transactionPendingDeletion = first
+        } else {
+            selectionPendingDeletion = SelectionDeletion(targets: manual, selectedCount: ids.count)
+        }
+    }
+
+    /// Löscht mehrere manuelle Buchungen in einem Schritt (bei Transfers
+    /// jeweils beide Seiten). Ohne Belege ist der Schritt per ⌘Z rückholbar.
+    func deleteManualTransactions(_ targets: [Transaction]) async {
+        let deletable = targets.filter(canDeleteManually)
+        guard !deletable.isEmpty else { return }
         do {
-            var ids: Set<UUID> = [transaction.id]
-            if let counterpartID = Self.transferCounterpartExternalID(for: transaction) {
+            var ids = Set(deletable.map(\.id))
+            let counterpartIDs = Set(deletable.compactMap(Self.transferCounterpartExternalID(for:)))
+            if !counterpartIDs.isEmpty {
                 let manual = try await dependencies.transactionRepository
                     .transactions(matching: TransactionQuery(sources: [.manual]))
-                if let counterpart = manual.first(where: { $0.externalID == counterpartID }) {
+                for counterpart in manual where counterpart.externalID.map(counterpartIDs.contains) == true {
                     ids.insert(counterpart.id)
                 }
             }
@@ -64,7 +100,7 @@ extension TransactionsModel {
             // Beleg-Dateien sind endgültig weg, dann wäre ein Undo nur halb.
             guard removedAttachments == 0 else { return }
             pushUndo(
-                name: String(localized: "Löschen"),
+                name: ids.count == 1 ? String(localized: "Löschen") : String(localized: "Löschen (\(ids.count))"),
                 revert: { [weak self] in
                     guard let self else { return }
                     do {

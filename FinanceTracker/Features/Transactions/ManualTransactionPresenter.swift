@@ -44,6 +44,24 @@ struct ManualTransactionPresenter: ViewModifier {
                     ? Text("„\(transaction.effectiveMerchantName)“ und die zugehörige Gegenbuchung des Transfers werden entfernt.")
                     : Text("„\(transaction.effectiveMerchantName)“ wird entfernt. Angehängte Belege werden mitgelöscht.")
             }
+            .alert(
+                "Ausgewählte Buchungen löschen?",
+                isPresented: Binding(
+                    get: { model.selectionPendingDeletion != nil },
+                    set: { if !$0 { model.selectionPendingDeletion = nil } }
+                ),
+                presenting: model.selectionPendingDeletion
+            ) { request in
+                Button("Löschen", role: .destructive) {
+                    model.selectionPendingDeletion = nil
+                    Task { await model.deleteManualTransactions(request.targets) }
+                }
+                Button("Abbrechen", role: .cancel) {
+                    model.selectionPendingDeletion = nil
+                }
+            } message: { request in
+                Text(TransactionsModel.selectionDeletionMessage(request))
+            }
     }
 }
 

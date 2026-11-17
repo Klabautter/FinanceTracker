@@ -107,12 +107,7 @@ private struct MacTransactionsContent: View {
                             }
                             // Entf/⌫: manuell erfasste Buchung löschen (mit
                             // Rückfrage und Rückgängig). Bankbuchungen nicht.
-                            .onDeleteCommand {
-                                guard selection.count == 1, let id = selection.first,
-                                      let txn = model.visibleTransactions.first(where: { $0.id == id }),
-                                      model.canDeleteManually(txn) else { return }
-                                model.transactionPendingDeletion = txn
-                            }
+                            .onDeleteCommand { model.requestDeletion(ofSelection: selection) }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1004,6 +999,10 @@ private struct MacTransactionsTable: View {
         Divider()
         Button("Aus Analyse ausschließen") { Task { await model.bulkExclude(true, for: ids) } }
         Button("In Analyse einschließen") { Task { await model.bulkExclude(false, for: ids) } }
+        if !model.manuallyDeletable(in: ids).isEmpty {
+            Divider()
+            Button("Manuelle Buchungen löschen …", role: .destructive) { model.requestDeletion(ofSelection: ids) }
+        }
     }
 }
 

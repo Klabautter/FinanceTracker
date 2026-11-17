@@ -56,6 +56,39 @@ struct ManualTransactionEditingTests {
         #expect(annotation.note == "korrigiert")
     }
 
+    @Test("Auswahl löschen: nur manuelle Buchungen, in einem Schritt und rückholbar")
+    func deleteSelectionAndUndo() async throws {
+        let (dependencies, _) = try makeDependencies()
+        let account = Account(name: "Geldbeutel", type: .cash, currency: .eur, source: .manual)
+        try await dependencies.accountRepository.upsert([account])
+        let first = try await addExpense(dependencies, account: account, amount: "5", merchant: "Eins")
+        let second = try await addExpense(dependencies, account: account, amount: "7", merchant: "Zwei")
+        let bank = Transaction(
+            accountID: account.id, source: .openBanking, externalID: "bank-1", status: .booked, kind: .purchase,
+            amount: Money(amount: -9, currency: .eur), bookedAt: Date(),
+            rawDescription: "Bank", rawMerchantName: "Bank", merchantDisplayName: "Bank"
+        )
+        try await dependencies.transactionRepository.upsert([bank])
+
+        let model = TransactionsModel(dependencies: dependencies)
+        await model.refresh()
+        let selection: Set<Transaction.ID> = [first.id, second.id, bank.id]
+
+        // Die Rückfrage nennt nur die manuellen und sagt, dass die Bankbuchung bleibt.
+        model.requestDeletion(ofSelection: selection)
+        let request = try #require(model.selectionPendingDeletion)
+        #expect(Set(request.targets.map(\.id)) == [first.id, second.id])
+        #expect(TransactionsModel.selectionDeletionMessage(request).contains("Bankbuchungen"))
+
+        await model.deleteManualTransactions(request.targets)
+        #expect(model.transactions.map(\.id) == [bank.id])
+        #expect(try await dependencies.transactionRepository.count() == 1)
+
+        #expect(model.canUndo)
+        await model.undo()
+        #expect(try await dependencies.transactionRepository.count() == 3)
+    }
+
     @Test("Löschen entfernt nur die gewählte manuelle Buchung und ist rückholbar")
     func deleteAndUndo() async throws {
         let (dependencies, store) = try makeDependencies()
