@@ -55,6 +55,12 @@ struct PerformanceBudgetTests {
             }
         }
 
+        // Ab 20.000 Zeilen liest das Repository parallel in Zeitscheiben:
+        // jede Buchung genau einmal.
+        let lightRows = try await dependencies.transactionRepository.reviewCandidateTransactions()
+        #expect(lightRows.count == rows.count)
+        #expect(Set(lightRows.map(\.id)) == Set(rows.map(\.id)))
+
         let clock = ContinuousClock()
         let model = DashboardModel(dependencies: dependencies)
         let (firstVisible, firstLoad) = await model.measureLoad()
@@ -110,7 +116,8 @@ struct PerformanceBudgetTests {
 
         #expect(model.snapshot != nil)
         #expect(imported == 20_000)
-        // Gemessen am 17.11.2026 (Debug): erstes Laden 4,2 s, Monatswechsel
+        // Gemessen am 17.11.2026 (Debug): Übersicht sichtbar 0,26 s, erstes
+        // Laden komplett 2,7 s (vorher 4,2 s, parallele Zeitscheiben), Monatswechsel
         // 0,26 s, erste Seite 0,01 s, Suche 0,04 s (vorher 2,6 s), Import
         // von 20.000 Zeilen 14 s (vorher 80 s). Grenzen mit Reserve.
         #expect(firstVisible < .seconds(1))

@@ -3,9 +3,11 @@ import SwiftData
 
 final class LocalTransactionRepository: TransactionRepository {
     private let persistence: PersistenceModelActor
+    private let modelContainer: ModelContainer
 
     init(modelContainer: ModelContainer) {
         self.persistence = PersistenceModelActor(modelContainer: modelContainer)
+        self.modelContainer = modelContainer
     }
 
     func transactionPage(
@@ -142,8 +144,44 @@ final class LocalTransactionRepository: TransactionRepository {
 
     /// WP13/WP14 (§98): Leichte Review-Projection, propertiesToFetch-Pfad.
     func reviewCandidateTransactions() async throws -> [Transaction] {
-        try await persistence.loadReviewCandidateTransactions()
+        // Große Bestände: SwiftData legt jede Zeile als Objekt an, auf einem
+        // Actor nacheinander (100.000 Zeilen: ~3 s). In Zeitscheiben nach
+        // Anlagezeitpunkt auf eigene Actors (eigene Verbindungen) verteilt
+        // lesen; SQLite erlaubt im WAL-Modus parallele Leser. Jede Zeile
+        // liegt in genau einer Scheibe; die äußeren Scheiben sind offen,
+        // damit auch eine zwischendurch gespeicherte Zeile dabei ist.
+        let count = try await persistence.countTransactions()
+        guard count >= Self.parallelLightRowThreshold,
+              let range = try await persistence.transactionCreatedAtRange() else {
+            return try await persistence.loadReviewCandidateTransactions()
+        }
+        let parts = Self.parallelLightRowParts
+        let span = range.upperBound.timeIntervalSince(range.lowerBound)
+        let bounds: [Date] = (0...parts).map { index in
+            switch index {
+            case 0: .distantPast
+            case parts: .distantFuture
+            default: range.lowerBound.addingTimeInterval(span * Double(index) / Double(parts))
+            }
+        }
+        let container = modelContainer
+        return try await withThrowingTaskGroup(of: [Transaction].self) { group in
+            for index in 0..<parts {
+                let from = bounds[index], until = bounds[index + 1]
+                group.addTask {
+                    try await PersistenceModelActor(modelContainer: container)
+                        .loadReviewCandidateTransactions(createdFrom: from, until: until)
+                }
+            }
+            var all: [Transaction] = []
+            all.reserveCapacity(count)
+            for try await part in group { all += part }
+            return all
+        }
     }
+
+    static let parallelLightRowThreshold = 20_000
+    static let parallelLightRowParts = 4
 
     func transactions(ids: Set<UUID>) async throws -> [Transaction] {
         try await persistence.loadTransactions(ids: ids)

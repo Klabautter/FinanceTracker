@@ -357,12 +357,36 @@ extension PersistenceModelActor {
 
     // MARK: - WP20: Store-seitige Direct-ID-Lookups (fetchLimit 1)
 
+    /// Frühester und spätester Anlagezeitpunkt (für das Aufteilen großer
+    /// Abfragen auf mehrere Actors); `nil` ohne Buchungen.
+    func transactionCreatedAtRange() throws -> ClosedRange<Date>? {
+        var first = FetchDescriptor<SDTransactionEntity>(sortBy: [SortDescriptor(\.createdAt, order: .forward)])
+        first.fetchLimit = 1
+        first.propertiesToFetch = [\.createdAt]
+        var last = FetchDescriptor<SDTransactionEntity>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        last.fetchLimit = 1
+        last.propertiesToFetch = [\.createdAt]
+        guard let lower = try modelContext.fetch(first).first?.createdAt,
+              let upper = try modelContext.fetch(last).first?.createdAt else { return nil }
+        return lower...upper
+    }
+
+    /// Wie `loadReviewCandidateTransactions()`, aber nur Zeilen mit
+    /// `createdAt` in `[from, until)`: ein Teil einer parallelen Abfrage.
+    func loadReviewCandidateTransactions(createdFrom from: Date, until: Date) throws -> [Transaction] {
+        try loadReviewCandidateTransactions(predicate: #Predicate { $0.createdAt >= from && $0.createdAt < until })
+    }
+
     /// WP13/WP14 (§98/§103): Leichte Review-Projection, nur die Felder,
     /// die die Review-Semantik braucht, werden hydratisiert (kein
     /// Full-Domain-Load über 50k). Die Review-Semantik selbst bleibt im
     /// ReviewQueueBuilder zentralisiert.
     func loadReviewCandidateTransactions() throws -> [Transaction] {
-        var descriptor = FetchDescriptor<SDTransactionEntity>()
+        try loadReviewCandidateTransactions(predicate: nil)
+    }
+
+    private func loadReviewCandidateTransactions(predicate: Predicate<SDTransactionEntity>?) throws -> [Transaction] {
+        var descriptor = FetchDescriptor<SDTransactionEntity>(predicate: predicate)
         descriptor.propertiesToFetch = [
             \.id, \.accountID, \.sourceRaw, \.statusRaw, \.kindRaw,
             \.amountValue, \.amountCurrencyRaw,
