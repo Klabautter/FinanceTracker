@@ -1,21 +1,9 @@
 import Foundation
 
 struct RecurringSeries: Identifiable, Hashable, Sendable {
-    enum Cadence: String, Sendable {
-        case weekly
-        case monthly
-        case quarterly
-        case yearly
-
-        var displayName: String {
-            switch self {
-            case .weekly: String(localized: "wöchentlich")
-            case .monthly: String(localized: "monatlich")
-            case .quarterly: String(localized: "quartalsweise")
-            case .yearly: String(localized: "jährlich")
-            }
-        }
-    }
+    /// Derselbe Turnus wie bei Zahlungsplänen: ein Vorschlag wird ohne
+    /// Übersetzung zum Plan.
+    typealias Cadence = RecurringCommitment.Cadence
 
     let id: String
     let merchantKey: String

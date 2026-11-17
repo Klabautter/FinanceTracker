@@ -6,7 +6,7 @@ import Foundation
 /// Split Resolution → Währungsumrechnung → CashflowPolicy → Budget Match →
 /// Contribution.
 ///
-/// `BudgetCalculator.progress` summiert über dieselbe Pipeline, der
+/// `LoadBudgetProgresses` summiert über dieselbe Pipeline, der
 /// Budget-Detail-Trend/Liste zeigt die einzelnen Beiträge: Header und
 /// Trend-Ende können deshalb nie auseinanderlaufen.
 struct BudgetContribution: Sendable, Identifiable, Equatable {

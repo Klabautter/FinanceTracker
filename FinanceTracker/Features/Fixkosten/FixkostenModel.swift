@@ -215,7 +215,7 @@ final class FixkostenModel {
             name: series.displayName,
             merchantKey: RecurringMerchantIdentity(accountID: series.accountID, merchantKey: series.merchantKey).persistedKey,
             direction: .expense,
-            cadence: cadence(from: series.cadence),
+            cadence: series.cadence,
             amountPolicy: .fixed,
             expectedAmount: series.medianAmount,
             currency: series.currency,
@@ -430,15 +430,6 @@ final class FixkostenModel {
     private func markDismissed(_ key: String) {
         dismissedKeys.insert(key)
         dependencies.userDefaults.set(Array(dismissedKeys), forKey: dismissedDefaultsKey)
-    }
-
-    private func cadence(from seriesCadence: RecurringSeries.Cadence) -> RecurringCommitment.Cadence {
-        switch seriesCadence {
-        case .weekly: .weekly
-        case .monthly: .monthly
-        case .quarterly: .quarterly
-        case .yearly: .yearly
-        }
     }
 
     private func currentMonthQuery() -> TransactionQuery {
