@@ -721,7 +721,7 @@ final class BankConnectModel {
             pendingConnectionID = sessionID
             // Einmalwert: nach dem Tausch gilt er für keine weitere Rückkehr.
             pendingAuthorizationState = nil
-            BankSyncService.logger.info("Autorisierung: Session …\(sessionID.suffix(4), privacy: .public) angelegt")
+            BankSyncService.logger.info("Autorisierung: Session …\(sessionID.suffix(4), privacy: .private(mask: .hash)) angelegt")
 
             let service = BankSyncService(dependencies: dependencies, provider: provider)
             let connection = try await service.connect(

@@ -277,7 +277,7 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
                 // sichtbar scheitern lassen, statt unbemerkt zu fehlen.
                 guard let transaction = Self.map(transaction: dto, accountUID: accountID) else {
                     let reason = Self.rejectionReason(dto) ?? "unbekannt"
-                    BankSyncService.logger.error("Buchung nicht lesbar bei \(BankSyncService.redacted(endpoint), privacy: .public): Feld \(reason, privacy: .public)")
+                    BankSyncService.logger.error("Buchung nicht lesbar bei \(BankSyncService.redacted(endpoint), privacy: .private(mask: .hash)): Feld \(reason, privacy: .public)")
                     throw BankProviderError.invalidResponse(endpoint: endpoint)
                 }
                 transactions.append(transaction)
@@ -286,7 +286,7 @@ struct EnableBankingBankDataProvider: BankDataProvider, BankApplicationInfoProvi
             continuationKey = response.continuationKey.flatMap { $0.isEmpty ? nil : $0 }
             if let continuationKey {
                 guard seenKeys.insert(continuationKey).inserted else {
-                    BankSyncService.logger.error("Seitenabruf bei \(BankSyncService.redacted(endpoint), privacy: .public): Fortsetzungsschlüssel wiederholt sich")
+                    BankSyncService.logger.error("Seitenabruf bei \(BankSyncService.redacted(endpoint), privacy: .private(mask: .hash)): Fortsetzungsschlüssel wiederholt sich")
                     throw BankProviderError.invalidResponse(endpoint: endpoint)
                 }
             }

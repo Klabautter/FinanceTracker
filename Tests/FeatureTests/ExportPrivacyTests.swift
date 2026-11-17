@@ -20,6 +20,15 @@ struct ExportPrivacyTests {
         let path = "/accounts/1b2f6e3a-9c4d-4e5f-8a7b-6c5d4e3f2a1b/transactions"
         let redacted = BankSyncService.redacted(path)
         #expect(redacted == "/accounts/…2a1b/transactions")
+
+        // Fehlertexte stehen öffentlich im Log: dort bleibt von der Kennung
+        // nichts übrig, auch nicht bei einer unlesbaren Antwort.
+        let unreadable = BankSyncService.describe(BankProviderError.invalidResponse(endpoint: path))
+        let failed = BankSyncService.describe(BankProviderError.requestFailed(endpoint: path, status: 500, body: nil))
+        for text in [unreadable, failed] {
+            #expect(text.contains("/accounts/…/transactions"))
+            #expect(!text.contains("2a1b"))
+        }
     }
 
     @Test("Backup enthält keine Sitzungs-ID der Bank")

@@ -185,10 +185,10 @@ struct BankSyncService: Sendable {
         do {
             state = try await provider.connectionStatus(connectionID: providerConnectionID)
         } catch {
-            Self.logger.error("Sync \(Self.short(connection.id), privacy: .public): Session-Status fehlgeschlagen: \(Self.describe(error), privacy: .public)")
+            Self.logger.error("Sync \(Self.short(connection.id), privacy: .private(mask: .hash)): Session-Status fehlgeschlagen: \(Self.describe(error), privacy: .public)")
             throw error
         }
-        Self.logger.info("Sync \(Self.short(connection.id), privacy: .public): Status \(String(describing: state.authorization), privacy: .public), \(state.linkedAccountIDs.count, privacy: .public) Konten, Zustimmung bis \(state.consentValidUntil.map { AppDateFormatter.day($0) } ?? "unbekannt", privacy: .public)")
+        Self.logger.info("Sync \(Self.short(connection.id), privacy: .private(mask: .hash)): Status \(String(describing: state.authorization), privacy: .public), \(state.linkedAccountIDs.count, privacy: .public) Konten, Zustimmung bis \(state.consentValidUntil.map { AppDateFormatter.day($0) } ?? "unbekannt", privacy: .public)")
         guard state.authorization == .ready else {
             throw BankConnectionError.notAuthorized
         }
@@ -238,10 +238,10 @@ struct BankSyncService: Sendable {
                     data = try await backgroundProvider.fetchAccountData(accountID: remoteAccountID, dateFrom: overlapStart)
                     fetchedAt = Date()
                 } catch {
-                    Self.logger.error("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) Abruf fehlgeschlagen: \(Self.describe(error), privacy: .public)")
+                    Self.logger.error("Sync \(Self.short(connectionSnapshot.id), privacy: .private(mask: .hash)): Konto …\(remoteAccountID.suffix(4), privacy: .private(mask: .hash)) Abruf fehlgeschlagen: \(Self.describe(error), privacy: .public)")
                     throw error
                 }
-                Self.logger.info("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) \(data.account.currency.rawValue, privacy: .public), \(data.transactions.count, privacy: .public) Umsätze ab \(overlapStart.map { AppDateFormatter.day($0) } ?? "Anfang", privacy: .public)")
+                Self.logger.info("Sync \(Self.short(connectionSnapshot.id), privacy: .private(mask: .hash)): Konto …\(remoteAccountID.suffix(4), privacy: .private(mask: .hash)) \(data.account.currency.rawValue, privacy: .public), \(data.transactions.count, privacy: .public) Umsätze ab \(overlapStart.map { AppDateFormatter.day($0) } ?? "Anfang", privacy: .public)")
 
                 guard !data.account.id.isEmpty else {
                     throw ImportError.parsingFailed(stage: "bankSync", reason: String(localized: "Konto \(remoteAccountID) lieferte keine Details."))
@@ -289,7 +289,7 @@ struct BankSyncService: Sendable {
                 // (Rule 17). Enable Banking weist solche Zeilen schon beim
                 // Lesen ab; diese Prüfung gilt für jeden Provider.
                 if data.transactions.contains(where: { $0.state == .booked && $0.bookingDate == nil && $0.valueDate == nil }) {
-                    Self.logger.error("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) gebuchter Umsatz ohne Datum, Abruf verworfen")
+                    Self.logger.error("Sync \(Self.short(connectionSnapshot.id), privacy: .private(mask: .hash)): Konto …\(remoteAccountID.suffix(4), privacy: .private(mask: .hash)) gebuchter Umsatz ohne Datum, Abruf verworfen")
                     throw BankProviderError.invalidResponse(endpoint: "/transactions (booking_date fehlt)")
                 }
                 let ownerNames = [data.account.ownerName].compactMap { $0 }.filter { !$0.isEmpty }
@@ -338,7 +338,7 @@ struct BankSyncService: Sendable {
                     pendingCompleteSince: overlapStart ?? .distantPast
                 )
                 if result.cancelledPendingCount > 0 {
-                    Self.logger.info("Sync \(Self.short(connectionSnapshot.id), privacy: .public): Konto …\(remoteAccountID.suffix(4), privacy: .public) \(result.cancelledPendingCount, privacy: .public) Vormerkungen storniert (nicht mehr gemeldet)")
+                    Self.logger.info("Sync \(Self.short(connectionSnapshot.id), privacy: .private(mask: .hash)): Konto …\(remoteAccountID.suffix(4), privacy: .private(mask: .hash)) \(result.cancelledPendingCount, privacy: .public) Vormerkungen storniert (nicht mehr gemeldet)")
                 }
 
                 try await backgroundService.classifyEarlierTransfers(accountID: account.id, ownerNames: ownerNames)
@@ -368,7 +368,7 @@ struct BankSyncService: Sendable {
         // wieder an; andere Änderungen (z. B. der Bankname) bleiben.
         guard var updatedConnection = try await dependencies.connectionRepository.connection(id: connection.id) else {
             await MainActor.run { dependencies.changeTracker.markChanged() }
-            Self.logger.info("Sync \(Self.short(connection.id), privacy: .public): Verbindung inzwischen getrennt, Stand nicht gespeichert")
+            Self.logger.info("Sync \(Self.short(connection.id), privacy: .private(mask: .hash)): Verbindung inzwischen getrennt, Stand nicht gespeichert")
             return BankSyncResult(
                 connectionID: connection.id,
                 accountsSynced: syncedAccounts,
@@ -395,7 +395,7 @@ struct BankSyncService: Sendable {
             calendar.date(byAdding: .day, value: -7, to: $0)
         })
         await MainActor.run { dependencies.changeTracker.markChanged() }
-        Self.logger.info("Sync \(Self.short(connection.id), privacy: .public) fertig: \(syncedAccounts, privacy: .public) Konten, \(totalImported, privacy: .public) neu, \(totalUpdated, privacy: .public) aktualisiert, \(totalDuplicates, privacy: .public) Duplikate")
+        Self.logger.info("Sync \(Self.short(connection.id), privacy: .private(mask: .hash)) fertig: \(syncedAccounts, privacy: .public) Konten, \(totalImported, privacy: .public) neu, \(totalUpdated, privacy: .public) aktualisiert, \(totalDuplicates, privacy: .public) Duplikate")
 
         return BankSyncResult(
             connectionID: connection.id,
@@ -492,18 +492,21 @@ struct BankSyncService: Sendable {
     /// Pfad ohne Konto- und Sitzungskennungen (nur deren letzte vier
     /// Zeichen), damit Logs nichts enthalten, womit sich ein Konto abfragen
     /// ließe.
-    static func redacted(_ endpoint: String) -> String {
+    /// - Parameter keepingSuffix: `false` für Texte, die öffentlich im Log
+    ///   stehen: dann bleibt von einer Kennung gar nichts übrig.
+    static func redacted(_ endpoint: String, keepingSuffix: Bool = true) -> String {
         endpoint.split(separator: "/", omittingEmptySubsequences: false).map { segment in
-            segment.count >= 16 ? "…" + segment.suffix(4) : String(segment)
+            guard segment.count >= 16 else { return String(segment) }
+            return keepingSuffix ? "…" + segment.suffix(4) : "…"
         }.joined(separator: "/")
     }
 
     static func describe(_ error: Error) -> String {
         if case BankProviderError.requestFailed(let endpoint, let status, _) = error {
-            return "HTTP \(status) bei \(redacted(endpoint))"
+            return "HTTP \(status) bei \(redacted(endpoint, keepingSuffix: false))"
         }
         if case BankProviderError.invalidResponse(let endpoint) = error {
-            return "unlesbare Antwort bei \(redacted(endpoint))"
+            return "unlesbare Antwort bei \(redacted(endpoint, keepingSuffix: false))"
         }
         if case BankProviderError.missingCredentials = error {
             return "keine Zugangsdaten"
