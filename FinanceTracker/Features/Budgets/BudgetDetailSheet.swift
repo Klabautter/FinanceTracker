@@ -7,16 +7,15 @@ struct BudgetDetailSheet: View {
     let dependencies: AppDependencies
     let onEdit: () -> Void
 
-    @State private var contributions: [BudgetContribution] = []
-    @State private var amountHistory: [BudgetAmountHistory] = []
-    @State private var categories: [Category] = []
-    @State private var fxSnapshot: FXRateSnapshot?
-    @State private var fxIsLoading = false
-    @State private var isLoading = true
-    @State private var loadErrorMessage: String?
+    @State private var model: BudgetDetailModel
     @Environment(PrivacyPresentationState.self) private var privacyState
 
-    private let effectiveTransactionResolver = EffectiveTransactionResolver()
+    init(progress: BudgetProgress, dependencies: AppDependencies, onEdit: @escaping () -> Void) {
+        self.progress = progress
+        self.dependencies = dependencies
+        self.onEdit = onEdit
+        _model = State(initialValue: BudgetDetailModel(dependencies: dependencies))
+    }
 
     private var statusTone: AppTone {
         if progress.isOverBudget { return .critical }
@@ -53,8 +52,8 @@ struct BudgetDetailSheet: View {
                             .foregroundStyle(progress.isOverBudget ? AppPalette.critical : .secondary)
                         FinanceProgressBar(fraction: progress.fraction, tone: statusTone, height: 8)
                             .accessibilityLabel("Budgetverbrauch")
-                        if fxSnapshot != nil || fxIsLoading {
-                            FXRateStatusView(snapshot: fxSnapshot, isLoading: fxIsLoading)
+                        if model.fxSnapshot != nil || model.fxIsLoading {
+                            FXRateStatusView(snapshot: model.fxSnapshot, isLoading: model.fxIsLoading)
                         }
                     Button("Bearbeiten", action: onEdit)
                         .buttonStyle(.bordered)
@@ -73,15 +72,15 @@ struct BudgetDetailSheet: View {
                         "Zeitraum",
                         value: BudgetOverviewPresentation.periodRange(progress.period)
                     )
-                    if isLoading {
+                    if model.isLoading {
                         ProgressView("Kategorien werden geladen…")
-                    } else if categories.isEmpty {
+                    } else if model.categories.isEmpty {
                         (progress.budget.categoryIDs.isEmpty && progress.budget.isSalaryCycle
                              ? Text("Alle Ausgabenkategorien")
                              : Text("Keine Kategorien zugeordnet"))
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(categories) { category in
+                        ForEach(model.categories) { category in
                             HStack(spacing: AppSpacing.s) {
                                 IconTile(systemName: category.systemIconName, color: category.colorToken.color, size: 22)
                                 Text(category.name)
@@ -146,7 +145,7 @@ struct BudgetDetailSheet: View {
                 }
             }
 
-            if !isLoading, !amountHistory.isEmpty {
+            if !model.isLoading, !model.amountHistory.isEmpty {
                 Section("Verlauf") {
                         ForEach(sortedHistory) { entry in
                             LabeledContent(
@@ -157,7 +156,7 @@ struct BudgetDetailSheet: View {
                 }
             }
 
-            if !isLoading, loadErrorMessage == nil, !contributions.isEmpty {
+            if !model.isLoading, model.loadErrorMessage == nil, !model.contributions.isEmpty {
                 Section("Trend") {
                         cumulativeTrend
                             .frame(height: 120)
@@ -165,21 +164,21 @@ struct BudgetDetailSheet: View {
             }
 
             Section("Beiträge dieser Periode") {
-                    if isLoading {
+                    if model.isLoading {
                         ProgressView("Beiträge werden geladen…")
-                    } else if let loadErrorMessage {
+                    } else if let loadErrorMessage = model.loadErrorMessage {
                         Label(loadErrorMessage, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(AppPalette.critical)
                         Button("Erneut laden") {
-                            Task { await load() }
+                            Task { await model.load(progress: progress) }
                         }
-                    } else if contributions.isEmpty {
+                    } else if model.contributions.isEmpty {
                         Text("Keine Beiträge gefunden.")
                             .foregroundStyle(.secondary)
                     } else {
                         // WP9: Die Liste zeigt exakt die Contributions der
                         // gemeinsamen Pipeline (Header == Summe der Liste).
-                        ForEach(contributions.prefix(50)) { contribution in
+                        ForEach(model.contributions.prefix(50)) { contribution in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(contribution.isSplitLine ? (contribution.note ?? String(localized: "Split-Position")) : contribution.merchantName)
@@ -200,9 +199,9 @@ struct BudgetDetailSheet: View {
                                     .font(.callout.monospacedDigit())
                             }
                         }
-                        if contributions.count > 50 {
+                        if model.contributions.count > 50 {
                             Label(
-                                "50 von \(contributions.count) Beiträgen angezeigt. Die Budgetsumme berücksichtigt alle Beiträge.",
+                                "50 von \(model.contributions.count) Beiträgen angezeigt. Die Budgetsumme berücksichtigt alle Beiträge.",
                                 systemImage: "info.circle"
                             )
                             .font(.caption)
@@ -214,7 +213,7 @@ struct BudgetDetailSheet: View {
         .financeFormStyle()
         .workspaceNavigationTitle(progress.budget.name)
         .accessibilityIdentifier("budget-detail-\(progress.budget.name)")
-        .task(id: progress) { await load() }
+        .task(id: progress) { await model.load(progress: progress) }
     }
 
     /// WP6 (§46-48): Das Detail verwendet EXAKT die Periode aus dem
@@ -235,14 +234,14 @@ struct BudgetDetailSheet: View {
     }
 
     private var sortedHistory: [BudgetAmountHistory] {
-        amountHistory.sorted { $0.periodStart > $1.periodStart }
+        model.amountHistory.sorted { $0.periodStart > $1.periodStart }
     }
 
     /// WP9: Kumulativer Ausgabenverlauf ausschließlich über die
     /// effektiven Budget-Contributions (nicht über rohe Beträge);
     /// das Trend-Ende ist damit identisch mit dem Header.
     private var cumulativeTrend: some View {
-        let dailyTotals = Dictionary(grouping: contributions, by: { contribution in
+        let dailyTotals = Dictionary(grouping: model.contributions, by: { contribution in
             Calendar.current.startOfDay(for: contribution.date)
         })
         let days = dailyTotals.keys.sorted()
@@ -289,19 +288,41 @@ struct BudgetDetailSheet: View {
             "Kumulierter Ausgabenverlauf im Monat, aktuell \(PrivacyAwareMoney.accessibilityLabel(running, currency: progress.currency, privacy: privacyState))"
         )
     }
+}
 
-    private func load() async {
-        isLoading = true
+/// Lädt Beiträge, Verlauf und Kategorien eines Budgets für das Detail
+/// (AGENTS.md Regeln 1 und 37).
+@MainActor
+@Observable
+final class BudgetDetailModel {
+    private(set) var contributions: [BudgetContribution] = []
+    private(set) var amountHistory: [BudgetAmountHistory] = []
+    private(set) var categories: [Category] = []
+    private(set) var fxSnapshot: FXRateSnapshot?
+    private(set) var fxIsLoading = false
+    private(set) var loadState: LoadState = .idle
+    private let dependencies: AppDependencies
+    private let effectiveTransactionResolver = EffectiveTransactionResolver()
+
+    init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+    }
+
+    /// Vor dem ersten Laden gilt das Detail ebenfalls als ladend.
+    var isLoading: Bool { loadState == .loading || loadState == .idle }
+    var loadErrorMessage: String? { loadState.failureMessage }
+
+    func load(progress: BudgetProgress) async {
+        loadState = .loading
         fxIsLoading = false
-        loadErrorMessage = nil
         contributions = []
         amountHistory = []
         categories = []
         fxSnapshot = nil
         defer {
-            isLoading = false
             fxIsLoading = false
         }
+        let currentPeriodInterval = progress.period
 
         do {
             async let historyTask = dependencies.budgetRepository.amountHistory(budgetID: progress.budget.id)
@@ -354,11 +375,16 @@ struct BudgetDetailSheet: View {
                 period: currentPeriodInterval
             )
         } catch {
+            // Abgebrochen, weil ein anderes Budget gewählt wurde: das neue
+            // Laden setzt den Zustand, hier nichts überschreiben.
+            if Task.isCancelled { return }
             // WP11 (§86): Fehler nie als „keine Splits" maskieren; sichtbare
             // Fehlermeldung statt scheinbar präziser Zahl.
             contributions = []
             categories = []
-            loadErrorMessage = String(localized: "Budgetdaten konnten nicht vollständig geladen werden.")
+            loadState = .failed(String(localized: "Budgetdaten konnten nicht vollständig geladen werden."))
+            return
         }
+        if !Task.isCancelled { loadState = .loaded }
     }
 }

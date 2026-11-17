@@ -22,70 +22,44 @@ struct AddBudgetSheet: View {
     var editing: Budget?
     let onSaved: () -> Void
 
-    @State private var name = ""
-    @State private var iconInput = "chart.pie"
-    /// WP4 (§28): Typed Decimal statt Display-String als Edit-State.
-    @State private var amount: Decimal?
-    @State private var selectedCategoryIDs: Set<UUID> = []
-    @State private var rolloverAccumulate = false
-    @State private var useSalaryCycle = false
-    /// P2 Sparziel (optional, gleiche Währung wie das Budget).
-    @State private var targetAmount: Decimal?
-    @State private var hasTargetDate = false
-    @State private var targetDate = Date()
-    @State private var incomeCommitments: [RecurringCommitment] = []
-    @State private var salaryIncomeID: UUID?
-    @State private var leafCategories: [Category] = []
+    @State private var model: AddBudgetModel
     @State private var createsCategory = false
-    @State private var editingBudget: Budget?
-    @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
 
-    private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && !selectedCategoryIDs.isEmpty
-            && amount != nil
-            && amount! > 0
-            && selectedPeriodPolicy != nil
-    }
-
-    private var selectedPeriodPolicy: BudgetPeriodPolicy? {
-        BudgetPeriodFormSelection.policy(
-            useSalaryCycle: useSalaryCycle,
-            salaryIncomeID: salaryIncomeID,
-            availableIncomeIDs: Set(incomeCommitments.map(\.id))
-        )
+    init(dependencies: AppDependencies, editing: Budget? = nil, onSaved: @escaping () -> Void) {
+        self.dependencies = dependencies
+        self.editing = editing
+        self.onSaved = onSaved
+        _model = State(initialValue: AddBudgetModel(dependencies: dependencies, editing: editing))
     }
 
     var body: some View {
         AdaptiveSheet(title: editing == nil ? String(localized: "Neues Budget") : String(localized: "Budget bearbeiten")) {
             Form {
                 Section("Budget") {
-                    TextField("Name (z. B. Lebensmittel)", text: $name)
+                    TextField("Name (z. B. Lebensmittel)", text: $model.name)
 
                     // WP13: Kuratierter Picker statt roher SF-Symbol-Eingabe;
                     // er zeigt das gewählte Symbol selbst.
-                    FinanceIconPicker(selection: $iconInput)
+                    FinanceIconPicker(selection: $model.iconInput)
 
-                    DecimalInputField(title: String(localized: "Monatliches Limit (z. B. 500)"), value: $amount)
+                    DecimalInputField(title: String(localized: "Monatliches Limit (z. B. 500)"), value: $model.amount)
                 }
 
                 Section("Kategorien") {
-                    if leafCategories.isEmpty {
+                    if model.loadState.isLoading || model.loadState == .idle {
                         Text("Lade Kategorien…").foregroundStyle(.secondary)
+                    } else if model.leafCategories.isEmpty && model.loadState == .loaded {
+                        Text("Noch keine Ausgabenkategorien. Lege unten eine an.").foregroundStyle(.secondary)
                     } else {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
-                            ForEach(leafCategories) { category in
+                            ForEach(model.leafCategories) { category in
                                 Button {
-                                    if selectedCategoryIDs.contains(category.id) {
-                                        selectedCategoryIDs.remove(category.id)
-                                    } else {
-                                        selectedCategoryIDs.insert(category.id)
-                                    }
+                                    model.toggleCategory(category.id)
                                 } label: {
                                     HStack(spacing: 8) {
-                                        Image(systemName: selectedCategoryIDs.contains(category.id) ? "checkmark.circle.fill" : "circle")
-                                            .foregroundStyle(selectedCategoryIDs.contains(category.id) ? Color.accentColor : Color.secondary)
+                                        Image(systemName: model.selectedCategoryIDs.contains(category.id) ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(model.selectedCategoryIDs.contains(category.id) ? Color.accentColor : Color.secondary)
                                         Text(category.name)
                                             .foregroundStyle(.primary)
                                             .lineLimit(2)
@@ -96,7 +70,7 @@ struct AddBudgetSheet: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(category.name)
-                                .accessibilityValue(selectedCategoryIDs.contains(category.id) ? Text("Ausgewählt") : Text("Nicht ausgewählt"))
+                                .accessibilityValue(model.selectedCategoryIDs.contains(category.id) ? Text("Ausgewählt") : Text("Nicht ausgewählt"))
                             }
                         }
                     }
@@ -114,31 +88,28 @@ struct AddBudgetSheet: View {
                         editing: nil,
                         onSaved: {},
                         onCreated: { category in
-                            if !leafCategories.contains(where: { $0.id == category.id }) {
-                                leafCategories.append(category)
-                            }
-                            selectedCategoryIDs.insert(category.id)
+                            model.adoptCreatedCategory(category)
                         },
-                        suggestedName: name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : name
+                        suggestedName: model.name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : model.name
                     )
                 }
 
                 Section("Zeitraum") {
-                    Picker("Zeitraum", selection: $useSalaryCycle) {
+                    Picker("Zeitraum", selection: $model.useSalaryCycle) {
                         Text("Kalendermonat").tag(false)
                         Text("Gehalt zu Gehalt").tag(true)
                     }
                     .pickerStyle(.segmented)
 
-                    if useSalaryCycle {
-                        if incomeCommitments.isEmpty {
+                    if model.useSalaryCycle {
+                        if model.incomeCommitments.isEmpty {
                             Text("Keine Fix-Einnahmen vorhanden. Erfasse zuerst dein Gehalt unter „Wiederkehrend“.")
                                 .font(.caption)
                                 .foregroundStyle(AppPalette.critical)
                         } else {
-                            Picker("Einkommen", selection: $salaryIncomeID) {
+                            Picker("Einkommen", selection: $model.salaryIncomeID) {
                                 Text("Bitte auswählen").tag(UUID?.none)
-                                ForEach(incomeCommitments) { commitment in
+                                ForEach(model.incomeCommitments) { commitment in
                                     Text(commitment.name).tag(UUID?.some(commitment.id))
                                 }
                             }
@@ -147,14 +118,14 @@ struct AddBudgetSheet: View {
                 }
 
                 Section {
-                    Toggle("Rest in nächsten Monat übertragen", isOn: $rolloverAccumulate)
+                    Toggle("Rest in nächsten Monat übertragen", isOn: $model.rolloverAccumulate)
                 }
 
                 Section {
-                    DecimalInputField(title: String(localized: "Zielbetrag (z. B. 1200)"), value: $targetAmount)
-                    Toggle("Zieldatum setzen", isOn: $hasTargetDate)
-                    if hasTargetDate {
-                        DatePicker("Zieldatum", selection: $targetDate, displayedComponents: .date)
+                    DecimalInputField(title: String(localized: "Zielbetrag (z. B. 1200)"), value: $model.targetAmount)
+                    Toggle("Zieldatum setzen", isOn: $model.hasTargetDate)
+                    if model.hasTargetDate {
+                        DatePicker("Zieldatum", selection: $model.targetDate, displayedComponents: .date)
                     }
                 } header: {
                     Text("Sparziel (optional)")
@@ -162,7 +133,7 @@ struct AddBudgetSheet: View {
                     Text("Sparziele nutzen Rücklagen-Budgets: Der verbleibende Rest zählt als Gespartes.")
                 }
 
-                if let errorMessage {
+                if let errorMessage = model.loadState.failureMessage ?? model.actionError {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
                 }
@@ -179,17 +150,87 @@ struct AddBudgetSheet: View {
                     Button("Speichern") {
                         Task { await save() }
                     }
-                    .disabled(!canSave)
+                    .disabled(!model.canSave || model.isSaving)
                 }
             }
-            .task { await load() }
+            .task { await model.load() }
         }
         #if os(macOS)
         .frame(width: 520, height: 620)
         #endif
     }
 
-    private func load() async {
+    private func save() async {
+        guard await model.save() else { return }
+        onSaved()
+        dismiss()
+    }
+}
+
+/// Formularzustand, Laden und Speichern eines Budgets (AGENTS.md Regeln 1
+/// und 37).
+@MainActor
+@Observable
+final class AddBudgetModel {
+    var name = ""
+    var iconInput = "chart.pie"
+    /// WP4 (§28): Typed Decimal statt Display-String als Edit-State.
+    var amount: Decimal?
+    var selectedCategoryIDs: Set<UUID> = []
+    var rolloverAccumulate = false
+    var useSalaryCycle = false
+    /// P2 Sparziel (optional, gleiche Währung wie das Budget).
+    var targetAmount: Decimal?
+    var hasTargetDate = false
+    var targetDate = Date()
+    var salaryIncomeID: UUID?
+    private(set) var incomeCommitments: [RecurringCommitment] = []
+    private(set) var leafCategories: [Category] = []
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    private(set) var isSaving = false
+
+    private let dependencies: AppDependencies
+    private let editing: Budget?
+
+    init(dependencies: AppDependencies, editing: Budget?) {
+        self.dependencies = dependencies
+        self.editing = editing
+    }
+
+    var selectedPeriodPolicy: BudgetPeriodPolicy? {
+        BudgetPeriodFormSelection.policy(
+            useSalaryCycle: useSalaryCycle,
+            salaryIncomeID: salaryIncomeID,
+            availableIncomeIDs: Set(incomeCommitments.map(\.id))
+        )
+    }
+
+    var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && !selectedCategoryIDs.isEmpty
+            && (amount ?? 0) > 0
+            && selectedPeriodPolicy != nil
+    }
+
+    func toggleCategory(_ id: UUID) {
+        if selectedCategoryIDs.contains(id) {
+            selectedCategoryIDs.remove(id)
+        } else {
+            selectedCategoryIDs.insert(id)
+        }
+    }
+
+    /// Eine aus dem Formular heraus angelegte Kategorie gleich auswählen.
+    func adoptCreatedCategory(_ category: Category) {
+        if !leafCategories.contains(where: { $0.id == category.id }) {
+            leafCategories.append(category)
+        }
+        selectedCategoryIDs.insert(category.id)
+    }
+
+    func load() async {
+        loadState = .loading
         do {
             let all = try await dependencies.categoryRepository.categories()
             // WP12: Zentrale Leaf-only-Quelle (Parents = aggregation-only).
@@ -204,7 +245,6 @@ struct AddBudgetSheet: View {
                 .filter { $0.direction == .income && $0.status == .active }
 
             if let editing {
-                editingBudget = editing
                 name = editing.name
                 iconInput = editing.systemIconName
                 amount = editing.amount
@@ -227,29 +267,30 @@ struct AddBudgetSheet: View {
                     salaryIncomeID = recurringIncomeID
                 }
             }
+            loadState = .loaded
         } catch {
-            errorMessage = String(localized: "Formulardaten konnten nicht geladen werden.")
+            loadState = .failed(String(localized: "Formulardaten konnten nicht geladen werden."))
         }
     }
 
-    private func save() async {
+    /// `true`, wenn das Budget gespeichert wurde.
+    func save() async -> Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         // §38: Ungültige/leere Eingabe → sichtbarer Fehler, Save blockiert,
         // Sheet bleibt offen. Kein stiller Fallback.
         guard let amount, amount > 0 else {
-            errorMessage = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
-            return
+            actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
+            return false
         }
         guard !selectedCategoryIDs.isEmpty else {
-            errorMessage = String(localized: "Bitte mindestens eine Kategorie auswählen.")
-            return
+            actionError = String(localized: "Bitte mindestens eine Kategorie auswählen.")
+            return false
         }
-
         // Ein gewählter Gehaltszyklus ist ohne konkretes Einkommen ungültig.
         // Er darf niemals still als Kalendermonat gespeichert werden.
         guard let periodPolicy = selectedPeriodPolicy else {
-            errorMessage = String(localized: "Bitte ein wiederkehrendes Einkommen für den Gehaltszyklus auswählen.")
-            return
+            actionError = String(localized: "Bitte ein wiederkehrendes Einkommen für den Gehaltszyklus auswählen.")
+            return false
         }
 
         let edit = BudgetFormEdit(
@@ -262,15 +303,18 @@ struct AddBudgetSheet: View {
             targetAmount: targetAmount,
             targetDate: hasTargetDate ? targetDate : nil
         )
-        let budget = edit.applied(to: editingBudget, baseCurrency: dependencies.baseCurrency)
+        let budget = edit.applied(to: editing, baseCurrency: dependencies.baseCurrency)
 
+        isSaving = true
+        defer { isSaving = false }
         do {
             try await dependencies.budgetRepository.upsert([budget])
             dependencies.changeTracker.markChanged()
-            onSaved()
-            dismiss()
+            actionError = nil
+            return true
         } catch {
-            errorMessage = String(localized: "Budget konnte nicht gespeichert werden.")
+            actionError = String(localized: "Budget konnte nicht gespeichert werden.")
+            return false
         }
     }
 }

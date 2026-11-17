@@ -56,6 +56,13 @@ struct TransactionDetailView: View {
                 GroupExpenseSectionView(transaction: txn, dependencies: model.dependencies)
                     .id(txn.id)
                     .financeCard(padding: AppSpacing.l)
+                TransactionAttachmentSection(
+                    transaction: txn,
+                    dependencies: model.dependencies,
+                    baseDirectory: model.attachmentsBaseDirectory
+                )
+                .id(txn.id)
+                .financeCard(padding: AppSpacing.l)
                 manualActions(txn)
             }
             .padding(.horizontal, AppSpacing.xl)
@@ -130,6 +137,14 @@ struct TransactionDetailView: View {
             )
             GroupExpenseSectionView(transaction: txn, dependencies: model.dependencies)
                 .id(txn.id)
+            Section {
+                TransactionAttachmentSection(
+                    transaction: txn,
+                    dependencies: model.dependencies,
+                    baseDirectory: model.attachmentsBaseDirectory
+                )
+                .id(txn.id)
+            }
             manualActions(txn)
         }
         .accessibilityIdentifier("transaction-detail-content")

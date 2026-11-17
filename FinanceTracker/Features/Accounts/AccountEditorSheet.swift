@@ -9,9 +9,7 @@ struct AccountEditorSheet: View {
     let editing: Account?
     let onSaved: () -> Void
 
-    @State private var draft: AccountEditorDraft
-    @State private var errorMessage: String?
-    @State private var isSaving = false
+    @State private var model: AccountEditorModel
     @Environment(\.dismiss) private var dismiss
 
     init(
@@ -23,10 +21,13 @@ struct AccountEditorSheet: View {
         self.dependencies = dependencies
         self.editing = editing
         self.onSaved = onSaved
-        _draft = State(initialValue: AccountEditorDraft(
-            editing: editing,
-            transactionCount: transactionCount,
-            baseCurrency: dependencies.baseCurrency
+        _model = State(initialValue: AccountEditorModel(
+            dependencies: dependencies,
+            draft: AccountEditorDraft(
+                editing: editing,
+                transactionCount: transactionCount,
+                baseCurrency: dependencies.baseCurrency
+            )
         ))
     }
 
@@ -37,22 +38,22 @@ struct AccountEditorSheet: View {
         ) {
             Form {
                 Section("Konto") {
-                    TextField("Name (z. B. Geldbeutel)", text: $draft.name)
+                    TextField("Name (z. B. Geldbeutel)", text: $model.draft.name)
                         .accessibilityLabel("Kontoname")
-                    Picker("Typ", selection: $draft.type) {
+                    Picker("Typ", selection: $model.draft.type) {
                         ForEach(AccountType.allCases, id: \.self) { type in
                             Label(type.displayName, systemImage: type.systemImage).tag(type)
                         }
                     }
                     .accessibilityLabel("Kontotyp")
-                    Picker("Währung", selection: $draft.currency) {
+                    Picker("Währung", selection: $model.draft.currency) {
                         ForEach(CurrencyCode.offered, id: \.self) { currency in
                             Text(currency.rawValue).tag(currency)
                         }
                     }
-                    .disabled(!draft.canChangeCurrency)
+                    .disabled(!model.draft.canChangeCurrency)
                     .accessibilityLabel("Kontowährung")
-                    if !draft.canChangeCurrency {
+                    if !model.draft.canChangeCurrency {
                         Text("Die Währung ist festgelegt, weil bereits Buchungen vorhanden sind oder die Bank sie vorgibt.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -60,11 +61,11 @@ struct AccountEditorSheet: View {
                 }
 
                 Section {
-                    Toggle("Anfangsbestand festlegen", isOn: $draft.hasOpeningBalance)
+                    Toggle("Anfangsbestand festlegen", isOn: $model.draft.hasOpeningBalance)
                         .accessibilityLabel("Anfangsbestand festlegen")
-                    if draft.hasOpeningBalance {
-                        DecimalInputField(title: String(localized: "Anfangsbestand in \(draft.currency.rawValue) (z. B. 120)"), value: $draft.openingBalance)
-                        DatePicker("Stand am", selection: $draft.openingBalanceDate, displayedComponents: .date)
+                    if model.draft.hasOpeningBalance {
+                        DecimalInputField(title: String(localized: "Anfangsbestand in \(model.draft.currency.rawValue) (z. B. 120)"), value: $model.draft.openingBalance)
+                        DatePicker("Stand am", selection: $model.draft.openingBalanceDate, displayedComponents: .date)
                             .accessibilityLabel("Stichtag des Anfangsbestands")
                     }
                 } header: {
@@ -74,7 +75,7 @@ struct AccountEditorSheet: View {
                 }
 
                 Section {
-                    Toggle("Nicht zum Gesamtstand zählen", isOn: $draft.excludedFromTotal)
+                    Toggle("Nicht zum Gesamtstand zählen", isOn: $model.draft.excludedFromTotal)
                         .accessibilityLabel("Konto nicht zum Gesamtstand zählen")
                         .accessibilityIdentifier("account-editor-exclude-total")
                 } footer: {
@@ -82,14 +83,14 @@ struct AccountEditorSheet: View {
                 }
 
                 Section {
-                    Toggle("In der Kontenliste ausblenden", isOn: $draft.isHiddenInList)
+                    Toggle("In der Kontenliste ausblenden", isOn: $model.draft.isHiddenInList)
                         .accessibilityLabel("Konto in der Kontenliste ausblenden")
                         .accessibilityIdentifier("account-editor-hide-in-list")
                 } footer: {
                     Text("Für Konten, die du nicht mehr nutzt. Buchungen, Stand und Gesamtstand bleiben unverändert; ausgeblendete Konten findest du unten in der Kontenliste.")
                 }
 
-                if let errorMessage {
+                if let errorMessage = model.errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(AppPalette.warning)
@@ -105,7 +106,7 @@ struct AccountEditorSheet: View {
                     Button(editing == nil ? String(localized: "Anlegen") : String(localized: "Speichern")) {
                         Task { await save() }
                     }
-                    .disabled(!draft.canSave || isSaving)
+                    .disabled(!model.draft.canSave || model.isSaving)
                     .accessibilityIdentifier("account-editor-save")
                 }
             }
@@ -116,19 +117,42 @@ struct AccountEditorSheet: View {
     }
 
     private func save() async {
+        guard await model.save() else { return }
+        onSaved()
+        dismiss()
+    }
+}
+
+/// Speichern des Konto-Editors außerhalb des Views (AGENTS.md Regel 1).
+@MainActor
+@Observable
+final class AccountEditorModel {
+    var draft: AccountEditorDraft
+    private(set) var errorMessage: String?
+    private(set) var isSaving = false
+    private let dependencies: AppDependencies
+
+    init(dependencies: AppDependencies, draft: AccountEditorDraft) {
+        self.dependencies = dependencies
+        self.draft = draft
+    }
+
+    /// `true`, wenn das Konto gespeichert wurde.
+    func save() async -> Bool {
         guard draft.canSave else {
             errorMessage = draft.validationMessage
-            return
+            return false
         }
         isSaving = true
         defer { isSaving = false }
         do {
             try await dependencies.accountRepository.upsert([draft.makeAccount()])
             dependencies.changeTracker.markChanged()
-            onSaved()
-            dismiss()
+            errorMessage = nil
+            return true
         } catch {
             errorMessage = String(localized: "Das Konto konnte nicht gespeichert werden.")
+            return false
         }
     }
 }

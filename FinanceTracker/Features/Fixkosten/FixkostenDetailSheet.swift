@@ -3,95 +3,77 @@ import SwiftUI
 /// Recurring-Detail (Roadmap #115): Bearbeiten, Pausieren, letzte
 /// Zahlungen, manuelle Zuordnung (#110), Löschen.
 struct FixkostenDetailSheet: View {
-    @State private var commitment: RecurringCommitment
     let dependencies: AppDependencies
     let onChanged: () -> Void
 
-    @State private var name = ""
-    /// WP5 (§35): Typed Decimal statt Display-String als Edit-State.
-    @State private var amount: Decimal?
-    @State private var categoryID: UUID?
-    @State private var direction: RecurringCommitment.Direction = .expense
-    @State private var cadence: RecurringCommitment.Cadence = .monthly
-    @State private var hasNextExpectedDate = false
-    @State private var nextExpectedDate = Date()
-    @State private var leafCategories: [Category] = []
-    @State private var paidTransactions: [Transaction] = []
-    @State private var explicitlyAssignedIDs: Set<UUID> = []
-    @State private var unassignedTransactions: [Transaction] = []
-    @State private var showsAssignList = false
-    @State private var errorMessage: String?
-    /// WP5 (§37): Save-Flow mit Persistenz-Bestätigung vor dem Dismiss.
-    @State private var isSaving = false
-    @State private var isUpdatingStatus = false
+    @State private var model: FixkostenDetailModel
     @State private var showsDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
 
-    private var isPaused: Bool { commitment.status == .paused }
-
     init(commitment: RecurringCommitment, dependencies: AppDependencies, onChanged: @escaping () -> Void) {
-        _commitment = State(initialValue: commitment)
         self.dependencies = dependencies
         self.onChanged = onChanged
+        _model = State(initialValue: FixkostenDetailModel(commitment: commitment, dependencies: dependencies))
     }
 
     var body: some View {
-        AdaptiveSheet(title: direction == .expense ? String(localized: "Zahlungsplan bearbeiten") : String(localized: "Einnahme bearbeiten")) {
+        AdaptiveSheet(title: model.direction == .expense ? String(localized: "Zahlungsplan bearbeiten") : String(localized: "Einnahme bearbeiten")) {
             Form {
                 Section {
-                    TextField("Name", text: $name)
-                    DecimalInputField(title: String(localized: "Betrag"), value: $amount)
-                    Picker("Richtung", selection: $direction) {
+                    TextField("Name", text: $model.name)
+                    DecimalInputField(title: String(localized: "Betrag"), value: $model.amount)
+                    Picker("Richtung", selection: $model.direction) {
                         ForEach(RecurringCommitment.Direction.allCases, id: \.self) { direction in
                             Text(direction.displayName).tag(direction)
                         }
                     }
-                    Picker("Turnus", selection: $cadence) {
+                    Picker("Turnus", selection: $model.cadence) {
                         ForEach(RecurringCommitment.Cadence.allCases, id: \.self) { cadence in
                             Text(cadence.displayName).tag(cadence)
                         }
                     }
-                    Toggle("Termin geplant", isOn: $hasNextExpectedDate)
-                    if hasNextExpectedDate {
+                    Toggle("Termin geplant", isOn: $model.hasNextExpectedDate)
+                    if model.hasNextExpectedDate {
                         DatePicker(
-                            selection: $nextExpectedDate,
+                            selection: $model.nextExpectedDate,
                             displayedComponents: .date
                         ) {
-                            direction == .expense ? Text("Nächste Fälligkeit") : Text("Nächster Eingang")
+                            model.direction == .expense ? Text("Nächste Fälligkeit") : Text("Nächster Eingang")
                         }
                     }
                     CategorySelectionPicker(
                         title: String(localized: "Kategorie"),
-                        selection: $categoryID,
-                        categories: leafCategories,
+                        selection: $model.categoryID,
+                        categories: model.leafCategories,
                         dependencies: dependencies
                     )
                 } header: {
-                    direction == .expense ? Text("Zahlungsplan") : Text("Wiederkehrende Einnahme")
+                    model.direction == .expense ? Text("Zahlungsplan") : Text("Wiederkehrende Einnahme")
                 }
 
                 Section {
                     Toggle("Pausiert", isOn: Binding(
-                        get: { isPaused },
+                        get: { model.isPaused },
                         set: { newValue in
                             Task {
-                                await persistStatus(newValue ? .paused : .active)
+                                await model.persistStatus(newValue ? .paused : .active)
+                                onChanged()
                             }
                         }
                     ))
                     .accessibilityLabel("Wiederkehrenden Eintrag pausieren oder aktivieren")
                     .accessibilityIdentifier("recurring-detail-pause")
-                    .disabled(isUpdatingStatus)
+                    .disabled(model.isUpdatingStatus)
                 } footer: {
                     Text("Pausieren wird sofort gespeichert.")
                 }
 
                 Section("Letzte Zahlungen") {
-                    if paidTransactions.isEmpty {
+                    if model.paidTransactions.isEmpty {
                         Text("Keine Zahlungen gefunden.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(paidTransactions.prefix(5)) { txn in
+                        ForEach(model.paidTransactions.prefix(5)) { txn in
                             HStack {
                                 Text(AppDateFormatter.day(txn.displayDate))
                                     .font(.caption)
@@ -103,13 +85,9 @@ struct FixkostenDetailSheet: View {
                                     .font(.callout.monospacedDigit())
                                 // WP5: Explizite Zuordnungen sind entfernbar;
                                 // danach greift Heuristik-Fallback bzw. offen.
-                                if explicitlyAssignedIDs.contains(txn.id) {
+                                if model.explicitlyAssignedIDs.contains(txn.id) {
                                     Button {
-                                        Task {
-                                            if let occurrence = await occurrence(for: txn.id) {
-                                                await unassign(occurrence)
-                                            }
-                                        }
+                                        Task { await model.unassign(transactionID: txn.id) }
                                     } label: {
                                         Label("Zuordnung entfernen", systemImage: "xmark.circle")
                                     }
@@ -121,10 +99,10 @@ struct FixkostenDetailSheet: View {
                     }
 
                     // Manuelle Zuordnung (#110)
-                    if showsAssignList {
-                        ForEach(unassignedTransactions.prefix(8)) { txn in
+                    if model.showsAssignList {
+                        ForEach(model.unassignedTransactions.prefix(8)) { txn in
                             Button {
-                                Task { await assign(txn) }
+                                Task { await model.assign(txn) }
                             } label: {
                                 HStack {
                                     Text(AppDateFormatter.day(txn.displayDate))
@@ -138,17 +116,17 @@ struct FixkostenDetailSheet: View {
                                 }
                             }
                         }
-                        Button("Zuordnen abbrechen") { showsAssignList = false }
+                        Button("Zuordnen abbrechen") { model.showsAssignList = false }
                             .font(.caption)
                     } else {
                         Button("Transaktion manuell zuordnen…") {
-                            showsAssignList = true
+                            model.showsAssignList = true
                         }
                         .font(.caption)
                     }
                 }
 
-                if let errorMessage {
+                if let errorMessage = model.loadState.failureMessage ?? model.actionError {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
                 }
@@ -174,13 +152,12 @@ struct FixkostenDetailSheet: View {
                     // geschlossenen Sheet).
                     Button("Speichern") {
                         Task {
-                            isSaving = true
-                            defer { isSaving = false }
-                            guard await persist() else { return }
+                            guard await model.persist() else { return }
+                            onChanged()
                             dismiss()
                         }
                     }
-                    .disabled(isSaving || isUpdatingStatus || !canSave)
+                    .disabled(model.isSaving || model.isUpdatingStatus || !model.canSave)
                 }
             }
             .confirmationDialog(
@@ -189,13 +166,17 @@ struct FixkostenDetailSheet: View {
                 titleVisibility: .visible
             ) {
                 Button("Endgültig löschen", role: .destructive) {
-                    Task { await deleteCommitment() }
+                    Task {
+                        guard await model.deleteCommitment() else { return }
+                        onChanged()
+                        dismiss()
+                    }
                 }
                 Button("Abbrechen", role: .cancel) {}
             } message: {
                 Text("Der Eintrag und seine Zuordnungen zu Transaktionen werden entfernt.")
             }
-            .task { await load() }
+            .task { await model.load() }
         }
         #if os(macOS)
         .frame(
@@ -208,73 +189,111 @@ struct FixkostenDetailSheet: View {
         )
         #endif
     }
+}
 
-    private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && amount != nil
-            && amount! > 0
-    }
+/// Formular, Zahlungen und Zuordnungen eines Zahlungsplans (AGENTS.md
+/// Regeln 1 und 37).
+@MainActor
+@Observable
+final class FixkostenDetailModel {
+    private(set) var commitment: RecurringCommitment
+    var name: String
+    /// WP5 (§35): Typed Decimal statt Display-String als Edit-State.
+    var amount: Decimal?
+    var categoryID: UUID?
+    var direction: RecurringCommitment.Direction
+    var cadence: RecurringCommitment.Cadence
+    var hasNextExpectedDate: Bool
+    var nextExpectedDate: Date
+    var showsAssignList = false
+    private(set) var leafCategories: [Category] = []
+    private(set) var paidTransactions: [Transaction] = []
+    private(set) var explicitlyAssignedIDs: Set<UUID> = []
+    private(set) var unassignedTransactions: [Transaction] = []
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    /// WP5 (§37): Save-Flow mit Persistenz-Bestätigung vor dem Dismiss.
+    private(set) var isSaving = false
+    private(set) var isUpdatingStatus = false
+    private var explicitOccurrences: [RecurringOccurrence] = []
+    private let dependencies: AppDependencies
 
-    private func load() async {
-        name = commitment.name
+    init(commitment: RecurringCommitment, dependencies: AppDependencies) {
+        self.commitment = commitment
+        self.dependencies = dependencies
         // WP5 (§35): Rohwert ohne Währungssymbol; Display-Formatting und
         // Edit-Input sind getrennt.
+        name = commitment.name
         amount = commitment.expectedAmount
         categoryID = commitment.categoryID
         direction = commitment.direction
         cadence = commitment.cadence
         hasNextExpectedDate = commitment.nextExpectedDate != nil
         nextExpectedDate = commitment.nextExpectedDate ?? Date()
+    }
 
+    var isPaused: Bool { commitment.status == .paused }
+
+    var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (amount ?? 0) > 0
+    }
+
+    /// Kategorien und Zahlungen. Die Formularfelder stammen aus dem
+    /// Zahlungsplan selbst und werden hier nicht überschrieben.
+    func load() async {
+        loadState = .loading
         do {
             let all = try await dependencies.categoryRepository.categories()
             leafCategories = all
                 .filter { category in !all.contains { $0.parentID == category.id } }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         } catch {
-            errorMessage = String(localized: "Kategorien konnten nicht geladen werden.")
+            loadState = .failed(String(localized: "Kategorien konnten nicht geladen werden."))
+            return
         }
-
         do {
-            async let monthTxnsTask = dependencies.transactionRepository.transactions(matching: recentMatchingHistoryQuery())
-            async let occurrencesTask = dependencies.recurringCommitmentRepository.occurrences(commitmentID: commitment.id)
-
-            let monthTxns = try await monthTxnsTask
-            let occurrences = try await occurrencesTask
-
-            // WP7 (§60): Das Recurring-Detail nutzt dieselbe Occurrence-
-            // Resolution wie Fixkosten-Übersicht und Forecast.
-            let resolver = RecurringOccurrenceResolver()
-            let resolution = resolver.resolveOccurrences(
-                commitment: commitment,
-                explicitOccurrences: occurrences,
-                allTransactions: monthTxns,
-                period: DateInterval(
-                    start: monthTxns.map(\.displayDate).min() ?? .distantPast,
-                    end: Date()
-                ),
-                calendar: Calendar.current
-            )
-            paidTransactions = resolution.paidTransactions.sorted { $0.displayDate > $1.displayDate }
-            explicitlyAssignedIDs = Set(
-                resolution.scheduled
-                    .filter { $0.matchOrigin == .explicitUserAssignment }
-                    .compactMap(\.matchedTransactionID)
-            )
-
-            let paidIDs = Set(paidTransactions.map(\.id))
-            unassignedTransactions = monthTxns
-                .filter { !paidIDs.contains($0.id) }
-                .sorted { $0.displayDate > $1.displayDate }
+            try await loadPayments()
+            loadState = .loaded
         } catch {
-            errorMessage = String(localized: "Zahlungen konnten nicht geladen werden.")
+            loadState = .failed(String(localized: "Zahlungen konnten nicht geladen werden."))
         }
     }
+
+    private func loadPayments() async throws {
+        async let monthTxnsTask = dependencies.transactionRepository.transactions(matching: Self.recentMatchingHistoryQuery())
+        async let occurrencesTask = dependencies.recurringCommitmentRepository.occurrences(commitmentID: commitment.id)
+        let monthTxns = try await monthTxnsTask
+        let occurrences = try await occurrencesTask
+        explicitOccurrences = occurrences
+
+        // WP7 (§60): Das Recurring-Detail nutzt dieselbe Occurrence-
+        // Resolution wie Fixkosten-Übersicht und Forecast.
+        let resolution = RecurringOccurrenceResolver().resolveOccurrences(
+            commitment: commitment,
+            explicitOccurrences: occurrences,
+            allTransactions: monthTxns,
+            period: DateInterval(
+                start: monthTxns.map(\.displayDate).min() ?? .distantPast,
+                end: Date()
+            ),
+            calendar: Calendar.current
+        )
+        paidTransactions = resolution.paidTransactions.sorted { $0.displayDate > $1.displayDate }
+        explicitlyAssignedIDs = Set(
+            resolution.scheduled
+                .filter { $0.matchOrigin == .explicitUserAssignment }
+                .compactMap(\.matchedTransactionID)
+        )
+        let paidIDs = Set(paidTransactions.map(\.id))
+        unassignedTransactions = monthTxns
+            .filter { !paidIDs.contains($0.id) }
+            .sorted { $0.displayDate > $1.displayDate }
+    }
+
     /// WP5 (§112): Benennung nach Funktion, nicht nach gelogener Dauer.
-    private func recentMatchingHistoryQuery() -> TransactionQuery {
+    private static func recentMatchingHistoryQuery() -> TransactionQuery {
         var query = TransactionQuery()
-        let calendar = Calendar.current
-        if let start = calendar.date(byAdding: .day, value: -45, to: Date()) {
+        if let start = Calendar.current.date(byAdding: .day, value: -45, to: Date()) {
             query.dateInterval = DateInterval(start: start, end: Date())
         }
         return query
@@ -282,21 +301,19 @@ struct FixkostenDetailSheet: View {
 
     /// WP5 (§37/§38): Persistiert die Änderungen; `false` bei ungültiger
     /// Eingabe oder Repository-Fehler; das Sheet bleibt in dem Fall offen.
-    @discardableResult
-    private func persist() async -> Bool {
+    func persist() async -> Bool {
         // §38: Ungültige Eingabe blockiert den Save sichtbar: der alte
         // Betrag wird nicht still beibehalten und auch nicht mit anderen
         // Änderungen zusammen eingespeichert.
         guard let amount, amount > 0 else {
-            errorMessage = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
+            actionError = String(localized: "Bitte einen gültigen positiven Betrag eingeben.")
             return false
         }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
-            errorMessage = String(localized: "Bitte einen Namen eingeben.")
+            actionError = String(localized: "Bitte einen Namen eingeben.")
             return false
         }
-
         let draft = RecurringCommitmentDraft(
             name: trimmedName,
             direction: direction,
@@ -306,72 +323,73 @@ struct FixkostenDetailSheet: View {
             amount: amount
         )
         let updated = draft.applying(to: commitment)
+        isSaving = true
+        defer { isSaving = false }
         do {
             try await dependencies.recurringCommitmentRepository.upsert([updated])
             commitment = updated
             dependencies.changeTracker.markChanged()
-            onChanged()
+            actionError = nil
             return true
         } catch {
-            errorMessage = String(localized: "Speichern fehlgeschlagen.")
+            actionError = String(localized: "Speichern fehlgeschlagen.")
             return false
         }
     }
 
-    private func persistStatus(_ status: RecurringCommitment.Status) async {
+    /// Pausieren wird sofort gespeichert.
+    func persistStatus(_ status: RecurringCommitment.Status) async {
         guard status != commitment.status else { return }
         isUpdatingStatus = true
         defer { isUpdatingStatus = false }
-
         let updated = RecurringCommitmentDraft.changingStatus(in: commitment, to: status)
         do {
             try await dependencies.recurringCommitmentRepository.upsert([updated])
             commitment = updated
             dependencies.changeTracker.markChanged()
-            onChanged()
+            actionError = nil
         } catch {
-            errorMessage = String(localized: "Status konnte nicht gespeichert werden.")
+            actionError = String(localized: "Status konnte nicht gespeichert werden.")
         }
     }
 
-    private func deleteCommitment() async {
+    /// `true`, wenn der Zahlungsplan gelöscht wurde.
+    func deleteCommitment() async -> Bool {
         do {
             try await dependencies.recurringCommitmentRepository.delete(id: commitment.id)
             dependencies.changeTracker.markChanged()
-            onChanged()
-            dismiss()
+            return true
         } catch {
-            errorMessage = String(localized: "Löschen fehlgeschlagen.")
+            actionError = String(localized: "Löschen fehlgeschlagen.")
+            return false
         }
     }
 
-    private func assign(_ txn: Transaction) async {
+    func assign(_ txn: Transaction) async {
         do {
             try await dependencies.recurringCommitmentRepository.addOccurrence(
                 RecurringOccurrence(commitmentID: commitment.id, transactionID: txn.id)
             )
             dependencies.changeTracker.markChanged()
-            await load()
+            try await loadPayments()
+            actionError = nil
         } catch {
             // WP5: Persistenz-Fehler werden nie geschluckt: der Nutzer
             // sieht, dass die Zuordnung nicht gespeichert wurde.
-            errorMessage = String(localized: "Zuordnung konnte nicht gespeichert werden. Bitte erneut versuchen.")
+            actionError = String(localized: "Zuordnung konnte nicht gespeichert werden. Bitte erneut versuchen.")
         }
     }
 
-    private func unassign(_ occurrence: RecurringOccurrence) async {
+    func unassign(transactionID: UUID) async {
         do {
+            guard let occurrence = explicitOccurrences.first(where: { $0.transactionID == transactionID }) else { return }
             try await dependencies.recurringCommitmentRepository.removeOccurrence(id: occurrence.id)
             dependencies.changeTracker.markChanged()
-            await load()
+            try await loadPayments()
+            actionError = nil
         } catch {
-            errorMessage = String(localized: "Zuordnung konnte nicht entfernt werden. Bitte erneut versuchen.")
+            actionError = String(localized: "Zuordnung konnte nicht entfernt werden. Bitte erneut versuchen.")
         }
-    }
-
-    private func occurrence(for transactionID: UUID) async -> RecurringOccurrence? {
-        (try? await dependencies.recurringCommitmentRepository.occurrences(commitmentID: commitment.id))?
-            .first { $0.transactionID == transactionID }
     }
 }
 

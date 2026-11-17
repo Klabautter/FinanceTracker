@@ -18714,6 +18714,16 @@
         }
       }
     },
+    "Noch keine Ausgabenkategorien. Lege unten eine an." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No spending categories yet. Create one below."
+          }
+        }
+      }
+    },
     "Noch keine Bewegung" : {
       "localizations" : {
         "de" : {
@@ -19261,6 +19271,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
+          }
+        }
+      }
+    },
+    "Oder eine Datei aus dem Finder hierher ziehen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or drag a file here from the Finder."
           }
         }
       }

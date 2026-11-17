@@ -6,57 +6,33 @@ struct RuleBuilderSheet: View {
     let dependencies: AppDependencies
     let onSaved: () -> Void
 
-    private enum ConditionType: String, CaseIterable, Identifiable {
-        case merchantContains = "Händler enthält"
-        case merchantEquals = "Händler ist"
-        case descriptionContains = "Beschreibung enthält"
-        var id: Self { self }
-
-        var title: String {
-            switch self {
-            case .merchantContains: String(localized: "Händler enthält")
-            case .merchantEquals: String(localized: "Händler ist")
-            case .descriptionContains: String(localized: "Beschreibung enthält")
-            }
-        }
-    }
-
-    @State private var conditionType: ConditionType = .merchantContains
-    @State private var conditionValue = ""
-    @State private var selectedCategoryID: UUID?
-    @State private var categories: [Category] = []
-    @State private var preview: RulePreview?
-    @State private var isPreviewLoading = false
-    @State private var errorMessage: String?
+    @State private var model: RuleBuilderModel
     @Environment(\.dismiss) private var dismiss
 
-    struct RulePreview: Sendable {
-        let totalCount: Int
-        let samples: [Transaction]
-    }
-
-    private var canSave: Bool {
-        !conditionValue.trimmingCharacters(in: .whitespaces).isEmpty && selectedCategoryID != nil
+    init(dependencies: AppDependencies, onSaved: @escaping () -> Void) {
+        self.dependencies = dependencies
+        self.onSaved = onSaved
+        _model = State(initialValue: RuleBuilderModel(dependencies: dependencies))
     }
 
     var body: some View {
         AdaptiveSheet(title: String(localized: "Neue Regel")) {
             Form {
                 Section("Wenn") {
-                    Picker("Bedingung", selection: $conditionType) {
-                        ForEach(ConditionType.allCases) { type in
+                    Picker("Bedingung", selection: $model.conditionType) {
+                        ForEach(RuleBuilderModel.ConditionType.allCases) { type in
                             Text(type.title).tag(type)
                         }
                     }
-                    TextField("Wert", text: $conditionValue)
-                        .onSubmit { Task { await loadPreview() } }
+                    TextField("Wert", text: $model.conditionValue)
+                        .onSubmit { Task { await model.loadPreview() } }
                 }
 
                 Section("Dann Kategorie") {
                     CategorySelectionPicker(
                         title: String(localized: "Kategorie"),
-                        selection: $selectedCategoryID,
-                        categories: categories,
+                        selection: $model.selectedCategoryID,
+                        categories: model.categories,
                         dependencies: dependencies,
                         noneTitle: String(localized: "Bitte auswählen"),
                         showsIcons: true
@@ -64,12 +40,12 @@ struct RuleBuilderSheet: View {
                 }
 
                 Section("Vorschau") {
-                    if isPreviewLoading {
+                    if model.isPreviewLoading {
                         HStack(spacing: 8) {
                             ProgressView()
                             Text("Prüfe Treffer…")
                         }
-                    } else if let preview {
+                    } else if let preview = model.preview {
                         (preview.totalCount == 1
                             ? Text("Diese Regel trifft auf 1 Transaktion zu.")
                             : Text("Diese Regel trifft auf \(preview.totalCount) Transaktionen zu."))
@@ -98,7 +74,7 @@ struct RuleBuilderSheet: View {
                     }
                 }
 
-                if let errorMessage {
+                if let errorMessage = model.loadState.failureMessage ?? model.actionError {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppPalette.critical)
                 }
@@ -112,24 +88,79 @@ struct RuleBuilderSheet: View {
                     Button("Abbrechen") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Speichern") { save() }
-                        .disabled(!canSave)
+                    Button("Speichern") { Task { await save() } }
+                        .disabled(!model.canSave || model.isSaving)
                 }
             }
-            .onChange(of: conditionType) { _, _ in
-                preview = nil
+            .onChange(of: model.conditionType) { _, _ in
+                model.resetPreview()
             }
-            .onChange(of: conditionValue) { _, _ in
-                preview = nil
+            .onChange(of: model.conditionValue) { _, _ in
+                model.resetPreview()
             }
-            .task { await loadCategories() }
+            .task { await model.loadCategories() }
         }
         #if os(macOS)
         .frame(width: 460, height: 480)
         #endif
     }
 
-    private func loadCategories() async {
+    private func save() async {
+        guard await model.save() else { return }
+        onSaved()
+        dismiss()
+    }
+}
+
+/// Zustand und Abläufe des Regel-Editors (AGENTS.md Regeln 1 und 37).
+@MainActor
+@Observable
+final class RuleBuilderModel {
+    enum ConditionType: String, CaseIterable, Identifiable {
+        case merchantContains
+        case merchantEquals
+        case descriptionContains
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .merchantContains: String(localized: "Händler enthält")
+            case .merchantEquals: String(localized: "Händler ist")
+            case .descriptionContains: String(localized: "Beschreibung enthält")
+            }
+        }
+    }
+
+    struct RulePreview: Sendable {
+        let totalCount: Int
+        let samples: [Transaction]
+    }
+
+    var conditionType: ConditionType = .merchantContains
+    var conditionValue = ""
+    var selectedCategoryID: UUID?
+    private(set) var categories: [Category] = []
+    private(set) var preview: RulePreview?
+    private(set) var isPreviewLoading = false
+    private(set) var isSaving = false
+    private(set) var loadState: LoadState = .idle
+    private(set) var actionError: String?
+    private let dependencies: AppDependencies
+
+    init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
+    }
+
+    var trimmedValue: String { conditionValue.trimmingCharacters(in: .whitespaces) }
+
+    var canSave: Bool { !trimmedValue.isEmpty && selectedCategoryID != nil }
+
+    func resetPreview() {
+        preview = nil
+    }
+
+    func loadCategories() async {
+        loadState = .loading
         do {
             let all = try await dependencies.categoryRepository.categories()
             // WP12: Leaf-only: Regel-Zielkategorien sind zuweisbare Leaves.
@@ -138,13 +169,14 @@ struct RuleBuilderSheet: View {
             if selectedCategoryID == nil, let firstLeaf = categories.first {
                 selectedCategoryID = firstLeaf.id
             }
+            loadState = .loaded
         } catch {
-            errorMessage = String(localized: "Kategorien konnten nicht geladen werden.")
+            loadState = .failed(String(localized: "Kategorien konnten nicht geladen werden."))
         }
     }
 
-    private func loadPreview() async {
-        let value = conditionValue.trimmingCharacters(in: .whitespaces)
+    func loadPreview() async {
+        let value = trimmedValue
         guard !value.isEmpty else {
             preview = nil
             return
@@ -158,22 +190,17 @@ struct RuleBuilderSheet: View {
             query.searchText = value.lowercased()
             let candidates = try await dependencies.transactionRepository.transactions(matching: query)
 
-            let condition = makeCondition(value: value)
+            let rule = CategoryRule(id: UUID(), priority: 0, condition: makeCondition(value: value), categoryID: UUID())
             let engine = CategoryRuleEngine()
-            let matches = candidates.filter { txn in
-                engine.firstMatch(in: [CategoryRule(id: UUID(), priority: 0, condition: condition, categoryID: UUID())], for: txn) != nil
-            }
-
-            preview = RulePreview(
-                totalCount: matches.count,
-                samples: Array(matches.prefix(5))
-            )
+            let matches = candidates.filter { engine.firstMatch(in: [rule], for: $0) != nil }
+            preview = RulePreview(totalCount: matches.count, samples: Array(matches.prefix(5)))
+            actionError = nil
         } catch {
-            errorMessage = String(localized: "Vorschau konnte nicht geladen werden.")
+            actionError = String(localized: "Vorschau konnte nicht geladen werden.")
         }
     }
 
-    private func makeCondition(value: String) -> RuleCondition {
+    func makeCondition(value: String) -> RuleCondition {
         switch conditionType {
         case .merchantContains: .merchantContains(value)
         case .merchantEquals: .merchantEquals(value)
@@ -181,27 +208,27 @@ struct RuleBuilderSheet: View {
         }
     }
 
-    private func save() {
-        guard let categoryID = selectedCategoryID else { return }
-        let value = conditionValue.trimmingCharacters(in: .whitespaces)
-        guard !value.isEmpty else { return }
-
-        Task {
-            do {
-                let existing = try await dependencies.ruleRepository.rules()
-                let maxPriority = existing.map(\.priority).max() ?? 100
-                let rule = CategoryRule(
-                    priority: maxPriority + 10,
-                    condition: makeCondition(value: value),
-                    categoryID: categoryID,
-                    origin: .user
-                )
-                try await dependencies.ruleRepository.upsert([rule])
-                onSaved()
-                dismiss()
-            } catch {
-                errorMessage = String(localized: "Regel konnte nicht gespeichert werden.")
-            }
+    /// Neue Nutzerregeln kommen hinter alle bestehenden, damit sie keine
+    /// bestehende Zuordnung still überstimmen. `true` nach dem Speichern.
+    func save() async -> Bool {
+        guard let categoryID = selectedCategoryID, !trimmedValue.isEmpty else { return false }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let existing = try await dependencies.ruleRepository.rules()
+            let maxPriority = existing.map(\.priority).max() ?? 100
+            let rule = CategoryRule(
+                priority: maxPriority + 10,
+                condition: makeCondition(value: trimmedValue),
+                categoryID: categoryID,
+                origin: .user
+            )
+            try await dependencies.ruleRepository.upsert([rule])
+            actionError = nil
+            return true
+        } catch {
+            actionError = String(localized: "Regel konnte nicht gespeichert werden.")
+            return false
         }
     }
 }
