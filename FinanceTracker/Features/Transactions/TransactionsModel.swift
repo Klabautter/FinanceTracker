@@ -17,9 +17,9 @@ enum TagFilterMode: String, CaseIterable, Identifiable {
 @Observable
 final class TransactionsModel {
     let dependencies: AppDependencies
-    private let effectiveTransactionResolver = EffectiveTransactionResolver()
+    let effectiveTransactionResolver = EffectiveTransactionResolver()
 
-    private(set) var transactions: [Transaction] = []
+    var transactions: [Transaction] = []
     private(set) var categories: [Category] = []
     private(set) var categoriesByID: [UUID: Category] = [:]
     private(set) var accountsByID: [UUID: Account] = [:] {
@@ -41,7 +41,11 @@ final class TransactionsModel {
     /// stehen getrennt in `actionError`.
     private(set) var loadState: LoadState = .idle
     private(set) var isLoadingPage = false
-    private(set) var actionError: String?
+    // Setter intern: die Erweiterungen (Händler-Lernen, Sammelaktionen) in
+    // eigenen Dateien schreiben sie mit (Roadmap 7.3).
+    var actionError: String?
+    /// Angebot, einen Händler künftig fest zuzuordnen (siehe +MerchantLearning).
+    var merchantCategoryOffer: MerchantCategoryOffer?
     var isLoading: Bool { loadState.isLoading }
     private(set) var canLoadMore = false
 
@@ -162,7 +166,7 @@ final class TransactionsModel {
     /// Revision-Differenz (View: `.task(id: model.dataRevision)`).
     private(set) var hasLoadedData = false
 
-    private func markLocallyChanged() {
+    func markLocallyChanged() {
         dependencies.changeTracker.markChanged()
         lastLocalRevision = dependencies.changeTracker.revision
         // Jede erfolgreiche Änderung erledigt einen älteren Fehlerhinweis.
@@ -174,7 +178,7 @@ final class TransactionsModel {
     }
 
     /// Ablageort der Beleg-Dateien; `nil` = Standardverzeichnis der App.
-    private let attachmentsBaseDirectory: URL?
+    let attachmentsBaseDirectory: URL?
 
     /// UI-Zustand für manuelle Buchungen: Kontextmenü und Detailbereich
     /// setzen ihn, der Screen präsentiert Formular bzw. Rückfrage.
@@ -535,7 +539,7 @@ final class TransactionsModel {
         undoStack.append(step)
     }
 
-    private func pushUndo(
+    func pushUndo(
         name: String,
         revert: @escaping @MainActor () async -> Void,
         apply: @escaping @MainActor () async -> Void
@@ -550,7 +554,7 @@ final class TransactionsModel {
     /// manueller Typ …). So ein Listenobjekt darf nie zurückgeschrieben
     /// werden, sonst wandern Nutzer-Metadaten in die Provider-Fakten und
     /// „Typ zurücksetzen" findet den ursprünglichen Typ nicht mehr.
-    private func persistAndResync(
+    func persistAndResync(
         stored transaction: Transaction,
         failureMessage: String = String(localized: "Änderung konnte nicht gespeichert werden.")
     ) async {
@@ -567,7 +571,7 @@ final class TransactionsModel {
     }
 
     /// Gespeicherte Zeilen zu Listenobjekten (siehe `persistAndResync`).
-    private func storedTransactions(for ids: Set<UUID>) async throws -> [UUID: Transaction] {
+    func storedTransactions(for ids: Set<UUID>) async throws -> [UUID: Transaction] {
         Dictionary(
             try await dependencies.transactionRepository.transactions(ids: ids).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -597,11 +601,11 @@ final class TransactionsModel {
         }
     }
 
-    private func existingAnnotation(for transaction: Transaction) async throws -> TransactionAnnotation? {
+    func existingAnnotation(for transaction: Transaction) async throws -> TransactionAnnotation? {
         try await dependencies.transactionAnnotationRepository.annotation(transactionID: transaction.id)
     }
 
-    private func annotation(for transaction: Transaction) async throws -> TransactionAnnotation {
+    func annotation(for transaction: Transaction) async throws -> TransactionAnnotation {
         if let existing = try await existingAnnotation(for: transaction) {
             return existing
         }
@@ -687,257 +691,6 @@ final class TransactionsModel {
         )
         if offersMerchantChange {
             await prepareMerchantCategoryOffer(for: updated)
-        }
-    }
-
-    // MARK: - Kategorie für alle Buchungen eines Händlers
-
-    /// Rückfrage nach einer einzelnen Kategorie-Änderung: dieselbe Kategorie
-    /// für die übrigen Buchungen des Händlers und für künftige übernehmen?
-    struct MerchantCategoryOffer: Equatable {
-        let transactionID: Transaction.ID
-        let merchantName: String
-        let categoryID: Category.ID
-        let categoryName: String
-        /// Weitere Buchungen dieses Händlers mit anderer oder ohne Kategorie.
-        let otherCount: Int
-
-        var message: String {
-            switch otherCount {
-            case 0: String(localized: "„\(merchantName)“ künftig immer als \(categoryName) zuordnen?")
-            case 1: String(localized: "Auch die andere „\(merchantName)“-Buchung auf \(categoryName) ändern und künftig so zuordnen?")
-            default: String(localized: "Auch die \(otherCount) anderen „\(merchantName)“-Buchungen auf \(categoryName) ändern und künftig so zuordnen?")
-            }
-        }
-    }
-
-    private(set) var merchantCategoryOffer: MerchantCategoryOffer?
-
-    func dismissMerchantCategoryOffer() {
-        merchantCategoryOffer = nil
-    }
-
-    /// Die Lernregel für den Händler dieser Buchung, dieselbe, die auch die
-    /// Prüfliste anlegt. `nil`, wenn der Händler nicht erkennbar ist.
-    private func merchantRule(for transaction: Transaction, categoryID: Category.ID) async throws
-        -> (rule: CategoryRule, existing: CategoryRule?)? {
-        let existingRules = try await dependencies.ruleRepository.rules()
-        guard let rule = CategoryRule.makeFromCorrection(
-            transaction: transaction,
-            categoryID: categoryID,
-            existingRules: existingRules
-        ) else { return nil }
-        return (rule, existingRules.first { $0.id == rule.id })
-    }
-
-    /// Alle übrigen Buchungen desselben Händlers (im ganzen Bestand, nicht
-    /// nur in der geladenen Seite), deren Kategorie abweicht.
-    private func merchantSiblings(
-        of transaction: Transaction,
-        matching rule: CategoryRule,
-        categoryID: Category.ID
-    ) async throws -> [Transaction] {
-        let compiled = CategoryRuleEngine().compile([rule])
-        return try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
-            .filter { $0.id != transaction.id && $0.categoryID != categoryID && compiled.firstMatch(for: $0) != nil }
-    }
-
-    /// Der Händler hat weitere Buchungen, aber weder Regeln noch Branchenwort
-    /// würden eine neue Buchung von ihm so einordnen.
-    private func isRepeatMerchantWithoutAutomaticCategory(
-        _ transaction: Transaction,
-        matching rule: CategoryRule,
-        categoryID: Category.ID
-    ) async throws -> Bool {
-        var probe = transaction
-        probe.categoryID = nil
-        CategoryRuleEngine().apply(try await dependencies.ruleRepository.rules(), to: &probe)
-        guard probe.categoryID != categoryID else { return false }
-        let compiled = CategoryRuleEngine().compile([rule])
-        return try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
-            .contains { $0.id != transaction.id && compiled.firstMatch(for: $0) != nil }
-    }
-
-    private func prepareMerchantCategoryOffer(for transaction: Transaction) async {
-        merchantCategoryOffer = nil
-        guard let categoryID = transaction.categoryID,
-              let category = categoriesByID[categoryID],
-              CategoryHierarchy().isAssignable(categoryID, in: categories),
-              // Überweisungen an Personen sind jedes Mal etwas anderes.
-              !PersonNameDetector.isPersonName(transaction.effectiveMerchantName) else { return }
-        do {
-            guard let (rule, existing) = try await merchantRule(for: transaction, categoryID: categoryID) else { return }
-            let siblings = try await merchantSiblings(of: transaction, matching: rule, categoryID: categoryID)
-            // Ohne weitere Buchungen lohnt die Frage nur, wenn eine
-            // bestehende Händler-Regel sonst weiter falsch zuordnen würde.
-            let contradictsRule = existing.map { $0.categoryID != categoryID && $0.enabled } ?? false
-            // Händler mit weiteren Buchungen, den noch nichts von selbst so
-            // zuordnet: einmal fragen. Sonst kommt jede neue Buchung wieder
-            // ohne Kategorie, obwohl die früheren längst zugeordnet sind.
-            var repeatsUnlearned = false
-            if siblings.isEmpty, !contradictsRule, existing == nil {
-                repeatsUnlearned = try await isRepeatMerchantWithoutAutomaticCategory(
-                    transaction,
-                    matching: rule,
-                    categoryID: categoryID
-                )
-            }
-            guard !siblings.isEmpty || contradictsRule || repeatsUnlearned else { return }
-            merchantCategoryOffer = MerchantCategoryOffer(
-                transactionID: transaction.id,
-                merchantName: transaction.effectiveMerchantName,
-                categoryID: categoryID,
-                categoryName: category.name,
-                otherCount: siblings.count
-            )
-        } catch {
-            // Die Einzeländerung ist gespeichert; die Rückfrage ist Zusatz.
-        }
-    }
-
-    /// Übernimmt die Kategorie für alle Buchungen des Händlers und merkt sie
-    /// für künftige. Ein Schritt im Verlauf: ⌘Z nimmt alles zurück.
-    func applyMerchantCategoryOffer() async {
-        guard let offer = merchantCategoryOffer,
-              let transaction = transaction(withID: offer.transactionID) else {
-            merchantCategoryOffer = nil
-            return
-        }
-        merchantCategoryOffer = nil
-        do {
-            guard let (rule, previousRule) = try await merchantRule(for: transaction, categoryID: offer.categoryID) else { return }
-            let originals = try await merchantSiblings(of: transaction, matching: rule, categoryID: offer.categoryID)
-            let now = Date()
-            let changed = originals.map { original -> Transaction in
-                var updated = original
-                updated.categoryID = offer.categoryID
-                updated.updatedAt = now
-                return updated
-            }
-            try await writeMerchantCategory(changed, rule: rule, deletingRuleID: nil)
-            pushUndo(
-                name: String(localized: "Kategorie für Händler"),
-                revert: { [weak self] in
-                    guard let self else { return }
-                    do {
-                        try await self.writeMerchantCategory(
-                            originals,
-                            rule: previousRule,
-                            deletingRuleID: previousRule == nil ? rule.id : nil
-                        )
-                    } catch {
-                        self.actionError = String(localized: "Rückgängig konnte nicht angewendet werden.")
-                    }
-                },
-                apply: { [weak self] in
-                    guard let self else { return }
-                    do {
-                        try await self.writeMerchantCategory(changed, rule: rule, deletingRuleID: nil)
-                    } catch {
-                        self.actionError = String(localized: "Änderung konnte nicht gespeichert werden.")
-                    }
-                }
-            )
-        } catch {
-            actionError = String(localized: "Die Kategorie konnte nicht für alle Buchungen des Händlers übernommen werden.")
-        }
-    }
-
-    /// Schreibt Buchungen und Händler-Regel und zieht die geladene Liste nach.
-    private func writeMerchantCategory(
-        _ transactionsToWrite: [Transaction],
-        rule: CategoryRule?,
-        deletingRuleID: UUID?
-    ) async throws {
-        if let rule {
-            try await dependencies.ruleRepository.upsert([rule])
-        }
-        if let deletingRuleID {
-            try await dependencies.ruleRepository.delete(id: deletingRuleID)
-        }
-        if !transactionsToWrite.isEmpty {
-            try await dependencies.transactionRepository.upsert(transactionsToWrite)
-        }
-        let categoriesByTransactionID = Dictionary(
-            transactionsToWrite.map { ($0.id, $0.categoryID) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        for index in transactions.indices {
-            if let categoryID = categoriesByTransactionID[transactions[index].id] {
-                transactions[index].categoryID = categoryID
-            }
-        }
-        markLocallyChanged()
-    }
-
-    /// Produktstandard für manuelle Korrekturen: Die Auswahl gilt auf Wunsch
-    /// direkt für denselben Händler. Dadurch werden künftige Importe und
-    /// bereits unzugeordnete Treffer ohne zusätzliche Nacharbeit kategorisiert.
-    func assignCategory(
-        _ transaction: Transaction,
-        to categoryID: UUID?,
-        rememberMerchant: Bool
-    ) async {
-        // Mit „merken" entsteht die Rückfrage erst nach dem Lernen: Dann
-        // zählt sie nur noch die Buchungen, die eine andere Kategorie haben.
-        await changeCategory(transaction, to: categoryID, offersMerchantChange: !rememberMerchant)
-        guard rememberMerchant,
-              let categoryID,
-              let updated = self.transaction(withID: transaction.id),
-              updated.categoryID == categoryID else { return }
-        do {
-            try await learnMerchant(from: updated, categoryID: categoryID)
-        } catch {
-            // Die konkrete Korrektur ist bereits gespeichert. Nur das Lernen
-            // ist fehlgeschlagen, daher die Ansicht nicht durch einen
-            // Full-Screen-Fehler ersetzen.
-            actionError = String(localized: "Die Kategorie wurde gesetzt, konnte für diesen Händler aber nicht gemerkt werden.")
-        }
-        await prepareMerchantCategoryOffer(for: updated)
-    }
-
-    /// Legt die Händler-Regel an und ordnet bislang unkategorisierte
-    /// Buchungen des Händlers zu.
-    private func learnMerchant(from updated: Transaction, categoryID: Category.ID) async throws {
-        let existingRules = try await dependencies.ruleRepository.rules()
-        guard let rule = CategoryRule.makeFromCorrection(
-            transaction: updated,
-            categoryID: categoryID,
-            existingRules: existingRules
-        ) else { return }
-
-        if existingRules.first(where: { $0.id == rule.id }) != rule {
-            try await dependencies.ruleRepository.upsert([rule])
-        }
-        let affectedIDs = try await dependencies.transactionRepository.assignCategoriesToUncategorized(
-            matching: [rule],
-            assignableCategoryIDs: [categoryID]
-        )
-        for index in transactions.indices where affectedIDs.contains(transactions[index].id) {
-            transactions[index].categoryID = categoryID
-            transactions[index].updatedAt = Date()
-        }
-        markLocallyChanged()
-    }
-
-    func createRule(from transaction: Transaction) async -> Bool {
-        guard let categoryID = transaction.categoryID else { return false }
-        guard CategoryHierarchy().isAssignable(categoryID, in: categories) else { return false }
-        do {
-            let existingRules = try await dependencies.ruleRepository.rules()
-            guard let rule = CategoryRule.makeFromCorrection(
-                transaction: transaction,
-                categoryID: categoryID,
-                existingRules: existingRules
-            ) else { return false }
-            if existingRules.first(where: { $0.id == rule.id }) != rule {
-                try await dependencies.ruleRepository.upsert([rule])
-                markLocallyChanged()
-            }
-            return true
-        } catch {
-            actionError = String(localized: "Die Regel konnte nicht gespeichert werden.")
-            return false
         }
     }
 
@@ -1126,232 +879,4 @@ final class TransactionsModel {
         await setTags(tagIDs, on: transaction)
     }
 
-    // MARK: - Bulk Actions
-
-    // MARK: - Manuelle Buchungen
-
-    /// Nur selbst erfasste Buchungen sind lösch-/änderbar, Bank- und
-    /// Importdaten bleiben Provider-Fakten.
-    func canDeleteManually(_ transaction: Transaction) -> Bool {
-        transaction.source == .manual
-    }
-
-    /// Transfer-Paare bestehen aus zwei gekoppelten Buchungen und lassen
-    /// sich nur gemeinsam löschen, nicht einzeln umschreiben.
-    func canEditManually(_ transaction: Transaction) -> Bool {
-        transaction.source == .manual && transaction.kind != .transfer
-    }
-
-    /// externalID der Gegenbuchung eines manuellen Transfer-Paars.
-    static func transferCounterpartExternalID(for transaction: Transaction) -> String? {
-        guard transaction.source == .manual, let externalID = transaction.externalID else { return nil }
-        if externalID.hasSuffix("-transfer:from") {
-            return String(externalID.dropLast("from".count)) + "to"
-        }
-        if externalID.hasSuffix("-transfer:to") {
-            return String(externalID.dropLast("to".count)) + "from"
-        }
-        return nil
-    }
-
-    func isTransferPairLeg(_ transaction: Transaction) -> Bool {
-        Self.transferCounterpartExternalID(for: transaction) != nil
-    }
-
-    /// Löscht eine manuelle Buchung (bei Transfers beide Seiten) samt
-    /// Belegen. Ohne Belege ist der Schritt per ⌘Z rückholbar.
-    func deleteManualTransaction(_ transaction: Transaction) async {
-        guard canDeleteManually(transaction) else { return }
-        do {
-            var ids: Set<UUID> = [transaction.id]
-            if let counterpartID = Self.transferCounterpartExternalID(for: transaction) {
-                let manual = try await dependencies.transactionRepository
-                    .transactions(matching: TransactionQuery(sources: [.manual]))
-                if let counterpart = manual.first(where: { $0.externalID == counterpartID }) {
-                    ids.insert(counterpart.id)
-                }
-            }
-
-            // Rohzeilen + Annotationen für Undo sichern, bevor etwas verschwindet.
-            let rawTransactions = try await dependencies.transactionRepository.transactions(ids: ids)
-            let annotations = try await dependencies.transactionAnnotationRepository.annotations(transactionIDs: ids)
-
-            let removedAttachments = try await AttachmentCleanup.removeAttachments(
-                of: ids,
-                dependencies: dependencies,
-                baseDirectory: attachmentsBaseDirectory
-            )
-            try await dependencies.transactionRepository.deleteTransactions(ids: ids)
-            transactions.removeAll { ids.contains($0.id) }
-            markLocallyChanged()
-
-            // Beleg-Dateien sind endgültig weg, dann wäre ein Undo nur halb.
-            guard removedAttachments == 0 else { return }
-            pushUndo(
-                name: String(localized: "Löschen"),
-                revert: { [weak self] in
-                    guard let self else { return }
-                    do {
-                        try await self.dependencies.transactionRepository.upsert(rawTransactions)
-                        if !annotations.isEmpty {
-                            try await self.dependencies.transactionAnnotationRepository.upsert(annotations)
-                        }
-                        self.dependencies.changeTracker.markChanged()
-                        await self.refresh()
-                    } catch {
-                        self.actionError = String(localized: "Rückgängig konnte nicht angewendet werden.")
-                    }
-                },
-                apply: { [weak self] in
-                    guard let self else { return }
-                    do {
-                        try await self.dependencies.transactionRepository.deleteTransactions(ids: ids)
-                        self.transactions.removeAll { ids.contains($0.id) }
-                        self.markLocallyChanged()
-                    } catch {
-                        self.actionError = String(localized: "Die Buchung konnte nicht gelöscht werden.")
-                    }
-                }
-            )
-        } catch {
-            actionError = String(localized: "Die Buchung konnte nicht gelöscht werden.")
-        }
-    }
-
-    func bulkChangeCategory(_ categoryID: UUID?, for targetIDs: Set<Transaction.ID>) async {
-        let targets = transactions.filter { targetIDs.contains($0.id) }
-        guard !targets.isEmpty else { return }
-        do {
-            // Rohzeilen ändern, nicht die annotation-aufgelösten
-            // Listenobjekte (siehe `persistAndResync`).
-            let storedByID = try await storedTransactions(for: Set(targets.map(\.id)))
-            let previous = targets.compactMap { storedByID[$0.id] }
-            let now = Date()
-            let updates = previous.map { stored -> Transaction in
-                var updated = stored
-                updated.categoryID = categoryID
-                updated.updatedAt = now
-                return updated
-            }
-            guard !updates.isEmpty else { return }
-            try await dependencies.transactionRepository.upsert(updates)
-            let updatedIDs = Set(updates.map(\.id))
-            for index in transactions.indices where updatedIDs.contains(transactions[index].id) {
-                transactions[index].categoryID = categoryID
-                transactions[index].updatedAt = now
-            }
-            markLocallyChanged()
-            // Auch Sammel-Aktionen sind ein Undo-Schritt, sonst
-            // nähme ⌘Z stillschweigend eine ältere, fremde Änderung zurück.
-            pushUndo(
-                name: String(localized: "Kategorie (\(updates.count))"),
-                revert: { [weak self] in
-                    guard let self else { return }
-                    for stored in previous {
-                        await self.persistAndResync(
-                            stored: stored,
-                            failureMessage: String(localized: "Rückgängig konnte nicht angewendet werden.")
-                        )
-                    }
-                },
-                apply: { [weak self] in
-                    guard let self else { return }
-                    for update in updates { await self.persistAndResync(stored: update) }
-                }
-            )
-        } catch {
-            actionError = String(localized: "Bulk-Kategorie konnte nicht gespeichert werden.")
-        }
-    }
-
-    func bulkToggleReviewed(_ reviewed: Bool, for targetIDs: Set<Transaction.ID>) async {
-        await bulkUpdateAnnotations(
-            undoName: String(localized: "Prüfstatus"),
-            failureMessage: String(localized: "Status konnte nicht gespeichert werden."),
-            for: targetIDs
-        ) { $0.reviewed = reviewed }
-    }
-
-    func bulkExclude(_ excluded: Bool, for targetIDs: Set<Transaction.ID>) async {
-        await bulkUpdateAnnotations(
-            undoName: String(localized: "Analyse-Ausschluss"),
-            failureMessage: String(localized: "Ausschluss konnte nicht gespeichert werden."),
-            for: targetIDs
-        ) { $0.excludedFromAnalytics = excluded }
-    }
-
-    /// Bulk-Tags (Roadmap #17): Tag zu mehreren Transaktionen hinzufügen
-    /// bzw. entfernen. Aktionen laufen über die Annotation-Repo-SoT.
-    func bulkAddTag(_ tagID: UUID, for targetIDs: Set<Transaction.ID>) async {
-        await bulkUpdateAnnotations(
-            undoName: String(localized: "Tags"),
-            failureMessage: String(localized: "Tag konnte nicht zugewiesen werden."),
-            for: targetIDs
-        ) { annotation in
-            var ids = annotation.tagIDs ?? []
-            if !ids.contains(tagID) { ids.append(tagID) }
-            annotation.tagIDs = ids
-        }
-    }
-
-    func bulkRemoveTag(_ tagID: UUID, for targetIDs: Set<Transaction.ID>) async {
-        await bulkUpdateAnnotations(
-            undoName: String(localized: "Tags"),
-            failureMessage: String(localized: "Tag konnte nicht entfernt werden."),
-            for: targetIDs
-        ) { $0.tagIDs = ($0.tagIDs ?? []).filter { $0 != tagID } }
-    }
-
-    private struct BulkAnnotationChange: Sendable {
-        let transaction: Transaction
-        let previous: TransactionAnnotation?
-        let updated: TransactionAnnotation
-    }
-
-    /// Gemeinsamer Pfad aller Annotation-Sammelaktionen: ein Schreibvorgang,
-    /// ein Undo-Schritt.
-    private func bulkUpdateAnnotations(
-        undoName: String,
-        failureMessage: String,
-        for targetIDs: Set<Transaction.ID>,
-        mutate: (inout TransactionAnnotation) -> Void
-    ) async {
-        let targets = transactions.filter { targetIDs.contains($0.id) }
-        guard !targets.isEmpty else { return }
-        do {
-            let now = Date()
-            var changes: [BulkAnnotationChange] = []
-            for target in targets {
-                let previous = try await existingAnnotation(for: target)
-                var annotation = try await annotation(for: target)
-                mutate(&annotation)
-                annotation.updatedAt = now
-                changes.append(BulkAnnotationChange(transaction: target, previous: previous, updated: annotation))
-            }
-            try await dependencies.transactionAnnotationRepository.upsert(changes.map(\.updated))
-            for change in changes {
-                if let idx = transactions.firstIndex(where: { $0.id == change.transaction.id }) {
-                    transactions[idx] = effectiveTransactionResolver.applying(annotation: change.updated, to: transactions[idx])
-                }
-            }
-            markLocallyChanged()
-            pushUndo(
-                name: "\(undoName) (\(changes.count))",
-                revert: { [weak self] in
-                    guard let self else { return }
-                    for change in changes {
-                        await self.restore(annotation: change.previous, transaction: change.transaction)
-                    }
-                },
-                apply: { [weak self] in
-                    guard let self else { return }
-                    for change in changes {
-                        await self.restore(annotation: change.updated, transaction: change.transaction)
-                    }
-                }
-            )
-        } catch {
-            actionError = failureMessage
-        }
-    }
 }
