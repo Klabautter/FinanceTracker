@@ -11,6 +11,8 @@ struct CommandPaletteView: View {
     @State private var model: CommandPaletteModel?
     @State private var query = ""
     @State private var transactionResults: [CommandPaletteModel.Entry] = []
+    /// Antwort, wenn die Eingabe eine Frage ist („Wie viel für Restaurants im Sommer?").
+    @State private var questionAnswer: String?
     @State private var searchTask: Task<Void, Never>?
     @FocusState private var searchFocused: Bool
     /// Per Tastatur markierter Treffer (↑/↓, Return öffnet ihn).
@@ -28,7 +30,7 @@ struct CommandPaletteView: View {
                 HStack(spacing: AppSpacing.s) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
-                    TextField("Bereiche, Konten, Kategorien, Buchungen suchen", text: $query)
+                    TextField("Suchen oder fragen, z. B. „Wie viel für Restaurants im Sommer?“", text: $query)
                         .textFieldStyle(.plain)
                         .font(.title3)
                         .focused($searchFocused)
@@ -82,6 +84,13 @@ struct CommandPaletteView: View {
                     }
                 }
             } else {
+                if let questionAnswer {
+                    Section("Antwort") {
+                        Label(questionAnswer, systemImage: "text.bubble")
+                            .textSelection(.enabled)
+                            .accessibilityIdentifier("palette-question-answer")
+                    }
+                }
                 if !filteredNavigationEntries.isEmpty {
                     Section("Bereiche") {
                         ForEach(filteredNavigationEntries) { entry in
@@ -121,7 +130,7 @@ struct CommandPaletteView: View {
                     }
                 }
 
-                if allResultCount == 0, !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                if allResultCount == 0, questionAnswer == nil, !query.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text("Keine Treffer für „\(query)“.")
                         .foregroundStyle(.secondary)
                 }
@@ -139,6 +148,7 @@ struct CommandPaletteView: View {
                     try? await Task.sleep(for: .milliseconds(250))
                     guard !Task.isCancelled else { return }
                     transactionResults = await model?.transactionEntries(query: newValue) ?? []
+                    questionAnswer = await model?.answer(question: newValue)
                 }
             }
             .task {

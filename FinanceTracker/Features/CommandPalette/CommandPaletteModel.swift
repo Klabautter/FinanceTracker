@@ -125,6 +125,47 @@ final class CommandPaletteModel {
         }
     }
 
+    /// Sieht die Eingabe wie eine Frage aus („Wie viel …", „…?")?
+    static func looksLikeQuestion(_ text: String) -> Bool {
+        let lower = text.lowercased().trimmingCharacters(in: .whitespaces)
+        let starts = ["wie viel", "wieviel", "was habe", "was hab", "wie hoch", "how much", "what did"]
+        return lower.hasSuffix("?") || starts.contains { lower.hasPrefix($0) }
+    }
+
+    /// Antwort auf eine Frage in normaler Sprache, ausgerechnet wie überall
+    /// in der App (Cashflow-Regel, Anmerkungen, Umrechnung). `nil`, wenn die
+    /// Eingabe keine Frage ist.
+    func answer(question text: String, now: Date = Date()) async -> String? {
+        guard Self.looksLikeQuestion(text) else { return nil }
+        do {
+            let merchantNames = try await dependencies.merchantRepository.merchants().map(\.displayName)
+            let question = FinanceQuestionParser.parse(text, categories: categories, merchantNames: merchantNames, now: now)
+            var query = TransactionQuery()
+            query.dateInterval = question.period
+            let raw = try await dependencies.transactionRepository.transactions(matching: query)
+            let annotations = try await dependencies.transactionAnnotationRepository.annotations(transactionIDs: Set(raw.map(\.id)))
+            let effective = EffectiveTransactionResolver().applying(annotations: annotations, to: raw)
+            let converter = await dependencies.fxRateProvider.converter()
+            let result = FinanceQuestionParser.answer(
+                question, transactions: effective, baseCurrency: dependencies.baseCurrency, converter: converter
+            )
+            let amount = PrivacyAwareMoney.signed(Money(amount: result.total, currency: result.currency), privacy: privacyState)
+                .replacingOccurrences(of: "+", with: "")
+            let subject = ([question.merchantName] + question.categoryNames.map(Optional.some)).compactMap { $0 }.joined(separator: ", ")
+            let verb = question.measure == .income ? String(localized: "eingenommen") : String(localized: "ausgegeben")
+            var line = subject.isEmpty
+                ? String(localized: "\(question.periodLabel): \(amount) \(verb)")
+                : String(localized: "\(subject) · \(question.periodLabel): \(amount) \(verb)")
+            line += " " + String(localized: "(\(result.transactionIDs.count) Buchungen)")
+            if result.excludedCount > 0 {
+                line += " " + String(localized: "ohne \(result.excludedCount) Buchungen ohne Kurs")
+            }
+            return line
+        } catch {
+            return String(localized: "Die Frage ließ sich gerade nicht beantworten.")
+        }
+    }
+
     private func filter(_ entries: [Entry], query: String) -> [Entry] {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard !needle.isEmpty else { return [] }

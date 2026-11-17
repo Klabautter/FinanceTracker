@@ -460,6 +460,16 @@
         }
       }
     },
+    "%@ · %@: %@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@: %@ %@"
+          }
+        }
+      }
+    },
     "%@ · %lld" : {
       "localizations" : {
         "de" : {
@@ -851,6 +861,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@: %@"
+          }
+        }
+      }
+    },
+    "%@: %@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: %@ %@"
           }
         }
       }
@@ -2097,6 +2117,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld"
+          }
+        }
+      }
+    },
+    "(%lld Buchungen)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(%lld transactions)"
           }
         }
       }
@@ -4157,6 +4187,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Shares could not be loaded."
+          }
+        }
+      }
+    },
+    "Antwort" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answer"
           }
         }
       }
@@ -9875,6 +9915,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choosing the file failed. Please try again."
+          }
+        }
+      }
+    },
+    "Die Frage ließ sich gerade nicht beantworten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The question couldn’t be answered right now."
           }
         }
       }
@@ -22282,6 +22332,16 @@
         }
       }
     },
+    "Suchen oder fragen, z. B. „Wie viel für Restaurants im Sommer?“" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search or ask, e.g. “How much for restaurants in summer?”"
+          }
+        }
+      }
+    },
     "Suchergebnisse" : {
       "localizations" : {
         "de" : {
@@ -27125,6 +27185,16 @@
         }
       }
     },
+    "ausgegeben" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "spent"
+          }
+        }
+      }
+    },
     "bei %@ Ausgaben im letzten Monat" : {
       "localizations" : {
         "de" : {
@@ -27173,6 +27243,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "this year"
+          }
+        }
+      }
+    },
+    "eingenommen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "received"
           }
         }
       }
@@ -27406,6 +27486,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld days left"
+          }
+        }
+      }
+    },
+    "ohne %lld Buchungen ohne Kurs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "excluding %lld transactions without a rate"
           }
         }
       }
