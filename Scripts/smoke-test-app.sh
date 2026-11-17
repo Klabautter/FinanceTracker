@@ -7,20 +7,18 @@
 # (Tests/Fixtures/stores/FinanceTracker-vN.store). Die App öffnet den Store
 # im Modus `-smoke-test <name>` in einem isolierten temporären Ordner
 # (bei der gesandboxten App im Container), führt Migration und
-# Start-Aufgaben aus, liest Konten/Buchungen/Kategorien, schreibt
-# `smoke-result.txt` und beendet sich. Der echte Store wird nicht berührt,
-# es gibt keinen Bankabruf.
+# Start-Aufgaben aus, liest Konten/Buchungen/Kategorien, gibt das Ergebnis
+# aus und beendet sich. Der echte Store wird nicht berührt, es gibt keinen
+# Bankabruf.
+#
+# Dieses Skript fasst den Container der App nicht an: macOS schützt die
+# Daten anderer Apps, und je nach Programm, in dem das Terminal läuft, gibt
+# es dafür weder Zugriff noch eine Abfrage. Der Fixture-Store geht deshalb
+# über die Standardeingabe in die App (`open --stdin`,
+# `-smoke-fixture-stdin`), das Ergebnis kommt über ihre Standardausgabe
+# zurück (`open --stdout`, Zeile „smoke-result: …").
 #
 # Aufruf: Scripts/smoke-test-app.sh [Pfad/zur/FinanceTracker.app]
-#         Scripts/smoke-test-app.sh --check-access [Bundle-ID]
-#
-# Zugriff auf den Container: macOS schützt die Container anderer Apps
-# („Daten anderer Apps"). Das Terminal, aus dem dieses Skript läuft, braucht
-# diese Erlaubnis, sonst kann es weder einen Fixture-Store ablegen noch das
-# Ergebnis lesen. Der erste Zugriff löst die Abfrage des Systems aus und
-# wird bis zur Antwort abgelehnt. `--check-access` prüft das vorab und
-# wartet auf die Antwort; release.sh ruft es in der Vorprüfung auf, damit
-# ein fehlender Zugriff nicht erst nach Build und Notarisierung auffällt.
 # Jede Ergebniszeile enthält die Ladezeiten der Übersicht (overview*Ms,
 # warm*Ms) und den höchsten Speicherbedarf (peakMemoryMB).
 # Ohne Pfad: der zuletzt gebaute Release-Build unter build/release.
@@ -28,90 +26,54 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TIMEOUT="${FT_SMOKE_TIMEOUT:-90}"
-ACCESS_TIMEOUT="${FT_SMOKE_ACCESS_TIMEOUT:-60}"
-
-# Prüft, ob dieses Terminal im Ordner anlegen, lesen und löschen darf.
-# Wartet bis ACCESS_TIMEOUT Sekunden, damit die Abfrage des Systems
-# beantwortet werden kann. Ein noch fehlender Ordner (Container entsteht
-# beim ersten Start der App) gilt als in Ordnung.
-check_container_access() {
-    local base="$1"
-    [ -d "$base" ] || return 0
-    local probe="$base/.ft-smoke-access-$$"
-    local waited=0 hinted=0
-    while :; do
-        if ( : > "$probe" ) 2>/dev/null && cat "$probe" >/dev/null 2>&1 && rm -f "$probe" 2>/dev/null; then
-            return 0
-        fi
-        if [ "$hinted" = 0 ]; then
-            echo "Warte auf Zugriff auf den Container der App ($base)." >&2
-            echo "Falls macOS fragt, ob dieses Programm auf Daten anderer Apps zugreifen darf: erlauben." >&2
-            hinted=1
-        fi
-        [ "$waited" -ge "$ACCESS_TIMEOUT" ] && break
-        sleep 2
-        waited=$((waited + 2))
-    done
-    rm -f "$probe" 2>/dev/null || true
-    echo "Kein Zugriff auf den Container der App: $base" >&2
-    echo "macOS schützt die Daten anderer Apps. Die Abfrage erlauben oder dem Programm, in dem dieses" >&2
-    echo "Terminal läuft, in den Systemeinstellungen unter Datenschutz & Sicherheit Festplattenvollzugriff geben." >&2
-    return 1
-}
-
-if [ "${1:-}" = "--check-access" ]; then
-    CHECK_BUNDLE_ID="${2:-de.klabautter.FinanceTracker}"
-    check_container_access "${FT_SMOKE_TMP_BASE:-$HOME/Library/Containers/$CHECK_BUNDLE_ID/Data/tmp}"
-    exit $?
-fi
-
 APP="${1:-$ROOT/build/release/Build/Products/Release/FinanceTracker.app}"
+TIMEOUT="${FT_SMOKE_TIMEOUT:-90}"
 
 [ -d "$APP" ] || { echo "App nicht gefunden: $APP" >&2; exit 1; }
-BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")"
+# `open -a` braucht einen absoluten Pfad.
+APP="$(cd "$APP" && pwd)"
 
-# Temporärer Ordner, den die App als NSTemporaryDirectory sieht.
-if codesign -d --entitlements - --xml "$APP" 2>/dev/null | grep -q "com.apple.security.app-sandbox"; then
-    # Den Container legt das System beim ersten Start an; der Fall „leer“
-    # läuft zuerst und braucht keinen vorbereiteten Ordner.
-    TMP_BASE="$HOME/Library/Containers/$BUNDLE_ID/Data/tmp"
-    SANDBOXED=1
-else
-    TMP_BASE="$(getconf DARWIN_USER_TEMP_DIR)"
-    SANDBOXED=0
-fi
-SMOKE_BASE="${TMP_BASE%/}/FinanceTrackerSmoke"
-
-if [ "$SANDBOXED" = 1 ]; then
-    check_container_access "$TMP_BASE" || exit 1
-fi
+# Eigener Arbeitsordner außerhalb jedes App-Containers.
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/ft-smoke.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
 
 FAILED=0
 
 run_case() {
     local name="$1" fixture="$2" expect_data="$3"
-    local dir="$SMOKE_BASE/$name"
-    if ! rm -rf "$dir" 2>/dev/null; then
-        echo "  ✗ $name: der Testordner eines früheren Laufs lässt sich nicht entfernen ($dir)" >&2
-        FAILED=1
-        return
-    fi
+    local out="$WORK/$name.out"
+    : > "$out"
+    local open_args=(-n -W --stdout "$out" --stderr "$WORK/$name.err")
+    local app_args=(-smoke-test "$name")
+
     if [ -n "$fixture" ]; then
-        [ -d "$TMP_BASE" ] || { echo "  ✗ $name: Container fehlt ($TMP_BASE)" >&2; FAILED=1; return; }
-        mkdir -p "$dir"
-        cp "$fixture" "$dir/FinanceTracker.store"
-        for suffix in -wal -shm; do
-            [ -f "$fixture$suffix" ] && cp "$fixture$suffix" "$dir/FinanceTracker.store$suffix"
-        done
+        # Kopie im Arbeitsordner: Die App bekommt genau eine Datei. Liegt
+        # neben dem Store ein Journal (-wal), wird es vorher in die Kopie
+        # eingearbeitet, sonst fehlten die jüngsten Änderungen.
+        local copy="$WORK/$name.store"
+        cp "$fixture" "$copy"
+        if [ -s "$fixture-wal" ]; then
+            cp "$fixture-wal" "$copy-wal"
+            [ -f "$fixture-shm" ] && cp "$fixture-shm" "$copy-shm"
+            if ! /usr/bin/sqlite3 "$copy" "PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null 2>&1; then
+                echo "  ✗ $name: das Journal des Fixture-Stores ließ sich nicht einarbeiten" >&2
+                FAILED=1
+                return
+            fi
+            rm -f "$copy-wal" "$copy-shm"
+        fi
+        open_args+=(--stdin "$copy")
+        app_args+=(-smoke-fixture-stdin)
     fi
 
     # Über LaunchServices starten: gesandboxte Apps zeigen bei direktem
     # Binary-Start auf macOS 26 kein Fenster (siehe AGENTS.md).
-    open -n -W -a "$APP" --args -smoke-test "$name" &
+    open "${open_args[@]}" -a "$APP" --args "${app_args[@]}" &
     local opener=$!
     local waited=0
-    while [ ! -f "$dir/smoke-result.txt" ] && [ "$waited" -lt "$TIMEOUT" ]; do
+    while ! grep -q '^smoke-result: ' "$out" 2>/dev/null && [ "$waited" -lt "$TIMEOUT" ]; do
+        # Endet `open` ohne Ergebnis (Start fehlgeschlagen), nicht weiter warten.
+        kill -0 "$opener" 2>/dev/null || break
         sleep 1
         waited=$((waited + 1))
     done
@@ -124,13 +86,13 @@ run_case() {
     wait "$opener" 2>/dev/null || true
 
     local result
-    if [ -e "$dir/smoke-result.txt" ]; then
-        # Die Datei sehen, aber nicht lesen dürfen, ist ein Rechteproblem
-        # dieses Terminals und kein Fehler der App.
-        result="$(cat "$dir/smoke-result.txt" 2>/dev/null)" \
-            || result="Ergebnis liegt vor, ist aber nicht lesbar (kein Zugriff auf den Container der App)"
-    else
-        result="kein Ergebnis nach ${TIMEOUT}s"
+    result="$(sed -n 's/^smoke-result: //p' "$out" 2>/dev/null | tail -n 1)"
+    if [ -z "$result" ]; then
+        if [ "$waited" -ge "$TIMEOUT" ]; then
+            result="kein Ergebnis nach ${TIMEOUT}s"
+        else
+            result="die App hat sich ohne Ergebnis beendet"
+        fi
     fi
     local ok=1
     case "$result" in
@@ -147,8 +109,6 @@ run_case() {
         echo "  ✗ $name: $result" >&2
         FAILED=1
     fi
-    # Aufräumen darf das Ergebnis nicht kippen.
-    rm -rf "$dir" 2>/dev/null || echo "  Hinweis: $dir konnte nicht entfernt werden." >&2
 }
 
 echo "Rauchtest: $APP"
@@ -165,7 +125,6 @@ done
 if [ -n "${FT_SMOKE_EXTRA_STORE:-}" ]; then
     run_case "extra" "$FT_SMOKE_EXTRA_STORE" 1
 fi
-rmdir "$SMOKE_BASE" 2>/dev/null || true
 
 if [ "$FAILED" = 1 ]; then
     echo "Rauchtest fehlgeschlagen." >&2

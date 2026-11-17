@@ -32,7 +32,8 @@
 # Apple notarisiert (notarytool, Schlüsselbund-Profil FT_NOTARY_PROFILE,
 # Standard "financetracker-notary") und gestapelt. Danach startet
 # Scripts/smoke-test-app.sh die fertige App mit leerem Store und jedem
-# Fixture-Store isoliert im Container. Erst danach wird die ZIP gepackt und
+# Fixture-Store isoliert im Container (das Skript selbst braucht keinen
+# Zugriff auf den Container). Erst danach wird die ZIP gepackt und
 # mit Sparkle signiert. Ohne Developer ID bricht das Script
 # ab: Die Release-Entitlements erlauben keine fremden Bibliotheken mehr,
 # eine selbst signierte App lüde Sparkle nicht.
@@ -91,12 +92,6 @@ SUMMARY="$(head -n 1 "$NOTES_FILE")"
 FEED="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' Config/FinanceTracker.macOS.Info.plist)"
 [ "$FEED" = "https://raw.githubusercontent.com/$REPO/main/appcast.xml" ] || {
     echo "SUFeedURL ($FEED) passt nicht zu REPO=$REPO." >&2; exit 1; }
-
-# Der Rauchtest am Ende arbeitet im Container der App. Fehlt diesem Terminal
-# die Erlaubnis dafür (macOS: „Daten anderer Apps"), scheiterte der Lauf erst
-# nach Build und Notarisierung: deshalb jetzt prüfen und auf die Antwort der
-# System-Abfrage warten.
-"$ROOT/Scripts/smoke-test-app.sh" --check-access || exit 1
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     echo "Arbeitsbaum ist nicht sauber, erst committen, das Release zeigt auf HEAD:" >&2

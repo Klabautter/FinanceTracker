@@ -145,6 +145,11 @@ struct AppDependencies: Sendable {
         // Migration und Startschritte liefen sonst gegen echte Testdaten.
         let unitTestStore = AppDataDirectory.unitTestRoot()?.appendingPathComponent("FinanceTracker.store")
         let location: StoreLocation = (launch.uiTestStoreURL ?? unitTestStore).map { .url($0) } ?? .live
+        // Rauchtest: Testordner frisch anlegen und den Fixture-Store
+        // hereinnehmen, bevor die Datenbank geöffnet wird.
+        if launch.isSmokeTestMode {
+            try AppSmokeTest.prepareIsolatedStore()
+        }
         let store = try SwiftDataStore(location: location)
         var userDefaultsSuiteName: String?
         if launch.isSmokeTestMode {

@@ -132,6 +132,7 @@ struct FinanceTrackerApp: App {
                             ).run()
                             if let smokeTest = AppSmokeTest.current {
                                 await smokeTest.recordOpened(dependencies)
+                                smokeTest.removeIsolatedStore()
                                 Self.quitAfterSmokeTest()
                                 return
                             }
@@ -168,6 +169,7 @@ struct FinanceTrackerApp: App {
                     .task {
                         if let smokeTest = AppSmokeTest.current {
                             smokeTest.recordOpenFailure()
+                            smokeTest.removeIsolatedStore()
                             Self.quitAfterSmokeTest()
                         }
                     }

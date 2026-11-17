@@ -1,11 +1,12 @@
 import Foundation
 
 /// Rauchtest der fertigen App (Roadmap 4.5, `Scripts/smoke-test-app.sh`):
-/// Mit `-smoke-test <name>` öffnet die App den vorbereiteten Store im
-/// isolierten Ordner, führt die Start-Migrationen aus, liest Konten,
-/// Buchungen und Kategorien und schreibt das Ergebnis nach
-/// `smoke-result.txt`. Danach beendet sie sich. Kein Bankabruf, keine
-/// Änderung am echten Store.
+/// Mit `-smoke-test <name>` richtet die App einen isolierten Ordner ein
+/// (mit `-smoke-fixture-stdin` samt dem hereingereichten Fixture-Store),
+/// öffnet den Store dort, führt die Start-Migrationen aus, liest Konten,
+/// Buchungen und Kategorien und gibt das Ergebnis auf der Standardausgabe
+/// aus. Danach räumt sie den Ordner weg und beendet sich. Kein Bankabruf,
+/// keine Änderung am echten Store.
 struct AppSmokeTest: Sendable {
     let resultURL: URL
 
@@ -54,7 +55,55 @@ struct AppSmokeTest: Sendable {
         write("failed: open")
     }
 
+    /// Das Ergebnis geht auf die Standardausgabe (das Skript liest sie über
+    /// `open --stdout`) und zusätzlich in eine Datei im Testordner. Der
+    /// Weg über die Standardausgabe braucht keinen Zugriff des Terminals auf
+    /// den Container der App, den macOS für andere Programme sperren kann.
     private func write(_ line: String) {
         try? Data((line + "\n").utf8).write(to: resultURL, options: .atomic)
+        print("\(Self.resultPrefix)\(line)")
+        fflush(stdout)
+    }
+
+    static let resultPrefix = "smoke-result: "
+    static let fixtureFromStandardInputArgument = "-smoke-fixture-stdin"
+
+    enum PreparationError: Error {
+        case emptyFixture
+    }
+
+    /// Richtet den Testordner frisch ein, bevor die Datenbank geöffnet wird:
+    /// Reste eines früheren Laufs verschwinden, und mit
+    /// `-smoke-fixture-stdin` wird der Fixture-Store von der Standardeingabe
+    /// gelesen (das Skript reicht ihn über `open --stdin` herein). So muss
+    /// kein anderes Programm in den Container der App schreiben.
+    static func prepareIsolatedStore(
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        standardInput: FileHandle = .standardInput
+    ) throws {
+        guard AppDataDirectory.smokeTestName(arguments: arguments) != nil,
+              let root = AppDataDirectory.isolatedRoot(arguments: arguments) else { return }
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: root.path) {
+            try fileManager.removeItem(at: root)
+        }
+        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+        guard arguments.contains(fixtureFromStandardInputArgument) else { return }
+        let fixture = try standardInput.readToEnd() ?? Data()
+        guard !fixture.isEmpty else { throw PreparationError.emptyFixture }
+        try fixture.write(to: root.appendingPathComponent("FinanceTracker.store"), options: .atomic)
+    }
+
+    /// Entfernt den Testordner nach dem Lauf (bestmöglich; der nächste Lauf
+    /// räumt ohnehin zuerst auf).
+    func removeIsolatedStore() {
+        let fileManager = FileManager.default
+        let root = resultURL.deletingLastPathComponent()
+        try? fileManager.removeItem(at: root)
+        // Den gemeinsamen Oberordner nur entfernen, wenn kein anderer Lauf ihn nutzt.
+        let parent = root.deletingLastPathComponent()
+        if (try? fileManager.contentsOfDirectory(atPath: parent.path).isEmpty) == true {
+            try? fileManager.removeItem(at: parent)
+        }
     }
 }

@@ -61,4 +61,40 @@ struct AppDataDirectoryTests {
         }
         #expect(AppDataDirectory.smokeTestName(arguments: ["FinanceTracker", "-smoke-test"]) == nil)
     }
+
+    @Test("Rauchtest: Testordner wird frisch angelegt, der Fixture-Store kommt über die Standardeingabe")
+    func smokeStoreIsPreparedFromStandardInput() throws {
+        let name = "unit-\(UUID().uuidString.prefix(8))"
+        let arguments = ["FinanceTracker", "-smoke-test", name, AppSmokeTest.fixtureFromStandardInputArgument]
+        let root = try #require(AppDataDirectory.isolatedRoot(arguments: arguments))
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        // Rest eines früheren Laufs, der verschwinden muss.
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let leftover = root.appendingPathComponent("smoke-result.txt")
+        try Data("alt".utf8).write(to: leftover)
+
+        let pipe = Pipe()
+        let fixture = Data("SQLite format 3 fixture".utf8)
+        pipe.fileHandleForWriting.write(fixture)
+        try pipe.fileHandleForWriting.close()
+        try AppSmokeTest.prepareIsolatedStore(arguments: arguments, standardInput: pipe.fileHandleForReading)
+
+        #expect(!FileManager.default.fileExists(atPath: leftover.path))
+        #expect(try Data(contentsOf: root.appendingPathComponent("FinanceTracker.store")) == fixture)
+
+        // Ohne das Argument: leerer Ordner, die Standardeingabe wird nicht gelesen.
+        try AppSmokeTest.prepareIsolatedStore(arguments: ["FinanceTracker", "-smoke-test", name])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+
+        // Eine leere Standardeingabe ist kein leerer Store.
+        let empty = Pipe()
+        try empty.fileHandleForWriting.close()
+        #expect(throws: AppSmokeTest.PreparationError.self) {
+            try AppSmokeTest.prepareIsolatedStore(arguments: arguments, standardInput: empty.fileHandleForReading)
+        }
+
+        // Außerhalb des Rauchtests passiert nichts.
+        try AppSmokeTest.prepareIsolatedStore(arguments: ["FinanceTracker"])
+    }
 }
