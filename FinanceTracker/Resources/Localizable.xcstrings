@@ -12509,6 +12509,16 @@
         }
       }
     },
+    "Frühling" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring"
+          }
+        }
+      }
+    },
     "Frühlingsausflug" : {
       "localizations" : {
         "de" : {
@@ -13447,6 +13457,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Light"
+          }
+        }
+      }
+    },
+    "Herbst" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autumn"
           }
         }
       }
@@ -21399,6 +21419,16 @@
         }
       }
     },
+    "Sommer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summer"
+          }
+        }
+      }
+    },
     "Sommer in Wien" : {
       "localizations" : {
         "de" : {
@@ -25715,6 +25745,16 @@
         }
       }
     },
+    "Winter" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Winter"
+          }
+        }
+      }
+    },
     "Wird neu importiert" : {
       "localizations" : {
         "de" : {
@@ -27117,6 +27157,26 @@
         }
       }
     },
+    "diesen Monat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "this month"
+          }
+        }
+      }
+    },
+    "dieses Jahr" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "this year"
+          }
+        }
+      }
+    },
     "gerade eben" : {
       "localizations" : {
         "en" : {
@@ -27235,6 +27295,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "next 30 days"
+          }
+        }
+      }
+    },
+    "letzte %lld Tage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "last %lld days"
+          }
+        }
+      }
+    },
+    "letzten Monat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "last month"
+          }
+        }
+      }
+    },
+    "letztes Jahr" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "last year"
           }
         }
       }
