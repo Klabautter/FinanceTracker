@@ -126,6 +126,16 @@
         }
       }
     },
+    "%@ (auf Dauer gerechnet)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (calculated for the long run)"
+          }
+        }
+      }
+    },
     "%@ (zählt nicht in Auswertungen)" : {
       "localizations" : {
         "de" : {
@@ -11588,6 +11598,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enable Banking rejected the request (HTTP %lld)."
+          }
+        }
+      }
+    },
+    "Enable Banking hat die Prüfung der Anwendung nicht beantwortet (HTTP %lld). Bitte in ein paar Minuten erneut versuchen; die Zugangsdaten bleiben gespeichert." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Banking did not answer the application check (HTTP %lld). Please try again in a few minutes; the credentials stay saved."
           }
         }
       }
@@ -23450,6 +23470,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Date Scheduled"
+          }
+        }
+      }
+    },
+    "Testbetrag für %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trial amount for %@"
           }
         }
       }

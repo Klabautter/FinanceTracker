@@ -401,7 +401,7 @@ final class BankConnectModel {
             if status == 401 || status == 403 {
                 return String(localized: "Enable Banking lehnt die Zugangsdaten ab (HTTP \(status)). Application ID und privater Schlüssel passen nicht zusammen, oder die Anwendung ist gesperrt.")
             }
-            return String(localized: "Die Anwendung konnte nicht geprüft werden (HTTP \(status)).")
+            return String(localized: "Enable Banking hat die Prüfung der Anwendung nicht beantwortet (HTTP \(status)). Bitte in ein paar Minuten erneut versuchen; die Zugangsdaten bleiben gespeichert.")
         }
         return String(localized: "Die Anwendung konnte nicht geprüft werden. Prüfe die Internetverbindung.")
     }
