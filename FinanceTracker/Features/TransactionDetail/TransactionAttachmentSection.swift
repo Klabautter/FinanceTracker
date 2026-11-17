@@ -153,14 +153,17 @@ struct TransactionAttachmentSection: View {
 @MainActor
 @Observable
 final class TransactionAttachmentModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasTransactionAttachmentRepository
+
     private(set) var attachments: [TransactionAttachment] = []
     private(set) var loadState: LoadState = .idle
     private(set) var actionError: String?
     private let transactionID: Transaction.ID
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let baseDirectory: URL?
 
-    init(transactionID: Transaction.ID, dependencies: AppDependencies, baseDirectory: URL? = nil) {
+    init(transactionID: Transaction.ID, dependencies: Dependencies, baseDirectory: URL? = nil) {
         self.transactionID = transactionID
         self.dependencies = dependencies
         self.baseDirectory = baseDirectory

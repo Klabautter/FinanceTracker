@@ -12,6 +12,9 @@ import Foundation
 @MainActor
 @Observable
 final class GroupExpenseSectionModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasChangeTracker & HasSharedExpenseShareRepository & HasTransactionRepository
+
     let transaction: Transaction
 
     private let shareRepository: any SharedExpenseShareRepository
@@ -36,7 +39,7 @@ final class GroupExpenseSectionModel {
 
     init(
         transaction: Transaction,
-        dependencies: AppDependencies
+        dependencies: Dependencies
     ) {
         self.transaction = transaction
         self.shareRepository = dependencies.sharedExpenseShareRepository

@@ -3,7 +3,10 @@ import Foundation
 @MainActor
 @Observable
 final class BudgetsModel {
-    private let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasBudgetRepository & HasChangeTracker & HasFxRateProvider & HasRecurringCommitmentRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
+    private let dependencies: Dependencies
     private let calendar: Calendar
     private let now: @Sendable () -> Date
     private let progressLoader: LoadBudgetProgresses
@@ -33,7 +36,7 @@ final class BudgetsModel {
     var dataRevision: Int { dependencies.changeTracker.revision }
 
     init(
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         calendar: Calendar = .current,
         now: @escaping @Sendable () -> Date = Date.init
     ) {

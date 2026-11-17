@@ -295,16 +295,19 @@ struct BudgetDetailSheet: View {
 @MainActor
 @Observable
 final class BudgetDetailModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBudgetRepository & HasCategoryRepository & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     private(set) var contributions: [BudgetContribution] = []
     private(set) var amountHistory: [BudgetAmountHistory] = []
     private(set) var categories: [Category] = []
     private(set) var fxSnapshot: FXRateSnapshot?
     private(set) var fxIsLoading = false
     private(set) var loadState: LoadState = .idle
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let effectiveTransactionResolver = EffectiveTransactionResolver()
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 

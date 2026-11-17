@@ -172,6 +172,9 @@ struct AddBudgetSheet: View {
 @MainActor
 @Observable
 final class AddBudgetModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository
+
     var name = ""
     var iconInput = "chart.pie"
     /// WP4 (§28): Typed Decimal statt Display-String als Edit-State.
@@ -190,10 +193,10 @@ final class AddBudgetModel {
     private(set) var actionError: String?
     private(set) var isSaving = false
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let editing: Budget?
 
-    init(dependencies: AppDependencies, editing: Budget?) {
+    init(dependencies: Dependencies, editing: Budget?) {
         self.dependencies = dependencies
         self.editing = editing
     }

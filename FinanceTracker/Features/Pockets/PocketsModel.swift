@@ -3,7 +3,10 @@ import Foundation
 @MainActor
 @Observable
 final class PocketsModel {
-    private let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasCategoryRepository & HasChangeTracker & HasTransactionAnnotationRepository & HasTransactionCollectionOverrideRepository & HasTransactionCollectionRepository & HasTransactionRepository
+
+    private let dependencies: Dependencies
     private let loadCollection: LoadTransactionCollection
     private let membershipResolver = TransactionCollectionResolver()
     private let effectiveResolver = EffectiveTransactionResolver()
@@ -30,7 +33,7 @@ final class PocketsModel {
     var selectedCollectionID: UUID?
     var dataRevision: Int { dependencies.changeTracker.revision }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
         loadCollection = LoadTransactionCollection(
             collectionRepository: dependencies.transactionCollectionRepository,

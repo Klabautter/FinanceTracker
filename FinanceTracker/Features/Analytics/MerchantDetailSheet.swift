@@ -3,11 +3,14 @@ import SwiftUI
 @MainActor
 @Observable
 final class MerchantDetailModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository
+
     let merchantName: String
     let scope: AnalyticsScope
     let currency: CurrencyCode
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let effectiveTransactionResolver = EffectiveTransactionResolver()
     private let cashflowPolicy = CashflowPolicy.shared
 
@@ -22,7 +25,7 @@ final class MerchantDetailModel {
     private(set) var loadState: LoadState = .idle
     var isLoading: Bool { loadState.isLoading || loadState == .idle }
 
-    init(merchantName: String, scope: AnalyticsScope, dependencies: AppDependencies) {
+    init(merchantName: String, scope: AnalyticsScope, dependencies: Dependencies) {
         self.merchantName = merchantName
         self.scope = scope
         self.currency = dependencies.baseCurrency

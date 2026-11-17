@@ -122,7 +122,10 @@ struct CategoryEditorSheet: View {
 @MainActor
 @Observable
 final class CategoryEditorModel {
-    private let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository
+
+    private let dependencies: Dependencies
     private let editing: Category?
 
     var name = ""
@@ -133,7 +136,7 @@ final class CategoryEditorModel {
     private(set) var existingNames: Set<String> = []
     private(set) var errorMessage: String?
 
-    init(dependencies: AppDependencies, editing: Category?) {
+    init(dependencies: Dependencies, editing: Category?) {
         self.dependencies = dependencies
         self.editing = editing
     }

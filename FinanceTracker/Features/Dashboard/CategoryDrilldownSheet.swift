@@ -98,10 +98,13 @@ struct CategoryDrilldownSheet: View {
 @MainActor
 @Observable
 final class CategoryDrilldownModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     private let categoryID: UUID?
     private let dateInterval: DateInterval
     private let currency: CurrencyCode
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let effectiveTransactionResolver = EffectiveTransactionResolver()
     private var calculator: AnalyticsCalculator?
     private let pageSize: Int
@@ -122,7 +125,7 @@ final class CategoryDrilldownModel {
         categoryID: UUID?,
         dateInterval: DateInterval,
         currency: CurrencyCode,
-        dependencies: AppDependencies,
+        dependencies: Dependencies,
         pageSize: Int = 300,
         scope: AnalyticsScope? = nil
     ) {

@@ -127,12 +127,15 @@ struct AccountEditorSheet: View {
 @MainActor
 @Observable
 final class AccountEditorModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasChangeTracker
+
     var draft: AccountEditorDraft
     private(set) var errorMessage: String?
     private(set) var isSaving = false
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
 
-    init(dependencies: AppDependencies, draft: AccountEditorDraft) {
+    init(dependencies: Dependencies, draft: AccountEditorDraft) {
         self.dependencies = dependencies
         self.draft = draft
     }

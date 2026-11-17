@@ -116,6 +116,9 @@ struct RuleBuilderSheet: View {
 @MainActor
 @Observable
 final class RuleBuilderModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasRuleRepository & HasTransactionRepository
+
     enum ConditionType: String, CaseIterable, Identifiable {
         case merchantContains
         case merchantEquals
@@ -145,9 +148,9 @@ final class RuleBuilderModel {
     private(set) var isSaving = false
     private(set) var loadState: LoadState = .idle
     private(set) var actionError: String?
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 

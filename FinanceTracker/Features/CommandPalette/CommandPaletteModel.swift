@@ -5,6 +5,9 @@ import Foundation
 @MainActor
 @Observable
 final class CommandPaletteModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasFxRateProvider & HasMerchantRepository & HasTagRepository & HasTransactionAnnotationRepository & HasTransactionRepository
+
     struct Entry: Identifiable, Hashable {
         enum Kind: Hashable {
             case section(AppSection)
@@ -22,14 +25,14 @@ final class CommandPaletteModel {
         let kind: Kind
     }
 
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
     private let privacyState: PrivacyPresentationState
 
     private(set) var accounts: [Account] = []
     private(set) var categories: [Category] = []
     private(set) var tags: [Tag] = []
 
-    init(dependencies: AppDependencies, privacyState: PrivacyPresentationState) {
+    init(dependencies: Dependencies, privacyState: PrivacyPresentationState) {
         self.dependencies = dependencies
         self.privacyState = privacyState
     }

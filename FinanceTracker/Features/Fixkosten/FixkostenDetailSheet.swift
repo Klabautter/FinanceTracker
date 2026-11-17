@@ -196,6 +196,9 @@ struct FixkostenDetailSheet: View {
 @MainActor
 @Observable
 final class FixkostenDetailModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository & HasTransactionRepository
+
     private(set) var commitment: RecurringCommitment
     var name: String
     /// WP5 (§35): Typed Decimal statt Display-String als Edit-State.
@@ -216,9 +219,9 @@ final class FixkostenDetailModel {
     private(set) var isSaving = false
     private(set) var isUpdatingStatus = false
     private var explicitOccurrences: [RecurringOccurrence] = []
-    private let dependencies: AppDependencies
+    private let dependencies: Dependencies
 
-    init(commitment: RecurringCommitment, dependencies: AppDependencies) {
+    init(commitment: RecurringCommitment, dependencies: Dependencies) {
         self.commitment = commitment
         self.dependencies = dependencies
         // WP5 (§35): Rohwert ohne Währungssymbol; Display-Formatting und

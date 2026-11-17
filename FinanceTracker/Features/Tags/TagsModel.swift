@@ -3,7 +3,10 @@ import Foundation
 @MainActor
 @Observable
 final class TagsModel {
-    let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasChangeTracker & HasTagRepository
+
+    let dependencies: Dependencies
 
     private(set) var tags: [Tag] = []
     private(set) var usageCounts: [UUID: Int] = [:]
@@ -15,7 +18,7 @@ final class TagsModel {
 
     var dataRevision: Int { dependencies.changeTracker.revision }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 
