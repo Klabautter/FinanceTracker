@@ -86,7 +86,13 @@ final class BankConnectModel {
     private var pendingConnectionID: String?
     /// Eingabefehler der Zugangsdaten: bleiben im Formular, kein Fehlerschritt.
     private(set) var credentialsValidationMessage: String?
-    private let provider: any BankDataProvider
+    private var provider: any BankDataProvider
+    /// Die Anwendung kennt den App-Rücksprung: Die Anmeldung kehrt von selbst
+    /// in die App zurück (Fallback bleibt das Einfügen der Adresse).
+    private(set) var usesAppRedirect = false
+    /// Nur der eingebaute Enable-Banking-Weg darf auf den App-Rücksprung
+    /// umgestellt werden (Tests geben eigene Provider vor).
+    private let canSwitchToAppRedirect: Bool
 
     // MARK: - Consent-Health (P1, PSD2 read-only)
 
@@ -125,6 +131,7 @@ final class BankConnectModel {
         self.credentialStore = credentialStore
         let enableBankingCredentialStore = enableBankingCredentialStore ?? dependencies.enableBankingCredentialStore
         self.enableBankingCredentialStore = enableBankingCredentialStore
+        self.canSwitchToAppRedirect = kind == .enablebanking && providerFactory == nil
         switch kind {
         case .enablebanking:
             self.providerFactory = providerFactory ?? EnableBankingProviderFactory(
@@ -373,6 +380,7 @@ final class BankConnectModel {
         do {
             let info = try await checker.applicationInfo()
             applicationInfo = info
+            adoptAppRedirectIfRegistered(info)
             BankSyncService.logger.info("Anwendung geprüft: \(String(describing: info.environment), privacy: .public), aktiv=\(info.isActive, privacy: .public), \(info.redirectURLs.count, privacy: .public) Redirect-URLs")
         } catch {
             applicationInfo = nil
@@ -645,6 +653,29 @@ final class BankConnectModel {
     /// zeigt dann Mock-Bank-Hinweise statt PSD2-Login-Erwartung.
     static func isSandbox(_ institution: BankInstitution) -> Bool {
         institution.id == sandboxInstitutionID
+    }
+
+    // MARK: - Enable Banking: App-Rücksprung
+
+    /// Ist der App-Rücksprung in der Anwendung eingetragen, läuft die
+    /// Anmeldung darüber; sonst bleibt alles beim Einfügen der Adresse.
+    func adoptAppRedirectIfRegistered(_ info: BankApplicationInfo) {
+        guard canSwitchToAppRedirect,
+              info.redirectURLs.contains(EnableBankingProviderFactory.appRedirectURL),
+              !usesAppRedirect else { return }
+        provider = EnableBankingProviderFactory(
+            redirectURL: EnableBankingProviderFactory.appRedirectURL,
+            credentialStore: enableBankingCredentialStore
+        ).makeBankDataProvider()
+        usesAppRedirect = true
+    }
+
+    /// Eine von der Bank zurückgeschickte App-Adresse (`financetracker://…`)
+    /// schließt die Anmeldung ab, als wäre sie eingefügt worden.
+    func handleIncomingURL(_ url: URL) async {
+        guard url.scheme == "financetracker", url.host() == "bank-callback",
+              case .codeExchange = phase else { return }
+        await finishWithRedirectURL(url.absoluteString)
     }
 
     // MARK: - Enable Banking: Code-Exchange

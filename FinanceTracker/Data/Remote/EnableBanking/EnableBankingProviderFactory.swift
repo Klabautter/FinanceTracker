@@ -7,6 +7,10 @@ struct EnableBankingProviderFactory: BankProviderResolving {
     /// Für den Dev-Flow (Redirect-URL einfügen) fachlich beliebig, aber
     /// whitelist-konsistent.
     static let defaultRedirectURL = "https://enablebanking.com/redirect"
+    /// Optionaler Rücksprung direkt in die App. Wird genutzt, wenn er in der
+    /// Enable-Banking-Anwendung als Redirect-URL eingetragen ist; dann muss
+    /// niemand die Adresse aus dem Browser kopieren.
+    static let appRedirectURL = "financetracker://bank-callback"
 
     let redirectURL: String
     let credentialStore: any EnableBankingCredentialStoring

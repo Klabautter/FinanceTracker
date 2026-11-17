@@ -17778,6 +17778,16 @@
         }
       }
     },
+    "Nach der Freigabe kehrt die Anmeldung von selbst hierher zurück. Falls nicht, die Adresse unten einfügen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After you approve, the sign-in returns here by itself. If it doesn’t, paste the address below."
+          }
+        }
+      }
+    },
     "Nach „Register“ lädt dein Browser den privaten Schlüssel als .pem-Datei herunter. Ihr Dateiname ist die Application ID." : {
       "localizations" : {
         "de" : {
@@ -19485,6 +19495,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Complete Without Further Changes"
+          }
+        }
+      }
+    },
+    "Optional zusätzlich eintragen (Rücksprung in die App)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optionally add as well (return to the app)"
           }
         }
       }

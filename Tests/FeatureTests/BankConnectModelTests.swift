@@ -185,6 +185,51 @@ struct BankConnectModelTests {
         #expect(try await dependencies.transactionRepository.count() == 1)
     }
 
+    @Test("App-Rücksprung wird nur genutzt, wenn er in der Anwendung eingetragen ist")
+    func appRedirectOnlyWhenRegistered() throws {
+        let dependencies = try makeDependencies()
+        let model = BankConnectModel(
+            kind: .enablebanking,
+            dependencies: dependencies,
+            enableBankingCredentialStore: InMemoryEnableBankingCredentialStore(applicationID: "app-1", privateKeyPEM: "test-key")
+        )
+        let without = BankApplicationInfo(name: "A", environment: .production, isActive: true,
+                                          redirectURLs: ["https://enablebanking.com/redirect"], countries: ["DE"])
+        model.adoptAppRedirectIfRegistered(without)
+        #expect(!model.usesAppRedirect)
+        let with = BankApplicationInfo(name: "A", environment: .production, isActive: true,
+                                       redirectURLs: ["https://enablebanking.com/redirect", EnableBankingProviderFactory.appRedirectURL],
+                                       countries: ["DE"])
+        model.adoptAppRedirectIfRegistered(with)
+        #expect(model.usesAppRedirect)
+    }
+
+    @Test("Rücksprung-Adresse der App schließt die Anmeldung ab wie eine eingefügte")
+    func incomingAppURLFinishesAuthorization() async throws {
+        let dependencies = try makeDependencies()
+        let provider = MockBankDataProvider()
+        provider.identifier = ConnectionProvider.enablebanking.rawValue
+        provider.stubbedLinkedAccountIDs = []
+        let model = BankConnectModel(
+            kind: .enablebanking,
+            dependencies: dependencies,
+            enableBankingCredentialStore: InMemoryEnableBankingCredentialStore(applicationID: "app-1", privateKeyPEM: "test-key"),
+            providerFactory: StaticProviderFactory(provider: provider)
+        )
+        // Ohne laufende Anmeldung passiert nichts.
+        await model.handleIncomingURL(URL(string: "financetracker://bank-callback?code=abc")!)
+        #expect(model.phase != .noAccounts(institutionName: "Sandbox Finance"))
+
+        await model.startConnection(for: provider.stubbedInstitutions[0])
+        await model.handleIncomingURL(URL(string: "https://example.com/?code=abc")!)
+        guard case .codeExchange = model.phase else {
+            Issue.record("Fremde Adresse darf die Anmeldung nicht abschließen")
+            return
+        }
+        await model.handleIncomingURL(URL(string: "financetracker://bank-callback?state=x&code=abc")!)
+        #expect(model.phase == .noAccounts(institutionName: "Sandbox Finance"))
+    }
+
     /// Eingeschränkte Enable-Banking-Anwendung, Bank nicht im Control Panel
     /// verknüpft: Die Session hat keine Konten. Keine leere „Verbunden“-
     /// Verbindung, sondern eine erklärte Seite mit „Erneut verbinden“.

@@ -148,6 +148,14 @@ struct FinanceTrackerApp: App {
             }
             #endif
             .environment(privacyState)
+            // Rücksprung der Bank-Anmeldung (financetracker://bank-callback)
+            // an den offenen Verbindungsdialog weiterreichen.
+            .onOpenURL { url in
+                NotificationCenter.default.post(name: .financeTrackerOpenURL, object: url)
+            }
+            #if os(macOS)
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            #endif
         }
         .financeWindowConfiguration
         #if os(macOS)
@@ -241,4 +249,9 @@ struct FinanceTrackerApp: App {
     #endif
     #endif
 
+}
+
+extension Notification.Name {
+    /// Von außen geöffnete App-Adresse (z. B. Rücksprung der Bank-Anmeldung).
+    static let financeTrackerOpenURL = Notification.Name("de.klabautter.FinanceTracker.openURL")
 }

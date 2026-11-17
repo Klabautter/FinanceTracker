@@ -44,6 +44,14 @@ struct BankConnectView: View {
     }
 
     var body: some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .financeTrackerOpenURL)) { notification in
+                guard let url = notification.object as? URL else { return }
+                Task { await model.handleIncomingURL(url) }
+            }
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             if let header = headerText {
                 PageHeader(header.title, subtitle: header.subtitle)
@@ -344,6 +352,7 @@ struct BankConnectView: View {
                     done: !model.applicationIDInput.trimmingCharacters(in: .whitespaces).isEmpty
                 )
                 copyRow("Als Redirect-URL eintragen", BankConnectModel.setupRedirectURL)
+                copyRow("Optional zusätzlich eintragen (Rücksprung in die App)", EnableBankingProviderFactory.appRedirectURL)
                 if let privacy = BankConnectModel.privacyPolicyURL, let terms = BankConnectModel.termsURL {
                     copyRow("Als Privacy-URL eintragen", privacy)
                     copyRow("Als Terms-URL eintragen", terms)
@@ -971,6 +980,12 @@ struct BankConnectView: View {
             }
 
             Section {
+                if model.usesAppRedirect {
+                    Label("Nach der Freigabe kehrt die Anmeldung von selbst hierher zurück. Falls nicht, die Adresse unten einfügen.", systemImage: "arrow.uturn.backward.circle")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 setupStep(
                     3,
                     "Adresse einfügen",
