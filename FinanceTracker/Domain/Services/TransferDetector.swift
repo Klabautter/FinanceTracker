@@ -30,12 +30,15 @@ struct TransferDetector: Sendable {
         guard maxDaysApart >= 0, amountTolerance >= 0 else { return [] }
 
         let policy = CashflowPolicy.shared
-        let outflows = transactions.filter {
-            $0.status.isEffective
-                && policy.contribution(for: $0).isSpendingLike
-                && $0.amount.isNegative
+        // Nur die benötigten Felder sortieren, keine Kopien ganzer
+        // Buchungen (bei 100.000 Buchungen sonst rund 80 MB zusätzlich).
+        let outflows = transactions.compactMap { transaction -> TransferDebit? in
+            guard transaction.status.isEffective,
+                  policy.contribution(for: transaction).isSpendingLike,
+                  transaction.amount.isNegative else { return nil }
+            return TransferDebit(transaction)
         }
-        .sorted(by: debitComesBefore)
+        .sorted(by: TransferDebit.comesBefore)
 
         let inflows = transactions.filter { transaction in
             transaction.status.isEffective
@@ -82,7 +85,25 @@ struct TransferDetector: Sendable {
         return candidates
     }
 
-    private func debitComesBefore(_ lhs: Transaction, _ rhs: Transaction) -> Bool {
+}
+
+/// Eine Abbuchung für den Abgleich: nur die Felder, die er braucht.
+private struct TransferDebit {
+    let id: UUID
+    let accountID: UUID
+    let bookedAt: Date?
+    let displayDate: Date
+    let amount: Money
+
+    init(_ transaction: Transaction) {
+        id = transaction.id
+        accountID = transaction.accountID
+        bookedAt = transaction.bookedAt
+        displayDate = transaction.displayDate
+        amount = transaction.amount
+    }
+
+    static func comesBefore(_ lhs: TransferDebit, _ rhs: TransferDebit) -> Bool {
         let lhsBookedAt = lhs.bookedAt ?? .distantPast
         let rhsBookedAt = rhs.bookedAt ?? .distantPast
         if lhsBookedAt != rhsBookedAt { return lhsBookedAt < rhsBookedAt }

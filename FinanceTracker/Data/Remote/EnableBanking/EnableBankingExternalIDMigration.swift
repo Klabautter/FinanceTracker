@@ -31,20 +31,22 @@ struct EnableBankingExternalIDMigration: Sendable {
 
     @discardableResult
     func run(accountIDs: Set<UUID>? = nil) async throws -> Outcome {
-        var query = TransactionQuery()
-        query.sources = [.openBanking]
-        if let accountIDs { query.accountIDs = accountIDs }
-        let transactions = try await transactionRepository.transactions(matching: query)
-            .filter { $0.externalID?.hasPrefix("eb-") == true }
-
-        // Gruppen je Konto + Währung + stabiler ID.
-        var groups: [String: [Transaction]] = [:]
-        for transaction in transactions {
-            guard let externalID = transaction.externalID else { continue }
-            let stable = Self.stableID(for: externalID) ?? externalID
-            let key = "\(transaction.accountID.uuidString)|\(transaction.amount.currency.rawValue)|\(stable)"
-            groups[key, default: []].append(transaction)
+        // Läuft bei jedem Start: Über die leichte Projection nur die Gruppen
+        // finden, in denen etwas zu tun ist (alte ID oder mehrere Zeilen),
+        // und nur deren Buchungen vollständig laden. Bei 100.000 Buchungen
+        // hielte ein Voll-Load sonst rund 500 MB.
+        let lightGroups = Self.groups(of: try await transactionRepository.reviewCandidateTransactions(), accountIDs: accountIDs)
+        let candidateIDs = lightGroups.values
+            .filter { rows in rows.count > 1 || rows.contains { $0.externalID.flatMap(Self.stableID(for:)) != nil } }
+            .flatMap { $0.map(\.id) }
+        guard !candidateIDs.isEmpty else { return Outcome() }
+        var transactions: [Transaction] = []
+        for start in stride(from: 0, to: candidateIDs.count, by: 1_000) {
+            transactions += try await transactionRepository.transactions(
+                ids: Set(candidateIDs[start..<min(start + 1_000, candidateIDs.count)])
+            )
         }
+        let groups = Self.groups(of: transactions, accountIDs: accountIDs)
 
         var updates: [Transaction] = []
         var deletions = Set<UUID>()
@@ -89,6 +91,19 @@ struct EnableBankingExternalIDMigration: Sendable {
             try await transactionRepository.upsert(updates)
         }
         return outcome
+    }
+
+    /// Gruppen je Konto + Währung + stabiler ID (nur Enable-Banking-Zeilen).
+    private static func groups(of transactions: [Transaction], accountIDs: Set<UUID>?) -> [String: [Transaction]] {
+        var groups: [String: [Transaction]] = [:]
+        for transaction in transactions where transaction.source == .openBanking {
+            if let accountIDs, !accountIDs.contains(transaction.accountID) { continue }
+            guard let externalID = transaction.externalID, externalID.hasPrefix("eb-") else { continue }
+            let stable = Self.stableID(for: externalID) ?? externalID
+            let key = "\(transaction.accountID.uuidString)|\(transaction.amount.currency.rawValue)|\(stable)"
+            groups[key, default: []].append(transaction)
+        }
+        return groups
     }
 
     private static func isSameBooking(_ lhs: Transaction, _ rhs: Transaction) -> Bool {

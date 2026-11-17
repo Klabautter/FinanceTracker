@@ -144,44 +144,43 @@ final class LocalTransactionRepository: TransactionRepository {
 
     /// WP13/WP14 (§98): Leichte Review-Projection, propertiesToFetch-Pfad.
     func reviewCandidateTransactions() async throws -> [Transaction] {
-        // Große Bestände: SwiftData legt jede Zeile als Objekt an, auf einem
-        // Actor nacheinander (100.000 Zeilen: ~3 s). In Zeitscheiben nach
-        // Anlagezeitpunkt auf eigene Actors (eigene Verbindungen) verteilt
-        // lesen; SQLite erlaubt im WAL-Modus parallele Leser. Jede Zeile
-        // liegt in genau einer Scheibe; die äußeren Scheiben sind offen,
-        // damit auch eine zwischendurch gespeicherte Zeile dabei ist.
+        // Große Bestände: SwiftData legt jede Zeile als Objekt an (rund
+        // 9 KB je Zeile) und gibt den Speicher danach nicht ans System
+        // zurück. Deshalb in Scheiben von etwa `lightRowSliceSize` Zeilen
+        // nach Buchungsdatum lesen, je Scheibe ein eigener, kurzlebiger
+        // Actor (eigene Verbindung), höchstens `lightRowConcurrency`
+        // gleichzeitig: Das begrenzt die Speicherspitze und nutzt mehrere
+        // Kerne. Jede Zeile liegt in genau einer Scheibe; die äußeren
+        // Scheiben sind offen, damit auch eine zwischendurch gespeicherte
+        // Zeile dabei ist.
         let count = try await persistence.countTransactions()
-        guard count >= Self.parallelLightRowThreshold,
-              let range = try await persistence.transactionCreatedAtRange() else {
+        guard count >= Self.lightRowSliceSize * 2 else {
             return try await persistence.loadReviewCandidateTransactions()
         }
-        let parts = Self.parallelLightRowParts
-        let span = range.upperBound.timeIntervalSince(range.lowerBound)
-        let bounds: [Date] = (0...parts).map { index in
-            switch index {
-            case 0: .distantPast
-            case parts: .distantFuture
-            default: range.lowerBound.addingTimeInterval(span * Double(index) / Double(parts))
-            }
-        }
+        let slices = try await persistence.lightRowSlices(sliceSize: Self.lightRowSliceSize)
         let container = modelContainer
         return try await withThrowingTaskGroup(of: [Transaction].self) { group in
-            for index in 0..<parts {
-                let from = bounds[index], until = bounds[index + 1]
+            var pending = slices[...]
+            func startNext() {
+                guard let slice = pending.popFirst() else { return }
                 group.addTask {
                     try await PersistenceModelActor(modelContainer: container)
-                        .loadReviewCandidateTransactions(createdFrom: from, until: until)
+                        .loadReviewCandidateTransactions(slice: slice)
                 }
             }
+            for _ in 0..<Self.lightRowConcurrency { startNext() }
             var all: [Transaction] = []
             all.reserveCapacity(count)
-            for try await part in group { all += part }
+            for try await part in group {
+                all += part
+                startNext()
+            }
             return all
         }
     }
 
-    static let parallelLightRowThreshold = 20_000
-    static let parallelLightRowParts = 4
+    static let lightRowSliceSize = 2_500
+    static let lightRowConcurrency = 4
 
     func transactions(ids: Set<UUID>) async throws -> [Transaction] {
         try await persistence.loadTransactions(ids: ids)

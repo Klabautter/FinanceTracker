@@ -136,14 +136,14 @@ struct ReviewQueueBuilder: Sendable {
             }
         }
 
-        let byID = Dictionary(uniqueKeysWithValues: transactions.map { ($0.id, $0) })
+        let unreviewedIDs = Set(transactions.lazy.filter { !$0.reviewed }.map(\.id))
         let transferCandidateCount = transferDetector.detect(
             transactions: transactions,
             baseCurrency: baseCurrency,
             calendar: calendar
         ).reduce(into: 0) { count, candidate in
-            if byID[candidate.debitTransactionID]?.reviewed == false { count += 1 }
-            if byID[candidate.creditTransactionID]?.reviewed == false { count += 1 }
+            if unreviewedIDs.contains(candidate.debitTransactionID) { count += 1 }
+            if unreviewedIDs.contains(candidate.creditTransactionID) { count += 1 }
         }
 
         return ReviewSummary(

@@ -68,7 +68,7 @@ actor ECBFXHistory {
             request.timeoutInterval = 30
             let (data, response) = try await transport.send(request)
             guard (200..<300).contains(response.statusCode) else { throw ECBFXError.badStatus(response.statusCode) }
-            var days = try Self.parseHistory(data).filter { $0.key >= Self.earliestKeptDay }
+            var days = try Self.parseHistory(data, earliestDay: Self.earliestKeptDay)
             if let existing = loaded?.rates {
                 for key in existing.dayKeys where days[key] == nil {
                     days[key] = existing.rates(forDayKey: key)
@@ -86,29 +86,38 @@ actor ECBFXHistory {
 
     /// `<Cube time='2026-10-30'><Cube currency='USD' rate='1.0821'/>…</Cube>`
     /// zu yyyymmdd → 1 Einheit in EUR. Ungültige Kurse werden verworfen.
-    static func parseHistory(_ data: Data) throws -> [Int: [CurrencyCode: Decimal]] {
-        guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
-            throw ECBFXError.invalidPayload
-        }
-        let ns = text as NSString
-        let dayRegex = try NSRegularExpression(pattern: #"<Cube\s+time=["'](\d{4})-(\d{2})-(\d{2})["']\s*>"#)
-        let rateRegex = try NSRegularExpression(pattern: #"currency=["']([A-Z]{3})["']\s+rate=["']([0-9.]+)["']"#)
-        let dayMatches = dayRegex.matches(in: text, range: NSRange(location: 0, length: ns.length))
-        var result: [Int: [CurrencyCode: Decimal]] = [:]
-        for (index, match) in dayMatches.enumerated() {
-            guard let year = Int(ns.substring(with: match.range(at: 1))),
-                  let month = Int(ns.substring(with: match.range(at: 2))),
-                  let day = Int(ns.substring(with: match.range(at: 3))) else { continue }
-            let start = match.range.location + match.range.length
-            let end = index + 1 < dayMatches.count ? dayMatches[index + 1].range.location : ns.length
-            var rates: [CurrencyCode: Decimal] = [:]
-            for rate in rateRegex.matches(in: text, range: NSRange(location: start, length: end - start)) {
-                guard let perEUR = Decimal(string: ns.substring(with: rate.range(at: 2))), perEUR > 0 else { continue }
-                rates[CurrencyCode(ns.substring(with: rate.range(at: 1)))] = Decimal(1) / perEUR
+    /// Tage vor `earliestDay` werden übersprungen, bevor ihre Kurse gelesen
+    /// werden; die Zwischenobjekte der Regex-Suche gibt ein Autorelease-Pool
+    /// je Tag frei (die volle Historie hat über 6.000 Tage).
+    static func parseHistory(_ data: Data, earliestDay: Int = 0) throws -> [Int: [CurrencyCode: Decimal]] {
+        try autoreleasepool {
+            guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
+                throw ECBFXError.invalidPayload
             }
-            if !rates.isEmpty { result[year * 10_000 + month * 100 + day] = rates }
+            let ns = text as NSString
+            let dayRegex = try NSRegularExpression(pattern: #"<Cube\s+time=["'](\d{4})-(\d{2})-(\d{2})["']\s*>"#)
+            let rateRegex = try NSRegularExpression(pattern: #"currency=["']([A-Z]{3})["']\s+rate=["']([0-9.]+)["']"#)
+            let dayMatches = dayRegex.matches(in: text, range: NSRange(location: 0, length: ns.length))
+            var result: [Int: [CurrencyCode: Decimal]] = [:]
+            for (index, match) in dayMatches.enumerated() {
+                autoreleasepool {
+                    guard let year = Int(ns.substring(with: match.range(at: 1))),
+                          let month = Int(ns.substring(with: match.range(at: 2))),
+                          let day = Int(ns.substring(with: match.range(at: 3))) else { return }
+                    let key = year * 10_000 + month * 100 + day
+                    guard key >= earliestDay else { return }
+                    let start = match.range.location + match.range.length
+                    let end = index + 1 < dayMatches.count ? dayMatches[index + 1].range.location : ns.length
+                    var rates: [CurrencyCode: Decimal] = [:]
+                    for rate in rateRegex.matches(in: text, range: NSRange(location: start, length: end - start)) {
+                        guard let perEUR = Decimal(string: ns.substring(with: rate.range(at: 2))), perEUR > 0 else { continue }
+                        rates[CurrencyCode(ns.substring(with: rate.range(at: 1)))] = Decimal(1) / perEUR
+                    }
+                    if !rates.isEmpty { result[key] = rates }
+                }
+            }
+            return result
         }
-        return result
     }
 
     // MARK: - Datei-Cache

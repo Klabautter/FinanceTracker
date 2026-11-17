@@ -2,6 +2,28 @@ import Foundation
 @preconcurrency import SwiftData
 
 /// Teil von `PersistenceModelActor` (nach Thema aufgeteilt, Roadmap 7.3).
+/// Teil einer in Scheiben gelesenen Abfrage (siehe
+/// `LocalTransactionRepository.reviewCandidateTransactions`).
+enum LightRowSlice: Sendable {
+    case withoutDate
+    case dated(from: Date?, until: Date?)
+
+    var predicate: Predicate<SDTransactionEntity> {
+        switch self {
+        case .withoutDate:
+            return #Predicate<SDTransactionEntity> { $0.effectiveDateValue == nil }
+        case .dated(nil, nil):
+            return #Predicate<SDTransactionEntity> { $0.effectiveDateValue != nil }
+        case .dated(let from?, nil):
+            return #Predicate<SDTransactionEntity> { $0.effectiveDateValue != nil && $0.effectiveDateValue! >= from }
+        case .dated(nil, let until?):
+            return #Predicate<SDTransactionEntity> { $0.effectiveDateValue != nil && $0.effectiveDateValue! < until }
+        case .dated(let from?, let until?):
+            return #Predicate<SDTransactionEntity> { $0.effectiveDateValue != nil && $0.effectiveDateValue! >= from && $0.effectiveDateValue! < until }
+        }
+    }
+}
+
 extension PersistenceModelActor {
     func loadTransactionPage(
         intervalStart: Date?,
@@ -357,24 +379,46 @@ extension PersistenceModelActor {
 
     // MARK: - WP20: Store-seitige Direct-ID-Lookups (fetchLimit 1)
 
-    /// Frühester und spätester Anlagezeitpunkt (für das Aufteilen großer
-    /// Abfragen auf mehrere Actors); `nil` ohne Buchungen.
-    func transactionCreatedAtRange() throws -> ClosedRange<Date>? {
-        var first = FetchDescriptor<SDTransactionEntity>(sortBy: [SortDescriptor(\.createdAt, order: .forward)])
-        first.fetchLimit = 1
-        first.propertiesToFetch = [\.createdAt]
-        var last = FetchDescriptor<SDTransactionEntity>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        last.fetchLimit = 1
-        last.propertiesToFetch = [\.createdAt]
-        guard let lower = try modelContext.fetch(first).first?.createdAt,
-              let upper = try modelContext.fetch(last).first?.createdAt else { return nil }
-        return lower...upper
+    /// Grenzen für das Lesen in gleich großen Scheiben: jedes
+    /// `sliceSize`-te Buchungsdatum über den Index (`effectiveDateValue`),
+    /// streng aufsteigend. Leer, wenn alles in eine Scheibe passt.
+    func effectiveDateSliceBounds(sliceSize: Int) throws -> [Date] {
+        let dated = try modelContext.fetchCount(FetchDescriptor<SDTransactionEntity>(
+            predicate: #Predicate { $0.effectiveDateValue != nil }
+        ))
+        var bounds: [Date] = []
+        for offset in stride(from: sliceSize, to: dated, by: sliceSize) {
+            var descriptor = FetchDescriptor<SDTransactionEntity>(
+                predicate: #Predicate { $0.effectiveDateValue != nil },
+                sortBy: [SortDescriptor(\.effectiveDateValue, order: .forward)]
+            )
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = 1
+            descriptor.propertiesToFetch = [\.effectiveDateValue]
+            guard let date = try modelContext.fetch(descriptor).first?.effectiveDateValue else { continue }
+            if let last = bounds.last, date <= last { continue }
+            bounds.append(date)
+        }
+        return bounds
     }
 
-    /// Wie `loadReviewCandidateTransactions()`, aber nur Zeilen mit
-    /// `createdAt` in `[from, until)`: ein Teil einer parallelen Abfrage.
-    func loadReviewCandidateTransactions(createdFrom from: Date, until: Date) throws -> [Transaction] {
-        try loadReviewCandidateTransactions(predicate: #Predicate { $0.createdAt >= from && $0.createdAt < until })
+    /// Eine Scheibe der leichten Projection: Buchungsdatum in
+    /// `[from, until)`, offene Enden mit `nil`. `withoutDate` liest die
+    /// Zeilen ohne Buchungsdatum.
+    func loadReviewCandidateTransactions(slice: LightRowSlice) throws -> [Transaction] {
+        try loadReviewCandidateTransactions(predicate: slice.predicate)
+    }
+
+    /// Alle Scheiben über den ganzen Bestand (siehe `effectiveDateSliceBounds`).
+    func lightRowSlices(sliceSize: Int) throws -> [LightRowSlice] {
+        var slices: [LightRowSlice] = [.withoutDate]
+        var lower: Date?
+        for bound in try effectiveDateSliceBounds(sliceSize: sliceSize) {
+            slices.append(.dated(from: lower, until: bound))
+            lower = bound
+        }
+        slices.append(.dated(from: lower, until: nil))
+        return slices
     }
 
     /// WP13/WP14 (§98/§103): Leichte Review-Projection, nur die Felder,
@@ -388,7 +432,7 @@ extension PersistenceModelActor {
     private func loadReviewCandidateTransactions(predicate: Predicate<SDTransactionEntity>?) throws -> [Transaction] {
         var descriptor = FetchDescriptor<SDTransactionEntity>(predicate: predicate)
         descriptor.propertiesToFetch = [
-            \.id, \.accountID, \.sourceRaw, \.statusRaw, \.kindRaw,
+            \.id, \.accountID, \.sourceRaw, \.externalID, \.statusRaw, \.kindRaw,
             \.amountValue, \.amountCurrencyRaw,
             \.bookedAt, \.authorizedAt, \.effectiveDateValue,
             \.rawDescription, \.rawMerchantName, \.merchantID, \.merchantDisplayName,
@@ -415,6 +459,7 @@ extension PersistenceModelActor {
                 id: row.id,
                 accountID: row.accountID,
                 source: source,
+                externalID: row.externalID,
                 status: status,
                 kind: kind,
                 amount: Money(amount: amountValue, currency: currency),

@@ -38,24 +38,31 @@ actor PersistenceModelActor {
         matching rules: [CategoryRule],
         assignableCategoryIDs: Set<Category.ID>
     ) throws -> Set<UUID> {
-        let descriptor = FetchDescriptor<SDTransactionEntity>(
-            predicate: #Predicate { $0.categoryID == nil }
-        )
         let compiledRules = CategoryRuleEngine().compile(
             rules,
             assignableCategoryIDs: assignableCategoryIDs
         )
         var changedIDs = Set<UUID>()
-
-        for row in try modelContext.fetch(descriptor) {
-            var transaction = try row.toDomain()
-            guard compiledRules.apply(to: &transaction) else { continue }
-            row.categoryID = transaction.categoryID
-            row.updatedAt = Date()
-            changedIDs.insert(row.id)
-        }
-        if modelContext.hasChanges {
-            try modelContext.save()
+        // Scheibenweise mit eigenem, kurzlebigem Kontext: Bei 100.000
+        // offenen Buchungen hielte ein Durchgang sonst alle Zeilen als
+        // Objekte im Speicher (siehe `lightRowSlices`).
+        for slice in try lightRowSlices(sliceSize: 5_000) {
+            let context = ModelContext(modelContainer)
+            context.autosaveEnabled = false
+            let range = slice.predicate
+            let descriptor = FetchDescriptor<SDTransactionEntity>(
+                predicate: #Predicate { $0.categoryID == nil && range.evaluate($0) }
+            )
+            for row in try context.fetch(descriptor) {
+                var transaction = try row.toDomain()
+                guard compiledRules.apply(to: &transaction) else { continue }
+                row.categoryID = transaction.categoryID
+                row.updatedAt = Date()
+                changedIDs.insert(row.id)
+            }
+            if context.hasChanges {
+                try context.save()
+            }
         }
         return changedIDs
     }
@@ -1123,32 +1130,55 @@ actor PersistenceModelActor {
     /// Einmalige Reparatur: Zeilen, deren Buchung fehlt (frühere Lücken im
     /// Import-Rückgängig), blockierten die Wiederherstellung jedes späteren
     /// Backups. Speichert selbst; liefert die Anzahl entfernter Zeilen.
+    /// Läuft bei jedem Start. Damit der Speicher auch bei 100.000
+    /// Buchungen klein bleibt (der Suchindex allein hat eine Zeile je
+    /// Buchung), werden die abhängigen Zeilen in Stücken mit eigenem,
+    /// kurzlebigem Kontext gelesen und nur die darin genannten Buchungen
+    /// nachgeschlagen. Gelöscht wird nur, was als verwaist bestätigt ist.
     func purgeOrphanedTransactionDependents() throws -> Int {
-        var idDescriptor = FetchDescriptor<SDTransactionEntity>()
-        idDescriptor.propertiesToFetch = [\.id]
-        let existing = Set(try modelContext.fetch(idDescriptor).map(\.id))
         var removed = 0
-        func purge<T: PersistentModel>(_ type: T.Type, _ transactionID: (T) -> UUID) throws {
-            for row in try modelContext.fetch(FetchDescriptor<T>()) where !existing.contains(transactionID(row)) {
-                modelContext.delete(row)
-                removed += 1
-            }
-        }
-        do {
-            try purge(SDTransactionAnnotationEntity.self) { $0.transactionID }
-            try purge(SDTransactionSplitLineEntity.self) { $0.parentTransactionID }
-            try purge(SDTransactionCollectionOverrideEntity.self) { $0.transactionID }
-            try purge(SDRecurringOccurrenceEntity.self) { $0.transactionID }
-            try purge(SDSharedExpenseShareEntity.self) { $0.transactionID }
-            try purge(SDTransactionSearchEntity.self) { $0.transactionID }
-            try purge(SDTransactionTagEntity.self) { $0.transactionID }
-            try purge(SDTransactionAttachmentEntity.self) { $0.transactionID }
-            if modelContext.hasChanges { try modelContext.save() }
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
+        removed += try purgeOrphans(SDTransactionAnnotationEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
+        removed += try purgeOrphans(SDTransactionSplitLineEntity.self, \.parentTransactionID) { ids in #Predicate { ids.contains($0.parentTransactionID) } }
+        removed += try purgeOrphans(SDTransactionCollectionOverrideEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
+        removed += try purgeOrphans(SDRecurringOccurrenceEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
+        removed += try purgeOrphans(SDSharedExpenseShareEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
+        removed += try purgeOrphans(SDTransactionSearchEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
+        removed += try purgeOrphans(SDTransactionTagEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
+        removed += try purgeOrphans(SDTransactionAttachmentEntity.self, \.transactionID) { ids in #Predicate { ids.contains($0.transactionID) } }
         return removed
+    }
+
+    private func purgeOrphans<T: PersistentModel>(
+        _ type: T.Type,
+        _ transactionID: KeyPath<T, UUID>,
+        referencing: (Set<UUID>) -> Predicate<T>
+    ) throws -> Int {
+        let chunkSize = 2_000
+        var orphanIDs = Set<UUID>()
+        var offset = 0
+        while true {
+            let context = ModelContext(modelContainer)
+            var descriptor = FetchDescriptor<T>()
+            descriptor.propertiesToFetch = [transactionID]
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = chunkSize
+            let referenced = Set(try context.fetch(descriptor).map { $0[keyPath: transactionID] })
+            if referenced.isEmpty { break }
+            var existingDescriptor = FetchDescriptor<SDTransactionEntity>(
+                predicate: #Predicate { referenced.contains($0.id) }
+            )
+            existingDescriptor.propertiesToFetch = [\.id]
+            let existing = Set(try context.fetch(existingDescriptor).map(\.id))
+            orphanIDs.formUnion(referenced.subtracting(existing))
+            offset += chunkSize
+        }
+        guard !orphanIDs.isEmpty else { return 0 }
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let rows = try context.fetch(FetchDescriptor<T>(predicate: referencing(orphanIDs)))
+        rows.forEach(context.delete)
+        try context.save()
+        return rows.count
     }
 
     /// Löscht Buchungszeilen und alles, was nur mit ihnen Sinn ergibt:

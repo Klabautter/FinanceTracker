@@ -143,7 +143,9 @@ struct SystemCatalogSeeder {
     /// Buchungen mit einem starken Textsignal zu Transfers. Eine User-Regel,
     /// die eine andere Kategorie gewählt hat, bleibt unangetastet.
     private func backfillStrongTransferSignals() async throws -> Int {
-        let all = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        let all = try await fullTransactions { transaction in
+            transaction.categoryID == Category.transfers.id && transaction.kind != .transfer
+        }
         let annotations = try await dependencies.transactionAnnotationRepository.annotations(
             transactionIDs: Set(all.map(\.id))
         )
@@ -190,7 +192,12 @@ struct SystemCatalogSeeder {
         with catalog: [CategoryRule],
         categories: [Category]
     ) async throws -> Int {
-        let all = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        let all = try await fullTransactions { transaction in
+            PaymentIntermediaryResolver.underlyingMerchant(
+                rawMerchantName: transaction.rawMerchantName,
+                rawDescription: transaction.rawDescription
+            ) != nil
+        }
         let userRules = try await dependencies.ruleRepository.rules().filter { $0.origin == .user }
         let assignableCategoryIDs = Set(CategoryHierarchy().assignableCategories(in: categories).map(\.id))
         let rules = CategoryRuleEngine().compile(userRules + catalog, assignableCategoryIDs: assignableCategoryIDs)
@@ -249,7 +256,9 @@ struct SystemCatalogSeeder {
         try await renameCommitmentsAfterMerchants()
         guard !renamed.isEmpty else { return 0 }
         try await dependencies.merchantRepository.upsert(merchantUpdates)
-        let transactions = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
+        let transactions = try await fullTransactions { transaction in
+            transaction.merchantID.map { renamed[$0] != nil } ?? false
+        }
         let updates = transactions.compactMap { transaction -> Transaction? in
             guard let merchantID = transaction.merchantID, let name = renamed[merchantID],
                   transaction.merchantDisplayName != name else { return nil }
@@ -288,8 +297,7 @@ struct SystemCatalogSeeder {
     /// deterministischen Betragssignal-Typ, identisch zur Import-Inferenz.
     /// Nur echte Unbekannte werden angefasst (kein Überschreiben).
     private func backfillUnknownKinds() async throws -> Int {
-        let all = try await dependencies.transactionRepository.transactions(matching: TransactionQuery())
-        let unknowns = all.filter { $0.kind == .unknown }
+        let unknowns = try await fullTransactions { $0.kind == .unknown }
         guard !unknowns.isEmpty else { return 0 }
 
         let inferred = unknowns.map { transaction -> Transaction in
@@ -302,6 +310,20 @@ struct SystemCatalogSeeder {
         }
         try await dependencies.transactionRepository.upsert(inferred)
         return inferred.count
+    }
+
+    /// Die Rückfills betreffen meist wenige Buchungen: Kandidaten über die
+    /// leichte Projection finden und nur diese vollständig laden, statt
+    /// den ganzen Bestand (100.000 Buchungen: rund 700 MB je Durchgang).
+    /// Jeder Rückfill liest neu, weil der vorige Buchungen geändert hat.
+    private func fullTransactions(where isCandidate: (Transaction) -> Bool) async throws -> [Transaction] {
+        let repository = dependencies.transactionRepository
+        let ids = try await repository.reviewCandidateTransactions().filter(isCandidate).map(\.id)
+        var result: [Transaction] = []
+        for start in stride(from: 0, to: ids.count, by: 1_000) {
+            result += try await repository.transactions(ids: Set(ids[start..<min(start + 1_000, ids.count)]))
+        }
+        return result
     }
 
     private static func isUnsafeLegacyDescriptionRule(_ rule: CategoryRule) -> Bool {
