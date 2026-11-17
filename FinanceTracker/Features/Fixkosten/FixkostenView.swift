@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FixkostenView: View {
+    private let dependencies: AppDependencies
     @Environment(\.isWorkspaceActive) private var isWorkspaceActive
     @State private var model: FixkostenModel
     @State private var commitmentPendingDeletion: RecurringCommitment?
@@ -38,6 +39,7 @@ struct FixkostenView: View {
     }
 
     init(dependencies: AppDependencies) {
+        self.dependencies = dependencies
         _model = State(initialValue: FixkostenModel(dependencies: dependencies))
     }
 
@@ -126,13 +128,13 @@ struct FixkostenView: View {
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .create:
-                FixkostenCreateSheet(dependencies: model.dependencies) {
+                FixkostenCreateSheet(dependencies: dependencies) {
                     Task { await model.load() }
                 }
             case .edit(let commitment):
                 FixkostenDetailSheet(
                     commitment: commitment,
-                    dependencies: model.dependencies,
+                    dependencies: dependencies,
                     onChanged: { Task { await model.load() } }
                 )
             }
@@ -786,7 +788,7 @@ struct FixkostenView: View {
     private func formattedSummaryAmount(_ amount: Decimal) -> String {
         PrivacyAwareMoney.decimalString(
             amount,
-            currency: model.dependencies.baseCurrency,
+            currency: dependencies.baseCurrency,
             privacy: privacyState
         )
     }
@@ -1023,7 +1025,10 @@ struct FixkostenCreateSheet: View {
 @MainActor
 @Observable
 final class FixkostenCreateModel {
-    private let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository & HasTransactionRepository
+
+    private let dependencies: Dependencies
 
     var name = ""
     var direction: RecurringCommitment.Direction = .expense
@@ -1036,7 +1041,7 @@ final class FixkostenCreateModel {
     private(set) var merchantSuggestions: [ManualCommitmentMerchantSuggestions.Suggestion] = []
     private(set) var actionError: String?
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 

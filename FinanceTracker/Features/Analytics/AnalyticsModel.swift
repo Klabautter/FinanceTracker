@@ -53,6 +53,9 @@ struct AnalyticsScope: Hashable, Sendable {
 @MainActor
 @Observable
 final class AnalyticsModel {
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasFxRateProvider & HasTransactionAnnotationRepository & HasTransactionRepository & HasTransactionSplitRepository
+
     enum DateRange: String, CaseIterable, Identifiable {
         case last3Months = "Letzte 3 Monate"
         case last6Months = "Letzte 6 Monate"
@@ -95,7 +98,7 @@ final class AnalyticsModel {
         }
     }
 
-    let dependencies: AppDependencies
+    let dependencies: Dependencies
     private let calendar: Calendar
     private let effectiveTransactionResolver = EffectiveTransactionResolver()
 
@@ -189,7 +192,7 @@ final class AnalyticsModel {
 
     static let historyMonths = 12
 
-    init(dependencies: AppDependencies, calendar: Calendar = .current) {
+    init(dependencies: Dependencies, calendar: Calendar = .current) {
         self.dependencies = dependencies
         self.calendar = calendar
     }

@@ -5,7 +5,10 @@ import Foundation
 @MainActor
 @Observable
 final class FixkostenModel {
-    let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasAccountRepository & HasBaseCurrency & HasCategoryRepository & HasChangeTracker & HasRecurringCommitmentRepository & HasTransactionAnnotationRepository & HasTransactionRepository & HasUserDefaults
+
+    let dependencies: Dependencies
 
     private(set) var commitments: [RecurringCommitment] = []
     private(set) var suggestions: [RecurringSeries] = []
@@ -65,7 +68,7 @@ final class FixkostenModel {
 
     private let dismissedDefaultsKey = "dismissedRecurringKeys"
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 

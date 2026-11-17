@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AccountsView: View {
+    private let dependencies: AppDependencies
     @State private var model: AccountsModel
     @State private var activeSheet: AccountSheet?
     @State private var syncingConnectionID: UUID?
@@ -35,6 +36,7 @@ struct AccountsView: View {
     }
 
     init(dependencies: AppDependencies, pendingRoute: Binding<PaletteRoute?>) {
+        self.dependencies = dependencies
         _model = State(initialValue: AccountsModel(dependencies: dependencies))
         self.pendingRoute = pendingRoute
     }
@@ -118,7 +120,7 @@ struct AccountsView: View {
             switch sheet {
             case .addDataSource:
                 AddDataSourceView(
-                    dependencies: model.dependencies,
+                    dependencies: dependencies,
                     onDismiss: { activeSheet = nil },
                     onManualAccount: { activeSheet = .editor(nil) }
                 )
@@ -126,7 +128,7 @@ struct AccountsView: View {
                     .frame(width: 520, height: 620)
                     #endif
             case .renewal(let connection, let purpose):
-                BankConnectView(dependencies: model.dependencies, renewal: (connection, purpose)) {
+                BankConnectView(dependencies: dependencies, renewal: (connection, purpose)) {
                     activeSheet = nil
                     Task { await model.load() }
                 }
@@ -135,7 +137,7 @@ struct AccountsView: View {
                     #endif
             case .editor(let account):
                 AccountEditorSheet(
-                    dependencies: model.dependencies,
+                    dependencies: dependencies,
                     editing: account,
                     transactionCount: account.flatMap { edited in model.accounts.first { $0.id == edited.id }?.transactionCount } ?? 0,
                     onSaved: { Task { await model.load() } }
@@ -149,7 +151,7 @@ struct AccountsView: View {
                     account: account,
                     connectionName: model.connections.first(where: { $0.id == account.connectionID })?.displayName,
                     lastSync: model.connections.first(where: { $0.id == account.connectionID })?.lastSuccessfulSyncAt,
-                    dependencies: model.dependencies,
+                    dependencies: dependencies,
                     onDelete: deleteAction(for: account)
                 )
             }
@@ -196,7 +198,7 @@ struct AccountsView: View {
     private func consumePendingRoute() async {
         guard case .account(let accountID) = pendingRoute.wrappedValue else { return }
         pendingRoute.wrappedValue = nil
-        if let account = try? await model.dependencies.accountRepository.account(id: accountID) {
+        if let account = try? await dependencies.accountRepository.account(id: accountID) {
             activeSheet = .account(account)
         }
     }
@@ -308,7 +310,7 @@ struct AccountsView: View {
     private func connectionRow(_ connection: Connection) -> some View {
         // Auch der automatische Abruf und „Alle aktualisieren“ zeigen sich hier.
         let isSyncing = syncingConnectionID == connection.id
-            || model.dependencies.bankSyncCoordinator.isSyncing(connection)
+            || dependencies.bankSyncCoordinator.isSyncing(connection)
         let warning = model.consentWarning(for: connection)
         let needsReconnect = model.connectionNeedsReconnect(connection)
 

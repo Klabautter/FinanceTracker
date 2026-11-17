@@ -123,11 +123,11 @@ struct CategoriesView: View {
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .categoryEditor(let category):
-                CategoryEditorSheet(dependencies: model.dependencies, editing: category) {
+                CategoryEditorSheet(dependencies: dependencies, editing: category) {
                     Task { await model.load() }
                 }
             case .ruleBuilder:
-                RuleBuilderSheet(dependencies: model.dependencies) {
+                RuleBuilderSheet(dependencies: dependencies) {
                     Task { await model.load() }
                 }
             case .reassign(let source):

@@ -100,6 +100,7 @@ struct AnalyticsFilterControls: View {
 }
 
 struct AnalyticsView: View {
+    private let dependencies: AppDependencies
     @State private var model: AnalyticsModel
     @State private var showsFilterSheet = false
 
@@ -122,6 +123,7 @@ struct AnalyticsView: View {
         onOpenRecurring: (() -> Void)? = nil,
         onShowTransactionsInMonth: ((AnalyticsScope) -> Void)? = nil
     ) {
+        self.dependencies = dependencies
         _model = State(initialValue: AnalyticsModel(dependencies: dependencies))
         self.pendingRoute = pendingRoute
         self.onOpenRecurring = onOpenRecurring
@@ -429,7 +431,7 @@ struct AnalyticsView: View {
             if let scope = model.scope, let interval = scope.query.dateInterval {
                 CategoryDrilldownSheet(categoryID: item.categoryID, categoryName: item.name,
                                        dateInterval: interval, currency: model.currency,
-                                       dependencies: model.dependencies, scope: scope)
+                                       dependencies: dependencies, scope: scope)
             }
         }
     }
@@ -522,7 +524,7 @@ struct AnalyticsView: View {
             MerchantDetailSheet(
                 merchantName: selection.name,
                 scope: selection.scope,
-                dependencies: model.dependencies
+                dependencies: dependencies
             )
                 #if os(macOS)
                 .frame(width: 560, height: 520)

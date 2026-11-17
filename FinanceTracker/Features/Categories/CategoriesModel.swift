@@ -18,7 +18,10 @@ struct CategoryWithCount: Identifiable, Hashable, Sendable {
 @MainActor
 @Observable
 final class CategoriesModel {
-    let dependencies: AppDependencies
+    /// Nur, was dieses Model nutzt (Roadmap 7.4, `DependencyCapabilities`).
+    typealias Dependencies = any HasBudgetRepository & HasCategoryRepository & HasChangeTracker & HasMerchantRepository & HasRuleRepository & HasTransactionRepository
+
+    let dependencies: Dependencies
 
     private(set) var groups: [CategoryGroup] = []
     private(set) var rules: [CategoryRule] = []
@@ -37,7 +40,7 @@ final class CategoriesModel {
 
     var dataRevision: Int { dependencies.changeTracker.revision }
 
-    init(dependencies: AppDependencies) {
+    init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 
