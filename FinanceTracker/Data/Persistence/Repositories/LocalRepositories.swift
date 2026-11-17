@@ -83,10 +83,7 @@ final class LocalTransactionRepository: TransactionRepository {
                     sourceRaw: sourceRaw!
                 )
             case 0:
-                fetched = try await persistence.loadTransactions(
-                    intervalStart: interval.start,
-                    intervalEnd: interval.end
-                )
+                fetched = try await loadTransactionsInParallel(interval: interval)
             case 1:
                 fetched = try await persistence.loadTransactionsByAccount(
                     intervalStart: interval.start,
@@ -179,6 +176,36 @@ final class LocalTransactionRepository: TransactionRepository {
         }
     }
 
+    /// Zeitraum-Abfragen (Übersicht: sechs Monate Verlauf) legen jede Zeile
+    /// vollständig an, rund 30 µs je Zeile. Ab `parallelIntervalThreshold`
+    /// Zeilen den Zeitraum in gleich lange Teile zerlegen und parallel auf
+    /// eigenen Actors lesen; die Teile `[a, b)` ergeben genau den Zeitraum.
+    private func loadTransactionsInParallel(interval: DateInterval) async throws -> [Transaction] {
+        let count = try await persistence.countTransactions(intervalStart: interval.start, intervalEnd: interval.end)
+        guard count >= Self.parallelIntervalThreshold else {
+            return try await persistence.loadTransactions(intervalStart: interval.start, intervalEnd: interval.end)
+        }
+        let parts = Self.lightRowConcurrency
+        let bounds: [Date] = (0...parts).map { index in
+            index == parts ? interval.end : interval.start.addingTimeInterval(interval.duration * Double(index) / Double(parts))
+        }
+        let container = modelContainer
+        return try await withThrowingTaskGroup(of: [Transaction].self) { group in
+            for index in 0..<parts {
+                let start = bounds[index], end = bounds[index + 1]
+                group.addTask {
+                    try await PersistenceModelActor(modelContainer: container)
+                        .loadTransactions(intervalStart: start, intervalEnd: end)
+                }
+            }
+            var all: [Transaction] = []
+            all.reserveCapacity(count)
+            for try await part in group { all += part }
+            return all
+        }
+    }
+
+    static let parallelIntervalThreshold = 2_000
     static let lightRowSliceSize = 2_500
     static let lightRowConcurrency = 4
 

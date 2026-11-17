@@ -64,7 +64,10 @@ struct PerformanceBudgetTests {
         let clock = ContinuousClock()
         let model = DashboardModel(dependencies: dependencies)
         let (firstVisible, firstLoad) = await model.measureLoad()
+        // Der Vormonat ist vorbereitet, sobald die Übersicht steht; zurück
+        // zum laufenden Monat lädt ohne Vorbereitung.
         let monthSwitch = await clock.measure { await model.showPreviousMonth() }
+        let unpreparedMonthSwitch = await clock.measure { await model.showNextMonth() }
         let firstPage = try await clock.measure {
             _ = try await dependencies.transactionRepository.transactionPage(
                 matching: TransactionQuery(), sort: .dateDescending, offset: 0, limit: 300
@@ -112,17 +115,19 @@ struct PerformanceBudgetTests {
         let importDuration = prepareDuration + commitDuration
         print("PERF import 20k: prepare \(prepareDuration), commit \(commitDuration)")
 
-        print("PERF budget 100k: overview visible \(firstVisible), complete \(firstLoad), month switch \(monthSwitch), first page \(firstPage), search \(search) (warm \(warmSearch)), import 20k \(importDuration)")
+        print("PERF budget 100k: overview visible \(firstVisible), complete \(firstLoad), month switch \(monthSwitch) (unprepared \(unpreparedMonthSwitch)), first page \(firstPage), search \(search) (warm \(warmSearch)), import 20k \(importDuration)")
 
         #expect(model.snapshot != nil)
         #expect(imported == 20_000)
-        // Gemessen am 17.11.2026 (Debug): Übersicht sichtbar 0,26 s, erstes
-        // Laden komplett 2,7 s (vorher 4,2 s, parallele Zeitscheiben), Monatswechsel
-        // 0,26 s, erste Seite 0,01 s, Suche 0,04 s (vorher 2,6 s), Import
-        // von 20.000 Zeilen 14 s (vorher 80 s). Grenzen mit Reserve.
+        // Gemessen am 17.11.2026 (Debug): Übersicht sichtbar 0,19 s, komplett
+        // 2,6 s (vorher 4,2 s), Monatswechsel 2 ms vorbereitet, 0,26 s ohne
+        // Vorbereitung, erste Seite 0,02 s, Suche 0,07 s (vorher 2,6 s),
+        // Import von 20.000 Zeilen 14 s (vorher 80 s; optimiert 8–9 s).
+        // Grenzen mit Reserve.
         #expect(firstVisible < .seconds(1))
         #expect(firstLoad < .seconds(7))
-        #expect(monthSwitch < .milliseconds(500))
+        #expect(monthSwitch < .milliseconds(100))
+        #expect(unpreparedMonthSwitch < .milliseconds(500))
         #expect(firstPage < .milliseconds(300))
         #expect(search < .milliseconds(300))
         #expect(warmSearch < .milliseconds(300))

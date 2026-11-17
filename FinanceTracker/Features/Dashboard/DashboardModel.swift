@@ -96,6 +96,53 @@ final class DashboardModel {
     /// wechsel und Rückkehr zur Übersicht nutzen das Ergebnis weiter.
     @ObservationIgnored private var balancesCache: (revision: Int, balances: AccountBalances)?
     @ObservationIgnored private var reviewSummaryRevision: Int?
+    /// Der Vormonat, im Hintergrund vorbereitet, sobald ein Monat steht:
+    /// Sein Verlauf (sechs Monate) liest bei großen Beständen tausende
+    /// Buchungen. Gilt nur für denselben Datenstand und dieselben Zeiträume.
+    @ObservationIgnored private var prefetchedMonth: (key: PrefetchKey, task: Task<LoadDashboardResult, Error>)?
+
+    private struct PrefetchKey: Equatable {
+        let revision: Int
+        let current: DateInterval
+        let previous: DateInterval?
+        let history: DateInterval
+
+        init(revision: Int, request: LoadDashboardRequest) {
+            self.revision = revision
+            current = request.currentMonthInterval
+            previous = request.previousMonthInterval
+            history = request.historyInterval
+        }
+    }
+
+    private func dashboardRequest(monthOffset: Int, today: Date) -> LoadDashboardRequest? {
+        guard let anchor = calendar.date(byAdding: .month, value: monthOffset, to: today),
+              let currentInterval = monthInterval(containing: anchor) else { return nil }
+        return LoadDashboardRequest(
+            currentMonthInterval: currentInterval,
+            previousMonthInterval: monthInterval(containing: currentInterval.start.addingTimeInterval(-1)),
+            // Derselbe Rückblick wie in „Wiederkehrend" (letzte reale Zahlung).
+            historyInterval: RecurringOccurrenceResolver.latestPaymentPeriod(
+                endingWith: currentInterval,
+                calendar: calendar
+            )
+        )
+    }
+
+    private func loaderTask(for request: LoadDashboardRequest) -> Task<LoadDashboardResult, Error> {
+        let loader = loader
+        let baseCurrency = dependencies.baseCurrency
+        let fxRateProvider = dependencies.fxRateProvider
+        let calendar = calendar
+        return Task {
+            try await loader.execute(request, baseCurrency: baseCurrency, fxRateProvider: fxRateProvider, calendar: calendar)
+        }
+    }
+
+    private func prefetchPreviousMonth(revision: Int, today: Date) {
+        guard let request = dashboardRequest(monthOffset: monthOffset - 1, today: today) else { return }
+        prefetchedMonth = (PrefetchKey(revision: revision, request: request), loaderTask(for: request))
+    }
     private static let dismissedInsightsKey = "dismissedSpendingInsights"
 
     /// Blendet einen Hinweis dauerhaft aus (gilt für genau diese Ursache).
@@ -189,40 +236,35 @@ final class DashboardModel {
 
         let today = now()
         let isCurrentMonth = monthOffset == 0
-        guard let anchor = calendar.date(byAdding: .month, value: monthOffset, to: today),
-              let currentInterval = monthInterval(containing: anchor) else {
+        guard let request = dashboardRequest(monthOffset: monthOffset, today: today) else {
             failure = String(localized: "Der gewählte Monat konnte nicht ermittelt werden.")
             return
         }
+        let currentInterval = request.currentMonthInterval
         // Vergangene Monate werden als abgeschlossen betrachtet: Stichtag
         // ist ihr letzter Augenblick, damit Verlauf und Budgets den ganzen
         // Monat abbilden.
         let now = isCurrentMonth ? today : currentInterval.end.addingTimeInterval(-1)
-        let previousDay = currentInterval.start.addingTimeInterval(-1)
-        let previousInterval = monthInterval(containing: previousDay)
-        // Derselbe Rückblick wie in „Wiederkehrend" (letzte reale Zahlung).
-        let historyInterval = RecurringOccurrenceResolver.latestPaymentPeriod(
-            endingWith: currentInterval,
-            calendar: calendar
-        )
+        let previousInterval = request.previousMonthInterval
+        let historyInterval = request.historyInterval
 
         do {
-            let request = LoadDashboardRequest(
-                currentMonthInterval: currentInterval,
-                previousMonthInterval: previousInterval,
-                historyInterval: historyInterval
-            )
-            async let resultTask = loader.execute(
-                request,
-                baseCurrency: dependencies.baseCurrency,
-                fxRateProvider: dependencies.fxRateProvider,
-                calendar: calendar
-            )
+            // Beim Monatswechsel liegt der Monat meist schon vorbereitet bereit.
+            let key = PrefetchKey(revision: revision, request: request)
+            let prefetched = prefetchedMonth?.key == key ? prefetchedMonth?.task : nil
+            prefetchedMonth = nil
+            let resultTask = prefetched ?? loaderTask(for: request)
             let balanceConverter = await dependencies.fxRateProvider.converter()
             async let latestBatchTask = dependencies.importBatchRepository.latestBatch()
             async let transactionCountTask = dependencies.transactionRepository.count()
 
-            let result = try await resultTask
+            let result: LoadDashboardResult
+            do {
+                result = try await resultTask.value
+            } catch where prefetched != nil {
+                // Die Vorbereitung ist gescheitert: einmal regulär laden.
+                result = try await loaderTask(for: request).value
+            }
             let newLastImportBatch = try await latestBatchTask
             let newHasAnyTransactions = try await transactionCountTask > 0
 
@@ -395,6 +437,7 @@ final class DashboardModel {
             loadState = .loaded
             fxIsLoading = false
             hasLoaded = true
+            prefetchPreviousMonth(revision: revision, today: today)
             // Erst jetzt die große Abfrage: Alle Abfragen laufen über einen
             // Persistenz-Actor, parallel gestartet stünde die Monatsansicht
             // hinter ihr in der Schlange.

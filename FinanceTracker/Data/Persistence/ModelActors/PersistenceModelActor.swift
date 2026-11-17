@@ -18,6 +18,13 @@ actor PersistenceModelActor {
         return try rows.map { try $0.toDomain() }
     }
 
+    func countTransactions(intervalStart: Date, intervalEnd: Date) throws -> Int {
+        try modelContext.fetchCount(FetchDescriptor<SDTransactionEntity>(predicate: #Predicate { entity in
+            entity.effectiveDateValue != nil && entity.effectiveDateValue! >= intervalStart
+                && entity.effectiveDateValue! < intervalEnd
+        }))
+    }
+
     func loadAllTransactions() throws -> [Transaction] {
         let rows = try modelContext.fetch(FetchDescriptor<SDTransactionEntity>())
         return try rows.map { try $0.toDomain() }
