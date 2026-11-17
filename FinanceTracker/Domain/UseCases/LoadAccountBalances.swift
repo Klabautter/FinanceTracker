@@ -42,13 +42,23 @@ struct LoadAccountBalances: Sendable {
 
     /// `converter` rechnet gemeldete Stände in fremder Währung um (sichtbar
     /// markiert); ohne ihn zählen sie nicht.
-    func execute(converter: CurrencyConverter? = nil, calendar: Calendar = .current) async throws -> AccountBalances {
+    /// `knownMovements`: schon geladene Bewegungen (z. B. aus den leichten
+    /// Zeilen der Prüfzahl), damit der Bestand nicht zweimal gelesen wird.
+    func execute(
+        converter: CurrencyConverter? = nil,
+        calendar: Calendar = .current,
+        knownMovements: [AccountMovementRow]? = nil
+    ) async throws -> AccountBalances {
         async let accountsTask = accountRepository.accounts()
-        // Pushdown (Roadmap #179): Nur die für Bewegungen nötigen Felder
-        // laden statt aller vollständigen Transaktionen.
-        async let movementsTask = transactionRepository.accountMovementRows()
+        let movements: [AccountMovementRow]
+        if let knownMovements {
+            movements = knownMovements
+        } else {
+            // Pushdown (Roadmap #179): Nur die für Bewegungen nötigen Felder
+            // laden statt aller vollständigen Transaktionen.
+            movements = try await transactionRepository.accountMovementRows()
+        }
         let accounts = try await accountsTask
-        let movements = try await movementsTask
 
         var totalsByAccount: [UUID: (sum: Decimal, foreign: [(currency: CurrencyCode, date: Date)], count: Int)] = [:]
         var movementsByAccount: [UUID: [AccountBalanceCalculator.Movement]] = [:]
@@ -125,4 +135,18 @@ struct LoadAccountBalances: Sendable {
 /// Eine Buchungszeile lässt sich für den Kontostand nicht lesen.
 enum AccountBalanceLoadError: Error, Equatable, Sendable {
     case corruptRow(field: String, raw: String)
+}
+
+extension AccountMovementRow {
+    /// Bewegung aus einer (unannotierten) Buchung, gleiche Felder wie
+    /// `TransactionRepository.accountMovementRows()`.
+    init(transaction: Transaction) {
+        self.init(
+            accountID: transaction.accountID,
+            amountValue: "\(transaction.amount.amount)",
+            currencyRaw: transaction.amount.currency.rawValue,
+            statusRaw: transaction.status.rawValue,
+            date: transaction.bookedAt ?? transaction.authorizedAt ?? transaction.createdAt
+        )
+    }
 }
